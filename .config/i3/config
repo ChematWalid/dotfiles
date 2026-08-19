@@ -50,10 +50,10 @@ bindsym $mod+d exec --no-startup-id rofi -show drun -theme ~/.config/rofi/config
 bindsym $mod+space exec --no-startup-id rofi -show drun -theme ~/.config/rofi/config.rasi
 bindsym $mod+Tab exec --no-startup-id rofi -show window -theme ~/.config/rofi/config.rasi
 
-# Screenshots (Both Win+Shift+S with maim and Print with flameshot/maim)
+# Screenshots (maim)
 bindsym Mod4+Shift+s exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
-bindsym $mod+Shift+s exec --no-startup-id bash -c 'flameshot gui || maim -s | xclip -selection clipboard -t image/png'
-bindsym Print exec --no-startup-id bash -c 'flameshot gui || maim -s | xclip -selection clipboard -t image/png'
+bindsym $mod+Shift+s exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
+bindsym Print exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
 bindsym Shift+Print exec --no-startup-id bash -c 'maim | xclip -selection clipboard -t image/png'
 
 
@@ -149,7 +149,7 @@ default_floating_border pixel 0
 # Window Rules (Floating)
 for_window [class="Pavucontrol"] floating enable
 for_window [class="Lxappearance"] floating enable
-for_window [class="flameshot"] floating enable
+
 for_window [class="File-roller"] floating enable
 
 # --- Catppuccin Mocha Color Theme for i3 Windows ---
@@ -166,24 +166,12 @@ exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
 # ── Keyboard speed ───────────────────────────────
 exec_always --no-startup-id xset r rate 250 50
 
-# ── Mouse sensitivity (USB OPTICAL MOUSE id=6) ───
-exec_always --no-startup-id xinput set-prop 6 "libinput Accel Speed" 0.3
-
-# ── Flameshot screenshot bindings ────────────────
-bindsym Print exec --no-startup-id flameshot gui
-bindsym $mod+Print exec --no-startup-id flameshot full -c
-
-# ── Audio controls (PulseAudio/Pipewire) ─────────
-bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +5%
-bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -5%
-bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
-bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle
-
-# ── Media player controls ─────────────────────────
-bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause
-bindsym XF86AudioNext exec --no-startup-id playerctl next
-bindsym XF86AudioPrev exec --no-startup-id playerctl previous
+# ── Mouse sensitivity (raw input, no acceleration) ───
+exec_always --no-startup-id xinput set-prop 6 "libinput Accel Profile Enabled" 0, 1, 0
+exec_always --no-startup-id xinput set-prop 6 "libinput Accel Speed" -0.3
 
 # ── Brightness controls ───────────────────────────
 bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +10%
 bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 10%-
+exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
+focus_on_window_activation focus

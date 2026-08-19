@@ -9,15 +9,23 @@
     transparency = 10
     font = JetBrainsMono Nerd Font 10
 
+    # Click left on notification → focus that app's window
+    mouse_left_click = do_action, close_current
+    mouse_right_click = close_current
+    mouse_middle_click = close_all
+
 [urgency_low]
     background = "#1e1e2e"
     foreground = "#cdd6f4"
+    script = ~/.config/dunst/focus-app.sh
 
 [urgency_normal]
     background = "#1e1e2e"
     foreground = "#cdd6f4"
+    script = ~/.config/dunst/focus-app.sh
 
 [urgency_critical]
     background = "#1e1e2e"
     foreground = "#cdd6f4"
     frame_color = "#f38ba8"
+    script = ~/.config/dunst/focus-app.sh
