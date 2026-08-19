@@ -100,7 +100,7 @@ def update_workspaces(i3):
                         icons.append(icon)
             
             if icons:
-                new_name = f"{ws_num}: {' '.join(icons)}"
+                new_name = f"{ws_num} {' '.join(icons)}"
             else:
                 new_name = f"{ws_num}"
                 
