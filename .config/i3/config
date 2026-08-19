@@ -14,7 +14,7 @@ exec --no-startup-id nm-applet
 exec --no-startup-id blueman-applet
 exec --no-startup-id picom -b
 exec --no-startup-id dunst
-exec_always --no-startup-id "killall -q polybar; polybar main -c ~/.config/polybar/config.ini &"
+exec_always --no-startup-id ~/.config/polybar/launch.sh
 
 # Set wallpaper
 exec_always --no-startup-id feh --bg-fill /home/walid/Downloads/catppuccin-wall-dark.jpg 2>/dev/null || true
