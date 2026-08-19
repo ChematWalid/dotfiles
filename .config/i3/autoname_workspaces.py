@@ -66,7 +66,30 @@ WINDOW_ICONS = {
     'dbeaver': '󰆼',
 }
 
+# System tray and background daemons to ignore
+IGNORE_CLASSES = [
+    'nm-applet',
+    'blueman-applet',
+    'conky',
+    'polybar',
+    'i3bar',
+    'dunst',
+    'notify-osd',
+    'slop',
+    'xsettingsd'
+]
+
 DEFAULT_ICON = ''
+
+def is_ignored(window):
+    cls = (window.window_class or '').lower()
+    inst = (window.window_instance or '').lower()
+    name = (window.name or '').lower()
+    
+    for ign in IGNORE_CLASSES:
+        if ign in cls or ign in inst or ign in name:
+            return True
+    return False
 
 def get_icon(window):
     if not window:
@@ -94,7 +117,7 @@ def update_workspaces(i3):
             windows = ws.leaves()
             icons = []
             for w in windows:
-                if w.window or w.name:
+                if (w.window or w.name) and not is_ignored(w):
                     icon = get_icon(w)
                     if icon not in icons:
                         icons.append(icon)
