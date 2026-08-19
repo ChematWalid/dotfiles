@@ -11,6 +11,7 @@ font pango:JetBrainsMono Nerd Font 10
 exec --no-startup-id dex --autostart --environment i3
 exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
 exec --no-startup-id nm-applet
+exec --no-startup-id blueman-applet
 exec --no-startup-id picom -b
 exec --no-startup-id dunst
 exec_always --no-startup-id ~/.config/polybar/launch.sh
@@ -139,7 +140,7 @@ bindsym $mod+Shift+r restart
 
 # Exit / Power
 bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'Exit i3?' -B 'Yes, exit' 'i3-msg exit'"
-bindsym $mod+Shift+x exec i3lock -c 1e1e2e
+bindsym $mod+Shift+x exec bash ~/.local/bin/lock.sh
 
 # Window layout defaults
 default_border pixel 0
