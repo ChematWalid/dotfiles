@@ -1,0 +1,88 @@
+# Catppuccin Mocha Starship Prompt
+format = """
+[┌───────────────────>](bold #cba6f7)
+[│](bold #cba6f7) $directory$git_branch$git_status$nodejs$golang$rust$java$python$docker_context$cmd_duration
+[└─>](bold #cba6f7) $character"""
+
+palette = "catppuccin_mocha"
+
+[palettes.catppuccin_mocha]
+rosewater = "#f5e0dc"
+flamingo = "#f2cdcd"
+pink = "#f5c2e7"
+mauve = "#cba6f7"
+red = "#f38ba8"
+maroon = "#eba0ac"
+peach = "#fab387"
+yellow = "#f9e2af"
+green = "#a6e3a1"
+teal = "#94e2d5"
+sky = "#89dceb"
+sapphire = "#74c7ec"
+blue = "#89b4fa"
+lavender = "#b4befe"
+text = "#cdd6f4"
+subtext1 = "#bac2de"
+subtext0 = "#a6adc8"
+overlay2 = "#9399b2"
+overlay1 = "#7f849c"
+overlay0 = "#6c7086"
+surface2 = "#585b70"
+surface1 = "#45475a"
+surface0 = "#313244"
+base = "#1e1e2e"
+mantle = "#181825"
+crust = "#11111b"
+
+[character]
+success_symbol = "[λ](bold #a6e3a1) "
+error_symbol = "[✗](bold #f38ba8) "
+
+[directory]
+style = "bold #89b4fa"
+truncation_length = 4
+truncate_to_repo = true
+
+[git_branch]
+style = "bold #cba6f7"
+format = " on [$symbol$branch]($style)"
+symbol = " "
+
+[git_status]
+style = "bold #f38ba8"
+format = "([$all_status$ahead_behind]($style))"
+
+[nodejs]
+symbol = " "
+style = "bold #a6e3a1"
+format = " via [$symbol($version )]($style)"
+
+[golang]
+symbol = " "
+style = "bold #74c7ec"
+format = " via [$symbol($version )]($style)"
+
+[rust]
+symbol = " "
+style = "bold #fab387"
+format = " via [$symbol($version )]($style)"
+
+[java]
+symbol = " "
+style = "bold #f38ba8"
+format = " via [$symbol($version )]($style)"
+
+[python]
+symbol = " "
+style = "bold #f9e2af"
+format = " via [${symbol}${pyenv_prefix}(${version} )(\\($virtualenv\\) )]($style)"
+
+[docker_context]
+symbol = " "
+style = "bold #89b4fa"
+format = " via [$symbol$context]($style)"
+
+[cmd_duration]
+min_time = 2_000
+style = "bold #f9e2af"
+format = " took [$duration]($style)"
