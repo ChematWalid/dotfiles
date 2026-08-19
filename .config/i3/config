@@ -162,3 +162,28 @@ client.placeholder      #181825 #181825 #cdd6f4 #181825   #181825
 client.background       #1e1e2e
 exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
 exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
+
+# ── Keyboard speed ───────────────────────────────
+exec_always --no-startup-id xset r rate 250 50
+
+# ── Mouse sensitivity (USB OPTICAL MOUSE id=6) ───
+exec_always --no-startup-id xinput set-prop 6 "libinput Accel Speed" 0.3
+
+# ── Flameshot screenshot bindings ────────────────
+bindsym Print exec --no-startup-id flameshot gui
+bindsym $mod+Print exec --no-startup-id flameshot full -c
+
+# ── Audio controls (PulseAudio/Pipewire) ─────────
+bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
+bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle
+
+# ── Media player controls ─────────────────────────
+bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause
+bindsym XF86AudioNext exec --no-startup-id playerctl next
+bindsym XF86AudioPrev exec --no-startup-id playerctl previous
+
+# ── Brightness controls ───────────────────────────
+bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +10%
+bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 10%-
