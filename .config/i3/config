@@ -175,3 +175,4 @@ bindsym XF86MonBrightnessUp exec --no-startup-id brightnessctl set +10%
 bindsym XF86MonBrightnessDown exec --no-startup-id brightnessctl set 10%-
 exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
 focus_on_window_activation focus
+exec_always --no-startup-id "pkill -f autoname_workspaces.py; ~/.config/i3/autoname_workspaces.py &"
