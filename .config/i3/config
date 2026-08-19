@@ -185,5 +185,9 @@ exec_always --no-startup-id setxkbmap -layout "be,ara" -option "grp:alt_shift_to
 
 # ── CopyQ Clipboard Manager (Alt+V & Win+V) ──────
 for_window [class="copyq"] floating enable, resize set 650 500, move position center
+
+# ── CopyQ Clipboard Manager (Works in all layouts including Arabic) ──
+bindcode Mod1+55 exec --no-startup-id copyq toggle
+bindcode Mod4+55 exec --no-startup-id copyq toggle
 bindsym Mod1+v exec --no-startup-id copyq toggle
 bindsym Mod4+v exec --no-startup-id copyq toggle
