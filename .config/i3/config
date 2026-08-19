@@ -1,0 +1,164 @@
+# i3 config file (v4) - Catppuccin Mocha Rice
+# Mod1 = Alt (Primary $mod), Mod4 = Super / Windows Key
+
+set $mod Mod1
+set $super Mod4
+
+# Font for window titles
+font pango:JetBrainsMono Nerd Font 10
+
+# Autostart applications
+exec --no-startup-id dex --autostart --environment i3
+exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
+exec --no-startup-id nm-applet
+exec --no-startup-id blueman-applet
+exec --no-startup-id picom -b
+exec --no-startup-id dunst
+exec_always --no-startup-id "killall -q polybar; polybar main -c ~/.config/polybar/config.ini &"
+
+# Set wallpaper
+exec_always --no-startup-id feh --bg-fill /home/walid/Downloads/catppuccin-wall-dark.jpg 2>/dev/null || true
+
+# Audio volume controls via PipeWire / PulseAudio
+bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
+bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle
+
+# Media player controls
+bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause 2>/dev/null
+bindsym XF86AudioNext exec --no-startup-id playerctl next 2>/dev/null
+bindsym XF86AudioPrev exec --no-startup-id playerctl previous 2>/dev/null
+
+# Drag floating windows
+floating_modifier $mod
+tiling_drag modifier titlebar
+
+# --- Core Keybindings ---
+# Terminal
+bindsym $mod+Return exec kitty
+bindsym $super+Return exec alacritty
+
+# Kill focused window
+bindsym $mod+Shift+q kill
+bindsym $mod+Shift+a kill
+bindsym $mod+q kill
+bindsym Mod1+F4 kill
+
+# Application Launcher (Rofi)
+bindsym $mod+d exec --no-startup-id rofi -show drun -theme ~/.config/rofi/config.rasi
+bindsym $mod+space exec --no-startup-id rofi -show drun -theme ~/.config/rofi/config.rasi
+bindsym $mod+Tab exec --no-startup-id rofi -show window -theme ~/.config/rofi/config.rasi
+
+# Screenshots (Both Win+Shift+S with maim and Print with flameshot/maim)
+bindsym Mod4+Shift+s exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
+bindsym $mod+Shift+s exec --no-startup-id bash -c 'flameshot gui || maim -s | xclip -selection clipboard -t image/png'
+bindsym Print exec --no-startup-id bash -c 'flameshot gui || maim -s | xclip -selection clipboard -t image/png'
+bindsym Shift+Print exec --no-startup-id bash -c 'maim | xclip -selection clipboard -t image/png'
+
+
+# Quick App Launchers
+bindsym $mod+b exec google-chrome
+bindsym $mod+Shift+b exec firefox
+bindsym $mod+e exec thunar
+bindsym $mod+t exec telegram-desktop
+bindsym $mod+c exec code
+
+# Change focus (Vim keys & Arrow keys)
+bindsym $mod+h focus left
+bindsym $mod+j focus down
+bindsym $mod+k focus up
+bindsym $mod+l focus right
+bindsym $mod+Left focus left
+bindsym $mod+Down focus down
+bindsym $mod+Up focus up
+bindsym $mod+Right focus right
+
+# Move focused window
+bindsym $mod+Shift+h move left
+bindsym $mod+Shift+j move down
+bindsym $mod+Shift+k move up
+bindsym $mod+Shift+l move right
+bindsym $mod+Shift+Left move left
+bindsym $mod+Shift+Down move down
+bindsym $mod+Shift+Up move up
+bindsym $mod+Shift+Right move right
+
+# Split orientation
+bindsym $mod+v split h
+bindsym $mod+s split v
+
+# Fullscreen
+bindsym $mod+f fullscreen toggle
+
+# Toggle floating / tiling
+bindsym $mod+Shift+space floating toggle
+
+# Layout styles
+bindsym $mod+z layout tabbed
+bindsym $mod+x layout toggle split
+
+# Workspace names / definitions
+set $ws1 "1"
+set $ws2 "2"
+set $ws3 "3"
+set $ws4 "4"
+set $ws5 "5"
+set $ws6 "6"
+set $ws7 "7"
+set $ws8 "8"
+set $ws9 "9"
+set $ws10 "10"
+
+# Switch to workspace
+bindsym $mod+1 workspace number $ws1
+bindsym $mod+2 workspace number $ws2
+bindsym $mod+3 workspace number $ws3
+bindsym $mod+4 workspace number $ws4
+bindsym $mod+5 workspace number $ws5
+bindsym $mod+6 workspace number $ws6
+bindsym $mod+7 workspace number $ws7
+bindsym $mod+8 workspace number $ws8
+bindsym $mod+9 workspace number $ws9
+bindsym $mod+0 workspace number $ws10
+
+# Move focused container to workspace
+bindsym $mod+Shift+1 move container to workspace number $ws1
+bindsym $mod+Shift+2 move container to workspace number $ws2
+bindsym $mod+Shift+3 move container to workspace number $ws3
+bindsym $mod+Shift+4 move container to workspace number $ws4
+bindsym $mod+Shift+5 move container to workspace number $ws5
+bindsym $mod+Shift+6 move container to workspace number $ws6
+bindsym $mod+Shift+7 move container to workspace number $ws7
+bindsym $mod+Shift+8 move container to workspace number $ws8
+bindsym $mod+Shift+9 move container to workspace number $ws9
+bindsym $mod+Shift+0 move container to workspace number $ws10
+
+# Reload / Restart i3
+bindsym $mod+Shift+c reload
+bindsym $mod+Shift+r restart
+
+# Exit / Power
+bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'Exit i3?' -B 'Yes, exit' 'i3-msg exit'"
+bindsym $mod+Shift+x exec bash ~/.local/bin/lock.sh
+
+# Window layout defaults
+default_border pixel 0
+default_floating_border pixel 0
+
+# Window Rules (Floating)
+for_window [class="Pavucontrol"] floating enable
+for_window [class="Lxappearance"] floating enable
+for_window [class="flameshot"] floating enable
+for_window [class="File-roller"] floating enable
+
+# --- Catppuccin Mocha Color Theme for i3 Windows ---
+# class                 border  bground text    indicator child_border
+client.focused          #cba6f7 #1e1e2e #cdd6f4 #89b4fa   #cba6f7
+client.focused_inactive #313244 #181825 #a6adc8 #313244   #313244
+client.unfocused        #1e1e2e #181825 #6c7086 #1e1e2e   #1e1e2e
+client.urgent           #f38ba8 #f38ba8 #11111b #f38ba8   #f38ba8
+client.placeholder      #181825 #181825 #cdd6f4 #181825   #181825
+client.background       #1e1e2e
+exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
+exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
