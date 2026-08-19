@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+import time
 import i3ipc
 
 WINDOW_ICONS = {
@@ -84,46 +85,46 @@ def get_workspace_number(name):
     return match.group(1) if match else name
 
 def update_workspaces(i3):
-    tree = i3.get_tree()
-    workspaces = tree.workspaces()
-    
-    for ws in workspaces:
-        ws_num = get_workspace_number(ws.name)
+    try:
+        tree = i3.get_tree()
+        workspaces = tree.workspaces()
         
-        windows = ws.leaves()
-        icons = []
-        for w in windows:
-            if w.window or w.name:
-                icon = get_icon(w)
-                if icon not in icons:
-                    icons.append(icon)
-        
-        if icons:
-            new_name = f"{ws_num}: {' '.join(icons)}"
-        else:
-            new_name = f"{ws_num}"
+        for ws in workspaces:
+            ws_num = get_workspace_number(ws.name)
+            windows = ws.leaves()
+            icons = []
+            for w in windows:
+                if w.window or w.name:
+                    icon = get_icon(w)
+                    if icon not in icons:
+                        icons.append(icon)
             
-        if ws.name != new_name:
-            i3.command(f'rename workspace "{ws.name}" to "{new_name}"')
+            if icons:
+                new_name = f"{ws_num}: {' '.join(icons)}"
+            else:
+                new_name = f"{ws_num}"
+                
+            if ws.name != new_name:
+                i3.command(f'rename workspace "{ws.name}" to "{new_name}"')
+    except Exception:
+        pass
 
 def on_event(i3, event):
     update_workspaces(i3)
 
-def main():
-    i3 = i3ipc.Connection()
-    update_workspaces(i3)
-
-    # Listen to window and workspace events
-    i3.on('window::new', on_event)
-    i3.on('window::close', on_event)
-    i3.on('window::move', on_event)
-    i3.on('window::title', on_event)
-    i3.on('workspace::focus', on_event)
-    
-    try:
-        i3.main()
-    except Exception:
-        pass
+def run():
+    while True:
+        try:
+            i3 = i3ipc.Connection(auto_reconnect=True)
+            update_workspaces(i3)
+            i3.on('window::new', on_event)
+            i3.on('window::close', on_event)
+            i3.on('window::move', on_event)
+            i3.on('window::title', on_event)
+            i3.on('workspace::focus', on_event)
+            i3.main()
+        except Exception:
+            time.sleep(1)
 
 if __name__ == '__main__':
-    main()
+    run()

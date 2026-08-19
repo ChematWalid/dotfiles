@@ -1,0 +1,13 @@
+[Unit]
+Description=i3 Autoname Workspaces Daemon
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/walid/.config/i3/autoname_workspaces.py
+Restart=always
+RestartSec=2
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=default.target
