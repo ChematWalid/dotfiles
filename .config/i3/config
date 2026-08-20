@@ -167,21 +167,14 @@ client.background       #1e1e2e
 exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
 exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
 
-# ── Keyboard speed ───────────────────────────────
-exec_always --no-startup-id xset r rate 250 50
-
-# ── Mouse sensitivity (raw input, no acceleration) ───
-exec_always --no-startup-id xinput set-prop 6 "libinput Accel Profile Enabled" 0, 1, 0
-exec_always --no-startup-id xinput set-prop 6 "libinput Accel Speed" -0.3
+# ── Input Settings (Keyboard Layouts, 250 50 Repeat Rate, Mouse Raw Input) ──
+exec_always --no-startup-id ~/.local/bin/apply-input-settings.sh
 
 # ── Brightness controls ───────────────────────────
 bindsym XF86MonBrightnessUp exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 bindsym XF86MonBrightnessDown exec --no-startup-id ~/.local/bin/brightness-osd.sh down
 exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
 focus_on_window_activation focus
-
-# ── Keyboard Layouts (Belgian/French AZERTY + Arabic) ──
-exec_always --no-startup-id bash -c 'setxkbmap -option "" && setxkbmap -layout "be,ara" -option "grp:win_space_toggle"'
 
 # ── CopyQ Clipboard Manager (Follows active workspace & works in all layouts) ──
 for_window [class="[cC]opy[qQ]"] floating enable, resize set 650 500, move position center
