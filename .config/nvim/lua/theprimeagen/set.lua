@@ -29,3 +29,6 @@ vim.opt.isfname:append("@-@")
 vim.opt.updatetime = 50
 
 vim.opt.colorcolumn = "80"
+
+-- Allow switching buffers with unsaved changes in background
+vim.opt.hidden = true
