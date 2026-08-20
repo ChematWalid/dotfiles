@@ -1,0 +1,18 @@
+# calcurse config
+# Edit: $EDITOR ~/.calcurse/conf
+# Run: calcurse
+
+appearance.calendarview=monthly
+appearance.compactpanels=no
+appearance.default-panel=cal
+appearance.notifybar=yes
+appearance.sidebarwidth=30
+appearance.tasklistwidth=40
+appearance.theme=dark background:black foreground:white
+general.autosave=yes
+general.autosavedelay=5
+general.confirmdelete=yes
+general.periodicsave=0
+notification.command=notify-send -t 5000 "calcurse" "%s"
+notification.notify_all=yes
+notification.warning=300

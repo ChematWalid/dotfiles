@@ -136,6 +136,64 @@ alias cls='clear'
 alias update='yay -Syu'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null; sudo paccache -r; yay -Sc --noconfirm'
 
+# ── Text Processing (sd, choose, gron, miller, xsv, grex) ─────────────────
+alias sed='sd'                            # sd 'old' 'new' file  (simpler sed)
+alias cut='choose'                        # choose 0 2  (friendlier cut/awk)
+# gron file.json | grep "name"           # make JSON greppable
+# mlr --csv filter '$col > 5' file.csv   # awk for CSV/JSON/TSV
+# xsv stats file.csv                     # fast CSV stats/slice/join
+# grex "abc" "abbc" "abccc"             # auto-generate regex from examples
+# fselect "name FROM /home WHERE size > 1mb"  # SQL-like file search
+
+# ── Search ─────────────────────────────────────────────────────────────────
+alias sg='ast-grep'                       # ast-grep: code-structure-aware search
+# sg 'console.log($ARG)' --lang js        # find by AST pattern
+# plocate filename                        # fast file locate (updatedb to refresh)
+
+# ── Dev Tools ──────────────────────────────────────────────────────────────
+alias ld='lazydocker'                     # Docker TUI (like lazygit for Docker)
+# gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
+
+# ── Benchmarking ───────────────────────────────────────────────────────────
+# hyperfine 'command1' 'command2'        # benchmark with statistics
+alias bench='hyperfine'
+
+# ── Translation ────────────────────────────────────────────────────────────
+alias tr='trans'                          # trans en:fr "hello world"
+alias trfr='trans :fr'                   # translate anything to French
+alias tren='trans :en'                   # translate anything to English
+alias trar='trans :ar'                   # translate anything to Arabic
+
+# ── Tasks & Time ───────────────────────────────────────────────────────────
+# task add "Buy groceries" due:tomorrow  # add a task
+# task next                              # see priority tasks
+# task 1 done                            # mark done
+# timew start coding                     # start time tracking
+# timew stop                             # stop tracking
+# timew summary                          # see time logged this week
+alias t='task'                           # quick task shorthand
+alias tw='timew'                         # quick timewarrior shorthand
+
+# ── Calendar ───────────────────────────────────────────────────────────────
+alias cal='calcurse'                     # TUI calendar + todos + appointments
+alias kc='khal interactive'              # khal TUI (CalDAV-sync capable)
+alias agenda='khal list'                 # quick agenda view
+
+# ── Music (MPD + ncmpcpp) ──────────────────────────────────────────────────
+# mpd                   — start music player daemon (or: systemctl --user enable --now mpd)
+# ncmpcpp               — open TUI music player
+# mpc play/pause/next   — quick MPD control from any terminal
+alias music='ncmpcpp'                    # open music TUI
+alias vis='cava'                         # audio visualizer (Catppuccin Mocha gradient)
+
+# ── Images / Video in Terminal ─────────────────────────────────────────────
+# timg image.png         — show image inline in terminal
+# timg video.mp4         — show video inline (with -g for size)
+# chafa image.png        — unicode/sixel image (already installed)
+
+# ── Monitoring ─────────────────────────────────────────────────────────────
+alias sys='glances'                      # all-in-one system overview
+
 # ── ASCII Tools ────────────────────────────────────────────────────────────
 # Text → ASCII banners
 alias banner='figlet'                     # figlet "Hello"  (plain ASCII)

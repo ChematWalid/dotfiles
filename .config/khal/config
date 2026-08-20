@@ -1,0 +1,27 @@
+# khal — Terminal Calendar
+# Edit: $EDITOR ~/.config/khal/config
+# Sync with vdirsyncer for Google/CalDAV calendars
+# Run: khal interactive  (full TUI)  or  khal list  (agenda view)
+
+[calendars]
+
+[[personal]]
+path = ~/.local/share/khal/personal/
+color = cyan
+readonly = False
+
+[sqlite]
+path = ~/.local/share/khal/khal.db
+
+[locale]
+# Change to your timezone
+timeformat = %H:%M
+dateformat = %Y-%m-%d
+longdateformat = %A %d %B %Y
+datetimeformat = %Y-%m-%d %H:%M
+local_timezone = Europe/Brussels
+default_timezone = Europe/Brussels
+
+[default]
+default_calendar = personal
+show_weeknumbers = true

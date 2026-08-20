@@ -1,0 +1,32 @@
+# taskwarrior config
+# Edit: $EDITOR ~/.taskrc
+# Docs: https://taskwarrior.org/docs/
+
+# Colors — Catppuccin Mocha inspired
+color.project=cyan
+color.tag=magenta
+color.due=red
+color.due.today=red bold
+color.overdue=red bold
+color.recurring=blue
+color.completed=green
+color.deleted=white
+
+# Date format
+dateformat=Y-M-D
+dateformat.report=Y-M-D
+
+# Default command when running 'task'
+default.command=task next
+
+# Urgency tuning
+urgency.user.tag.next.coefficient=15.0
+urgency.due.coefficient=12.0
+urgency.blocking.coefficient=8.0
+urgency.project.coefficient=1.0
+
+# Reports
+report.next.filter=status:pending
+
+# Context (project filter shortcut)
+# Usage: task context work / task context home
