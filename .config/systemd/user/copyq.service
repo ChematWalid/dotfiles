@@ -8,6 +8,8 @@ ExecStart=/usr/bin/copyq --start-server
 Restart=on-failure
 RestartSec=2
 Environment=DISPLAY=:0
+Environment=QT_QPA_PLATFORMTHEME=qt6ct
+Environment=QT_STYLE_OVERRIDE=kvantum
 
 [Install]
 WantedBy=default.target
