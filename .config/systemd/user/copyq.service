@@ -3,10 +3,10 @@ Description=CopyQ Clipboard Manager
 After=graphical-session.target
 
 [Service]
-Type=simple
+Type=forking
 ExecStart=/usr/bin/copyq --start-server
-Restart=always
-RestartSec=1
+Restart=on-failure
+RestartSec=2
 Environment=DISPLAY=:0
 
 [Install]
