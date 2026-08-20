@@ -124,6 +124,13 @@ alias y='yazi'
 alias copy='xclip -selection clipboard'
 alias paste='xclip -selection clipboard -o'
 
+# Media & Downloaders
+alias ytdl='yt-dlp'
+alias ytdl-mp3='yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadata'
+alias ytdl-best='yt-dlp -f "bestvideo+bestaudio/best" --embed-subs --embed-thumbnail --embed-metadata'
+alias spot='spotdl'
+alias gdl='gallery-dl'
+
 # System & Package Management
 alias cls='clear'
 alias update='yay -Syu'
