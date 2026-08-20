@@ -136,7 +136,68 @@ alias cls='clear'
 alias update='yay -Syu'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null; sudo paccache -r; yay -Sc --noconfirm'
 
-# === navi — Interactive Cheatsheet (Ctrl+G) ===
+# ── File Managers ──────────────────────────────────────────────────────────
+alias b='br'                              # broot shorthand (br = shell-integrated cd)
+alias lf='lf'                             # lf file manager
+# alias y='yazi'                          # yazi already set above; prefer yazi or lf/br as you like
+
+# ── Archive (ouch) ─────────────────────────────────────────────────────────
+alias unpack='ouch decompress'            # ouch decompress archive.tar.gz
+alias pack='ouch compress'               # ouch compress files... output.tar.gz
+
+# ── Disk Usage ─────────────────────────────────────────────────────────────
+alias dust='dust -r'                      # dust (reversed = biggest at bottom)
+
+# ── Network Tools ──────────────────────────────────────────────────────────
+alias http='xh'                           # xh = httpie-compatible but faster
+alias ping='gping'                        # gping shows a graph over time
+alias dns='dog'                           # dog = colorful dig replacement
+# bandwhich needs sudo: sudo bandwhich
+
+# ── Git ────────────────────────────────────────────────────────────────────
+alias gg='gitui'                          # gitui TUI (alt to lazygit)
+# lg = lazygit (already set above)
+
+# ── Data / Config ──────────────────────────────────────────────────────────
+# dasel: query/edit JSON,YAML,TOML,XML
+# visidata: open any CSV/JSON/SQL as TUI spreadsheet (vd file.csv)
+alias vd='visidata'
+
+# ── Cloud Sync (rclone) ────────────────────────────────────────────────────
+# Setup: rclone config  (add Google Drive, Mega, S3, etc.)
+alias rc='rclone'
+alias rcs='rclone sync'                   # one-way sync  (careful!)
+alias rccp='rclone copy'                  # safe copy
+alias rcls='rclone ls'                    # list remote
+
+# ── Media & Downloaders ────────────────────────────────────────────────────
+alias ytdl='yt-dlp'
+alias ytdl-mp3='yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadata'
+alias ytdl-best='yt-dlp -f "bestvideo+bestaudio/best" --embed-subs --embed-thumbnail --embed-metadata'
+alias spot='spotdl'
+alias gdl='gallery-dl'
+
+# ── navi — Interactive Cheatsheet (Ctrl+G) ─────────────────────────────────
 if command -v navi >/dev/null 2>&1; then
     eval "$(navi widget zsh)"
+fi
+
+# ── carapace — Smart Multi-Shell Completions ───────────────────────────────
+# Covers 1000+ CLI tools (git, docker, kubectl, ffmpeg, etc.)
+if command -v carapace >/dev/null 2>&1; then
+    export CARAPACE_BRIDGES='zsh,fish'
+    zstyle ':completion:*' format $'\e[2;37mCompleting %d\e[m'
+    source <(carapace _carapace zsh)
+fi
+
+# ── direnv — Auto-load .envrc in project dirs ──────────────────────────────
+# Usage: echo 'export API_KEY=xxx' > .envrc && direnv allow
+if command -v direnv >/dev/null 2>&1; then
+    eval "$(direnv hook zsh)"
+fi
+
+# ── broot — br() shell function for cd integration ─────────────────────────
+# First run: broot --install (writes br function to this file automatically)
+if [ -f ~/.config/broot/launcher/bash/br ]; then
+    source ~/.config/broot/launcher/bash/br
 fi

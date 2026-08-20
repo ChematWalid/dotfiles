@@ -1,0 +1,49 @@
+###############################################################################
+# lf config
+# Docs: https://pkg.go.dev/github.com/gokcehan/lf
+# Edit: $EDITOR ~/.config/lf/lfrc
+###############################################################################
+
+set shell zsh
+set shellopts '-eu'
+set ifs "\n"
+set scrolloff 5
+set icons true
+set period 1
+set previewer '~/.config/lf/previewer'
+set cleaner '~/.config/lf/cleaner'
+set info size
+set sortby natural
+set ratios 1:2:3
+
+cmd open &{{
+    case $(file --mime-type -Lb "$f") in
+        text/*)         lf -remote "send $id \$$EDITOR \$fx" ;;
+        image/*)        imv "$fx" & ;;
+        video/*|audio/*) mpv "$fx" & ;;
+        application/pdf) zathura "$fx" & ;;
+        *)              xdg-open "$fx" & ;;
+    esac
+}}
+
+cmd mkdir ${{ printf "Dir name: "; read ans; mkdir -p "$ans" }}
+cmd mkfile ${{ printf "File name: "; read ans; $EDITOR "$ans" }}
+
+cmd extract ${{ ouch decompress $fx }}
+cmd compress ${{ printf "Archive name (e.g. archive.tar.gz): "; read ans; ouch compress $fx "$ans" }}
+
+map <enter> open
+map <backspace> updir
+map E extract
+map C compress
+map md mkdir
+map mf mkfile
+map . set hidden!
+map <c-f> $lf -remote "send $id select \"$(fzf)\""
+map <c-r> reload
+
+# Quick cd shortcuts
+map gc cd ~/.config
+map gh cd ~
+map gd cd ~/Downloads
+map gm cd /mnt

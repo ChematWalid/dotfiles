@@ -1,0 +1,10 @@
+// gitui keybindings — vim-like
+// Edit: $EDITOR ~/.config/gitui/key_config.ron
+(
+    move_up: Some(( code: Char('k'), modifiers: "")),
+    move_down: Some(( code: Char('j'), modifiers: "")),
+    move_right: Some(( code: Char('l'), modifiers: "")),
+    move_left: Some(( code: Char('h'), modifiers: "")),
+    open_help: Some(( code: Char('?'), modifiers: "")),
+    exit: Some(( code: Char('q'), modifiers: "")),
+)

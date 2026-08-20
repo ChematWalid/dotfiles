@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+file=$1
+w=$2; h=$3; x=$4; y=$5
+
+case $(file --mime-type -Lb "$file") in
+    text/*)  bat --color=always --style=numbers --line-range=:200 "$file" ;;
+    image/*) chafa -s "${w}x${h}" "$file" 2>/dev/null || file "$file" ;;
+    video/*) mediainfo "$file" 2>/dev/null | head -30 ;;
+    *)       file "$file" ;;
+esac

@@ -1,0 +1,45 @@
+###############################################################################
+# broot config — Catppuccin Mocha
+# Docs: https://dystroy.org/broot/conf_file/
+# Edit: $EDITOR ~/.config/broot/conf.toml
+###############################################################################
+
+[general]
+show_hidden = false
+show_git_info = true
+true_colors = true
+modal = false
+
+[[verbs]]
+name = "edit"
+key = "enter"
+execution = "$EDITOR {file}"
+leave_broot = true
+
+[[verbs]]
+name = "cd"
+key = "alt-enter"
+execution = "cd {directory}"
+leave_broot = true
+
+[skin]
+default = "rgb(205,214,244) none"
+tree = "rgb(88,91,112) none"
+file = "rgb(205,214,244) none"
+directory = "rgb(137,180,250) none Bold"
+exe = "rgb(166,227,161) none"
+link = "rgb(249,226,175) none"
+pruning = "rgb(108,112,134) none Italic"
+perm_r = "rgb(249,226,175) none"
+perm_w = "rgb(243,139,168) none"
+perm_x = "rgb(166,227,161) none"
+selected_line = "none rgb(49,50,68)"
+char_match = "rgb(250,179,135) none Bold"
+input = "rgb(205,214,244) none"
+status_normal = "rgb(166,173,200) rgb(30,30,46)"
+status_bold = "rgb(205,214,244) rgb(30,30,46) Bold"
+status_error = "rgb(243,139,168) rgb(30,30,46) Bold"
+scrollbar_thumb = "rgb(88,91,112) none"
+help_bold = "rgb(137,180,250) none Bold"
+help_code = "rgb(166,227,161) rgb(49,50,68)"
+help_headers = "rgb(243,139,168) none Bold"

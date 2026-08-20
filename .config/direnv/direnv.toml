@@ -1,0 +1,15 @@
+# direnv config
+# Edit: $EDITOR ~/.config/direnv/direnv.toml
+# Per-project: add a .envrc file with "source_env .env" or layout python/node etc.
+
+[global]
+# Hide env var load/unload messages
+hide_env_diff = true
+
+[whitelist]
+# Auto-trust these directories (add your project roots)
+prefix = [
+    "~/projects",
+    "~/code",
+    "/mnt/drive2/Coding",
+]
