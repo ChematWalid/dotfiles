@@ -131,17 +131,33 @@ def update_workspaces(i3):
     except Exception:
         pass
 
+import threading
+
 def on_event(i3, event):
     update_workspaces(i3)
+
+def periodic_sync(i3):
+    while True:
+        try:
+            update_workspaces(i3)
+        except Exception:
+            pass
+        time.sleep(2)
 
 def run():
     while True:
         try:
-            i3 = i3ipc.Connection(auto_reconnect=True)
+            i3 = i3ipc.Connection()
             update_workspaces(i3)
-            # Subscribe to all window and workspace events
+            
+            # Start background periodic syncer
+            t = threading.Thread(target=periodic_sync, args=(i3,), daemon=True)
+            t.start()
+            
+            # Subscribe to all window, workspace, and mode events
             i3.on(i3ipc.Event.WINDOW, on_event)
             i3.on(i3ipc.Event.WORKSPACE, on_event)
+            i3.on(i3ipc.Event.MODE, on_event)
             i3.main()
         except Exception:
             time.sleep(1)

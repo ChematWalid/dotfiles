@@ -15,7 +15,7 @@ exec --no-startup-id blueman-applet
 exec --no-startup-id picom -b
 exec --no-startup-id dunst
 exec_always --no-startup-id ~/.config/polybar/launch.sh
-exec_always --no-startup-id bash -c 'pgrep -f "autoname_workspaces.py" >/dev/null || /usr/bin/python3 ~/.config/i3/autoname_workspaces.py &'
+exec_always --no-startup-id systemctl --user restart i3-autoname.service
 
 # Set wallpaper
 exec_always --no-startup-id feh --bg-fill /home/walid/Downloads/catppuccin-wall-dark.jpg 2>/dev/null || true
