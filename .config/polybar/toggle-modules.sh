@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CONFIG="$HOME/.config/polybar/config.ini"
-ALL_MODULES=("pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
+ALL_MODULES=("date" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
 
 CURRENT_LINE=$(grep "^modules-right" "$CONFIG")
 CURRENT_MODULES=${CURRENT_LINE#*=}
@@ -15,7 +15,7 @@ for mod in "${ALL_MODULES[@]}"; do
     fi
 done
 
-CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -i -p "Toggle Module" 2> /tmp/rofi_err.log)
+CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -i -p "󰒓  Toggle Module" -theme ~/.config/rofi/config.rasi -theme-str 'window {width: 320px; height: 420px;} listview {lines: 12;}' 2> /tmp/rofi_err.log)
 
 if [ -n "$CHOICE" ]; then
     SELECTED_MOD=$(echo "$CHOICE" | sed 's/\[x\] //g' | sed 's/\[ \] //g')
@@ -33,5 +33,5 @@ if [ -n "$CHOICE" ]; then
     fi
 
     sed -i "s/^modules-right.*/modules-right = $NEW_MODULES/g" "$CONFIG"
-    i3-msg restart
+    ~/.config/polybar/launch.sh
 fi
