@@ -212,3 +212,6 @@ bindsym Mod4+c exec --no-startup-id "rofi -show calc -modi calc -no-show-match -
 # ── Rofi Web Search (Alt+Shift+W & Win+W) ─────────
 bindsym $mod+Shift+w exec --no-startup-id ~/.local/bin/rofi-websearch.sh
 bindsym Mod4+w exec --no-startup-id ~/.local/bin/rofi-websearch.sh
+
+# ── Disable X11 Screen Blanking & Sleep ───────────
+exec_always --no-startup-id xset s off -dpms s noblank
