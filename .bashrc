@@ -33,3 +33,5 @@ if command -v zoxide >/dev/null 2>&1; then
 fi
 
 export PATH=$PATH:/home/walid/.spicetify
+export QT_QPA_PLATFORMTHEME=qt6ct
+export QT_STYLE_OVERRIDE=kvantum

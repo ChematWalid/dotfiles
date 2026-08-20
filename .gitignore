@@ -1,0 +1,9 @@
+*.lock
+*.dat
+*.log
+__pycache__/
+*.pyc
+.cache/
+default.target.wants/
+copyq_tab_*
+copyq.lock
