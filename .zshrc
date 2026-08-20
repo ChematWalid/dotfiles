@@ -9,6 +9,9 @@ export HF_HOME="/mnt/drive2/.cache/huggingface"
 export ANDROID_HOME="/mnt/drive2/Android/Sdk"
 
 # === Aliases ===
+alias cls='clear'
+alias update='yay -Syu'
+alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null; sudo paccache -r; yay -Sc --noconfirm'
 alias ls='eza --icons'
 alias ll='eza -la --icons --git'
 alias cat='bat --theme="Catppuccin Mocha"'
