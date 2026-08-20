@@ -15,12 +15,46 @@ HYPHEN_INSENSITIVE="true"
 # Update settings
 zstyle ':omz:update' mode reminder
 
-# === Developer Environment & Caches on Drive D ===
-export CARGO_HOME="$HOME/.cargo"
-export PNPM_HOME="/mnt/drive2/.pnpm-store"
-export PATH="$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$PATH"
-export HF_HOME="/mnt/drive2/.cache/huggingface"
-export ANDROID_HOME="/mnt/drive2/Android/Sdk"
+# === Developer Environment & HDD Cache Routing ===
+# SSD (sda) = executables, configs, fast access
+# HDD Drive D (sdb5 → /mnt/drive2) = caches, large downloads, build artifacts
+# HDD Drive E (sdb6 → /mnt/drive3) = media, big storage
+
+HDD="/mnt/drive2"   # edit this if your HDD mount changes
+
+# ── Rust (cargo bin stays on SSD for speed, registry/git on HDD) ──────────
+export CARGO_HOME="$HOME/.cargo"            # bin stays on SSD
+# registry + git are symlinked → HDD via setup script
+
+# ── Python / uv ──────────────────────────────────────────────────────────
+export UV_CACHE_DIR="$HDD/.cache/uv"
+export PIP_CACHE_DIR="$HDD/.cache/pip"
+export PIPX_HOME="$HDD/.local/pipx"
+
+# ── Node / npm / pnpm ────────────────────────────────────────────────────
+export PNPM_HOME="$HDD/.pnpm-store"
+export npm_config_cache="$HDD/.cache/npm"   # npm cache on HDD
+# ~/.npm is symlinked → HDD via setup script
+
+# ── Go ───────────────────────────────────────────────────────────────────
+export GOPATH="$HDD/go"
+export GOCACHE="$HDD/.cache/go-build"       # go-build symlinked → HDD
+
+# ── AI / ML ──────────────────────────────────────────────────────────────
+export HF_HOME="$HDD/.cache/huggingface"
+export TORCH_HOME="$HDD/.cache/torch"
+export XDG_CACHE_HOME="$HOME/.cache"        # ~/.cache stays (big subdirs symlinked)
+
+# ── Mobile dev ───────────────────────────────────────────────────────────
+export ANDROID_HOME="$HDD/Android/Sdk"
+export GRADLE_USER_HOME="$HDD/.gradle"
+
+# ── Gems / Ruby ──────────────────────────────────────────────────────────
+export GEM_HOME="$HDD/.gems"
+export GEM_PATH="$HDD/.gems"
+
+# ── PATH ─────────────────────────────────────────────────────────────────
+export PATH="$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:$PATH"
 export EDITOR="nvim"
 export VISUAL="nvim"
 
@@ -97,9 +131,30 @@ if command -v zoxide >/dev/null 2>&1; then
     eval "$(zoxide init zsh)"
 fi
 
-# FZF keybindings (Ctrl+T for files, Ctrl+R for history, Alt+C for cd)
+# FZF keybindings (Ctrl+T for files, Alt+C for cd — Ctrl+R overridden by atuin below)
 source /usr/share/fzf/key-bindings.zsh 2>/dev/null
 source /usr/share/fzf/completion.zsh 2>/dev/null
+
+# ── atuin — Supercharged Shell History (replaces Ctrl+R) ──────────────────
+# Stores history with timestamps, exit codes, duration, working dir
+# Ctrl+R   → opens atuin fuzzy history search
+# Up arrow → inline history search
+# atuin sync → sync history across machines (optional, needs account)
+if command -v atuin >/dev/null 2>&1; then
+    export ATUIN_NOBIND="false"
+    eval "$(atuin init zsh --disable-up-arrow)"
+    # Ctrl+R is now atuin's interactive history search
+fi
+
+# ── thefuck — Auto-correct Previous Command ────────────────────────────────
+# Type 'fuck' or press ESC ESC after a failed command to auto-fix it
+if command -v thefuck >/dev/null 2>&1; then
+    eval "$(thefuck --alias)"
+    # ESC ESC shortcut (press escape twice to instantly apply fix)
+    fuck-command-line() { local cmd="$(fc -ln -1)"; local fixed="$(thefuck $cmd 2>/dev/null)"; [ -n "$fixed" ] && BUFFER="$fixed" && zle end-of-line; }
+    zle -N fuck-command-line
+    bindkey '\e\e' fuck-command-line
+fi
 
 # === Aliases for Modern CLI Tools ===
 # Modern Replacements
