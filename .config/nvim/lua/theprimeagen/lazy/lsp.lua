@@ -16,6 +16,7 @@ return {
     config = function()
         local cmp = require('cmp')
         local cmp_lsp = require("cmp_nvim_lsp")
+        local lspconfig = require("lspconfig")
         local capabilities = vim.tbl_deep_extend(
             "force",
             {},
@@ -27,30 +28,52 @@ return {
         require("mason-lspconfig").setup({
             ensure_installed = {
                 "clangd",
-                "lua_ls",
-                "ts_ls",
+                "rust_analyzer",
+                "gopls",
+                "jdtls",
                 "pyright",
-                "bashls",
+                "ts_ls",
+                "tailwindcss",
                 "html",
                 "cssls",
                 "jsonls",
+                "lua_ls",
+                "bashls",
             },
             handlers = {
                 function(server_name)
-                    require("lspconfig")[server_name].setup {
+                    lspconfig[server_name].setup {
                         capabilities = capabilities
                     }
                 end,
 
                 ["clangd"] = function()
-                    require("lspconfig").clangd.setup {
+                    lspconfig.clangd.setup {
                         capabilities = capabilities,
                         cmd = { "clangd", "--background-index", "--clang-tidy" },
                     }
                 end,
 
+                ["rust_analyzer"] = function()
+                    lspconfig.rust_analyzer.setup {
+                        capabilities = capabilities,
+                    }
+                end,
+
+                ["gopls"] = function()
+                    lspconfig.gopls.setup {
+                        capabilities = capabilities,
+                    }
+                end,
+
+                ["ts_ls"] = function()
+                    lspconfig.ts_ls.setup {
+                        capabilities = capabilities,
+                        filetypes = { "javascript", "javascriptreact", "javascript.jsx", "typescript", "typescriptreact", "typescript.tsx" },
+                    }
+                end,
+
                 ["lua_ls"] = function()
-                    local lspconfig = require("lspconfig")
                     lspconfig.lua_ls.setup {
                         capabilities = capabilities,
                         settings = {
@@ -65,16 +88,22 @@ return {
             }
         })
 
-        -- Directly initialize clangd using system binary
-        require("lspconfig").clangd.setup({
+        -- Directly initialize native LSPs if available on system
+        lspconfig.clangd.setup({
             capabilities = capabilities,
             cmd = { "clangd", "--background-index", "--clang-tidy" },
         })
+        lspconfig.rust_analyzer.setup({ capabilities = capabilities })
+        lspconfig.gopls.setup({ capabilities = capabilities })
 
         local cmp_select = { behavior = cmp.SelectBehavior.Select }
-
         local luasnip = require('luasnip')
+
         cmp.setup({
+            completion = {
+                completeopt = 'menu,menuone,noinsert'
+            },
+            preselect = cmp.PreselectMode.Item,
             snippet = {
                 expand = function(args)
                     luasnip.lsp_expand(args.body)
@@ -86,9 +115,10 @@ return {
                 ['<C-y>'] = cmp.mapping.confirm({ select = true }),
                 ['<CR>'] = cmp.mapping.confirm({ select = true }),
                 ["<C-Space>"] = cmp.mapping.complete(),
+                -- Tab immediately confirms/completes the first choice!
                 ['<Tab>'] = cmp.mapping(function(fallback)
                     if cmp.visible() then
-                        cmp.select_next_item()
+                        cmp.confirm({ select = true })
                     elseif luasnip.expand_or_jumpable() then
                         luasnip.expand_or_jump()
                     else

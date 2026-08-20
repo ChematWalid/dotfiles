@@ -8,7 +8,7 @@ return {
         end
         ts_configs.setup({
             ensure_installed = {
-                "c", "lua", "vim", "vimdoc", "query", "python", "javascript", "typescript", "html", "css", "json", "bash", "markdown", "markdown_inline", "rust", "go"
+                "c", "lua", "vim", "vimdoc", "query", "python", "javascript", "typescript", "tsx", "java", "html", "css", "json", "bash", "markdown", "markdown_inline", "rust", "go"
             },
             sync_install = false,
             auto_install = true,
