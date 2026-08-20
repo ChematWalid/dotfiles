@@ -179,6 +179,16 @@ alias y='yazi'
 alias copy='xclip -selection clipboard'
 alias paste='xclip -selection clipboard -o'
 
+# Trash CLI (safe deletion to ~/.local/share/Trash)
+alias tp='trash-put'
+alias tl='trash-list'
+alias trs='trash-restore'
+alias te='trash-empty'
+
+# Trippy (TUI interactive network traceroute / ping)
+alias trip='trip'
+alias traceroute='trip'
+
 # Media & Downloaders
 alias ytdl='yt-dlp'
 alias ytdl-mp3='yt-dlp -x --audio-format mp3 --audio-quality 0 --embed-thumbnail --embed-metadata'
