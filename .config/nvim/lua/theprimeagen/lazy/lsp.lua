@@ -26,6 +26,7 @@ return {
         require("mason").setup({})
         require("mason-lspconfig").setup({
             ensure_installed = {
+                "clangd",
                 "lua_ls",
                 "ts_ls",
                 "pyright",
@@ -38,6 +39,13 @@ return {
                 function(server_name)
                     require("lspconfig")[server_name].setup {
                         capabilities = capabilities
+                    }
+                end,
+
+                ["clangd"] = function()
+                    require("lspconfig").clangd.setup {
+                        capabilities = capabilities,
+                        cmd = { "clangd", "--background-index", "--clang-tidy" },
                     }
                 end,
 
@@ -55,6 +63,12 @@ return {
                     }
                 end,
             }
+        })
+
+        -- Directly initialize clangd using system binary
+        require("lspconfig").clangd.setup({
+            capabilities = capabilities,
+            cmd = { "clangd", "--background-index", "--clang-tidy" },
         })
 
         local cmp_select = { behavior = cmp.SelectBehavior.Select }
