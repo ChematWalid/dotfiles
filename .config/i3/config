@@ -52,9 +52,12 @@ bindsym $mod+Tab exec --no-startup-id rofi -show window -theme ~/.config/rofi/co
 
 # Screenshots (maim)
 bindsym Mod4+Shift+s exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
-bindsym $mod+Shift+s exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
-bindsym Print exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
-bindsym Shift+Print exec --no-startup-id bash -c 'maim | xclip -selection clipboard -t image/png'
+# ── Screenshot Utilities (Print, Shift+Print, Ctrl+Print, Mod+Print) ──
+bindsym Print exec --no-startup-id ~/.local/bin/screenshot.sh select
+bindsym $mod+Shift+s exec --no-startup-id ~/.local/bin/screenshot.sh select
+bindsym Shift+Print exec --no-startup-id ~/.local/bin/screenshot.sh full
+bindsym Control+Print exec --no-startup-id ~/.local/bin/screenshot.sh delay 3
+bindsym Mod4+Print exec --no-startup-id ~/.local/bin/screenshot.sh window
 
 
 # Quick App Launchers
