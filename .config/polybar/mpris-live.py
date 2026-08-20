@@ -7,7 +7,6 @@ import threading
 
 MAX_CHARS = 18         # Visible window width
 SCROLL_INTERVAL = 0.18 # Fluid 180ms glide speed
-PAUSE_TICKS = 8        # ~1.5s readable pause at start of cycle
 SEPARATOR = "   •   "
 
 lock = threading.Lock()
@@ -18,8 +17,24 @@ state = {
     "title": "",
     "full_text": "",
     "scroll_pos": 0,
-    "pause_counter": 0,
+    "hovering": False,
 }
+
+def is_mouse_hovering():
+    """Detect if the mouse cursor is hovering over the polybar media module."""
+    try:
+        out = subprocess.check_output(
+            ['xdotool', 'getmouselocation'],
+            stderr=subprocess.DEVNULL
+        ).decode()
+        parts = dict(kv.split(':') for kv in out.split() if ':' in kv)
+        x = int(parts.get('x', -1))
+        y = int(parts.get('y', -1))
+        # Polybar is on bottom (y >= 725 on 768p screen)
+        # Center mpris module is roughly x between 420 and 900
+        return (y >= 720 and 400 <= x <= 920)
+    except Exception:
+        return False
 
 def update_player_state():
     """Poll DBus for the latest active player and track information."""
@@ -90,7 +105,6 @@ def dbus_listener():
                         ap, st, ar, ti, ft = res
                         if ft != state["full_text"]:
                             state["scroll_pos"] = 0
-                            state["pause_counter"] = 0
                         state["active_player"] = ap
                         state["status"] = st
                         state["artist"] = ar
@@ -101,10 +115,12 @@ def dbus_listener():
             pass
         time.sleep(0.5)
 
-def get_marquee_slice(text, offset, width):
-    """Return a rotating marquee slice of text with width characters."""
+def get_marquee_slice(text, offset, width, hovering):
+    """Return static text when not hovering, or rotating marquee slice when hovering."""
     if len(text) <= width:
         return text
+    if not hovering:
+        return text[:width - 1] + "…"
     
     stream = text + SEPARATOR
     stream_len = len(stream)
@@ -112,12 +128,12 @@ def get_marquee_slice(text, offset, width):
     doubled = stream + stream
     return doubled[idx : idx + width]
 
-def render(active_player, status, full_text, scroll_pos):
+def render(active_player, status, full_text, scroll_pos, hovering):
     if not active_player or not status or status == "Stopped" or not full_text:
         return ""
         
     play_icon = "%{F#a6e3a1}󰏥%{F-}" if status == "Playing" else "%{F#f9e2af}󰐌%{F-}"
-    display_text = get_marquee_slice(full_text, scroll_pos, MAX_CHARS)
+    display_text = get_marquee_slice(full_text, scroll_pos, MAX_CHARS, hovering)
     
     prev = f"%{{F#89b4fa}}%{{A1:playerctl -p {active_player} previous 2>/dev/null:}}󰒮%{{A}}%{{F-}}"
     play = f"%{{A1:playerctl -p {active_player} play-pause 2>/dev/null:}}{play_icon}%{{A}}"
@@ -144,28 +160,28 @@ def main():
     last_rendered = None
 
     while True:
+        # Check mouse hover state
+        hovering = is_mouse_hovering()
+
         with lock:
             ap = state["active_player"]
             st = state["status"]
             ft = state["full_text"]
             pos = state["scroll_pos"]
 
-        rendered = render(ap, st, ft, pos)
+        rendered = render(ap, st, ft, pos, hovering)
         
         if rendered != last_rendered:
             print(rendered, flush=True)
             last_rendered = rendered
 
-        # Advance scroll position smoothly with pause at start and loop
+        # Advance scroll position ONLY when hovering over the module
         with lock:
-            if state["status"] == "Playing" and len(state["full_text"]) > MAX_CHARS:
+            if hovering and len(state["full_text"]) > MAX_CHARS:
                 stream_len = len(state["full_text"]) + len(SEPARATOR)
-                if state["scroll_pos"] == 0 and state["pause_counter"] < PAUSE_TICKS:
-                    state["pause_counter"] += 1
-                else:
-                    state["scroll_pos"] = (state["scroll_pos"] + 1) % stream_len
-                    if state["scroll_pos"] == 0:
-                        state["pause_counter"] = 0
+                state["scroll_pos"] = (state["scroll_pos"] + 1) % stream_len
+            elif not hovering:
+                state["scroll_pos"] = 0
 
         time.sleep(SCROLL_INTERVAL)
 
