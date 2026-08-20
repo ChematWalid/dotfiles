@@ -180,7 +180,7 @@ exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
 focus_on_window_activation focus
 
 # ── Keyboard Layouts (Belgian/French AZERTY + Arabic) ──
-exec_always --no-startup-id setxkbmap -layout "be,ara" -option "grp:win_space_toggle"
+exec_always --no-startup-id bash -c 'setxkbmap -option "" && setxkbmap -layout "be,ara" -option "grp:win_space_toggle"'
 
 # ── CopyQ Clipboard Manager (Works in all layouts including Arabic) ──
 for_window [class="copyq"] floating enable, resize set 650 500, move position center
