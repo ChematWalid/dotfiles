@@ -136,6 +136,34 @@ alias cls='clear'
 alias update='yay -Syu'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null; sudo paccache -r; yay -Sc --noconfirm'
 
+# ── ASCII Tools ────────────────────────────────────────────────────────────
+# Text → ASCII banners
+alias banner='figlet'                     # figlet "Hello"  (plain ASCII)
+alias cbanner='toilet -f future'          # toilet colored banner (try: -f mono12 -F gay)
+alias rainbow='lolcat'                    # pipe anything: ls | lolcat
+alias box='boxes -d stone'               # echo "text" | boxes  (try: -d peek, -d parchment)
+
+# Image → ASCII
+# jp2a image.jpg                          # image → ASCII (monochrome)
+# ascii-image-converter image.png -C      # image → colored ASCII  (-b for braille)
+# chafa image.png                         # image → hi-res unicode/sixel in terminal
+
+# Character lookup
+# ascii a                                 # show all aliases for char 'a'
+# ascii -d                                # full decimal table
+# ascii -x                                # full hex table
+
+# Fun / Animated
+alias matrix='cmatrix -b -C cyan'        # matrix rain  (-C for color, -b bold)
+alias bonsai='cbonsai -l -t 0.05'        # animated growing bonsai
+alias aquarium='asciiquarium'            # fish tank
+# pipes.sh                               # flowing ASCII pipes screensaver
+
+# Record terminal (share as ASCII animation)
+# asciinema rec demo.cast                # start recording
+# asciinema play demo.cast               # play it back
+# asciinema upload demo.cast             # upload to asciinema.org
+
 # ── File Managers ──────────────────────────────────────────────────────────
 alias b='br'                              # broot shorthand (br = shell-integrated cd)
 alias lf='lf'                             # lf file manager
