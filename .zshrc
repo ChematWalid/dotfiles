@@ -135,3 +135,8 @@ alias gdl='gallery-dl'
 alias cls='clear'
 alias update='yay -Syu'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null; sudo paccache -r; yay -Sc --noconfirm'
+
+# === navi — Interactive Cheatsheet (Ctrl+G) ===
+if command -v navi >/dev/null 2>&1; then
+    eval "$(navi widget zsh)"
+fi
