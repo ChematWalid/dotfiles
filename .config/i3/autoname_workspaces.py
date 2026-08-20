@@ -66,7 +66,6 @@ WINDOW_ICONS = {
     'dbeaver': '󰆼',
 }
 
-# System tray and background daemons to ignore
 IGNORE_CLASSES = [
     'nm-applet',
     'blueman-applet',
@@ -140,11 +139,9 @@ def run():
         try:
             i3 = i3ipc.Connection(auto_reconnect=True)
             update_workspaces(i3)
-            i3.on('window::new', on_event)
-            i3.on('window::close', on_event)
-            i3.on('window::move', on_event)
-            i3.on('window::title', on_event)
-            i3.on('workspace::focus', on_event)
+            # Subscribe to all window and workspace events
+            i3.on(i3ipc.Event.WINDOW, on_event)
+            i3.on(i3ipc.Event.WORKSPACE, on_event)
             i3.main()
         except Exception:
             time.sleep(1)
