@@ -9,7 +9,7 @@ update() {
             echo "%{F#cba6f7}󰥔%{F-} $(date '+%H:%M:%S')"
             ;;
         2) # Date only
-            echo "%{F#89b4fa}󰃭%{F-} $(date '+%A, %B %d, %Y')"
+            echo "%{F#89b4fa}󰃭%{F-} $(date '+%a, %d %b %Y')"
             ;;
         *) # Both date and time (State 0 / default)
             echo "%{F#b4befe}󰃰%{F-} $(date '+%d %b %H:%M:%S')"

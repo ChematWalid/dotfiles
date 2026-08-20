@@ -5,8 +5,9 @@ import os
 import time
 import threading
 
-MAX_CHARS = 20         # Maximum visible characters in the rotating window
-SCROLL_INTERVAL = 0.35 # Seconds per marquee step
+MAX_CHARS = 18         # Visible window width
+SCROLL_INTERVAL = 0.18 # Fluid 180ms glide speed
+PAUSE_TICKS = 8        # ~1.5s readable pause at start of cycle
 SEPARATOR = "   •   "
 
 lock = threading.Lock()
@@ -17,6 +18,7 @@ state = {
     "title": "",
     "full_text": "",
     "scroll_pos": 0,
+    "pause_counter": 0,
 }
 
 def update_player_state():
@@ -87,7 +89,8 @@ def dbus_listener():
                     else:
                         ap, st, ar, ti, ft = res
                         if ft != state["full_text"]:
-                            state["scroll_pos"] = 0  # Reset marquee offset on new track
+                            state["scroll_pos"] = 0
+                            state["pause_counter"] = 0
                         state["active_player"] = ap
                         state["status"] = st
                         state["artist"] = ar
@@ -153,10 +156,16 @@ def main():
             print(rendered, flush=True)
             last_rendered = rendered
 
-        # Advance scroll position while playing
+        # Advance scroll position smoothly with pause at start and loop
         with lock:
             if state["status"] == "Playing" and len(state["full_text"]) > MAX_CHARS:
-                state["scroll_pos"] += 1
+                stream_len = len(state["full_text"]) + len(SEPARATOR)
+                if state["scroll_pos"] == 0 and state["pause_counter"] < PAUSE_TICKS:
+                    state["pause_counter"] += 1
+                else:
+                    state["scroll_pos"] = (state["scroll_pos"] + 1) % stream_len
+                    if state["scroll_pos"] == 0:
+                        state["pause_counter"] = 0
 
         time.sleep(SCROLL_INTERVAL)
 
