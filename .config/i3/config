@@ -177,10 +177,22 @@ exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
 focus_on_window_activation focus
 
 # ── Keyboard Layouts (Belgian/French AZERTY + Arabic) ──
-exec_always --no-startup-id setxkbmap -layout "be,ara" -option "grp:alt_shift_toggle"
+exec_always --no-startup-id setxkbmap -layout "be,ara" -option "grp:ctrl_shift_toggle"
 
 # ── CopyQ Clipboard Manager (Works in all layouts including Arabic) ──
 for_window [class="copyq"] floating enable, resize set 650 500, move position center
 bindcode Mod1+55 exec --no-startup-id copyq toggle
 bindcode Mod4+55 exec --no-startup-id copyq toggle
 
+
+# ── Super+Shift+Number secondary move container bindings ──
+bindsym Mod4+Shift+1 move container to workspace number $ws1
+bindsym Mod4+Shift+2 move container to workspace number $ws2
+bindsym Mod4+Shift+3 move container to workspace number $ws3
+bindsym Mod4+Shift+4 move container to workspace number $ws4
+bindsym Mod4+Shift+5 move container to workspace number $ws5
+bindsym Mod4+Shift+6 move container to workspace number $ws6
+bindsym Mod4+Shift+7 move container to workspace number $ws7
+bindsym Mod4+Shift+8 move container to workspace number $ws8
+bindsym Mod4+Shift+9 move container to workspace number $ws9
+bindsym Mod4+Shift+0 move container to workspace number $ws10
