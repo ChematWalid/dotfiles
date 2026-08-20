@@ -55,3 +55,16 @@ export FZF_DEFAULT_OPTS=" \
 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc \
 --color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \
 --color=selected-bg:#45475a"
+export QT_QPA_PLATFORMTHEME=qt6ct
+export QT_STYLE_OVERRIDE=kvantum
+
+# === Zsh Autosuggestions & Syntax Highlighting ===
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#6c7086"
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+# Enable completion system
+autoload -Uz compinit && compinit -C
+
+# Load completions, autosuggestions and syntax-highlighting
+[ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ] && source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] && source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
