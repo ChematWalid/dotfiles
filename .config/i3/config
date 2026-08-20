@@ -186,8 +186,6 @@ exec_always --no-startup-id bash -c 'setxkbmap -option "" && setxkbmap -layout "
 for_window [class="[cC]opy[qQ]"] floating enable, resize set 650 500, move position center
 bindcode Mod1+55 exec --no-startup-id ~/.local/bin/toggle-copyq.sh
 bindcode Mod4+55 exec --no-startup-id ~/.local/bin/toggle-copyq.sh
-bindsym $mod+v exec --no-startup-id ~/.local/bin/toggle-copyq.sh
-bindsym Mod4+v exec --no-startup-id ~/.local/bin/toggle-copyq.sh
 
 
 # ── Super+Shift+Number secondary move container bindings ──
