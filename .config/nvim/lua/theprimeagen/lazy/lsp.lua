@@ -88,14 +88,6 @@ return {
             }
         })
 
-        -- Directly initialize native LSPs if available on system
-        lspconfig.clangd.setup({
-            capabilities = capabilities,
-            cmd = { "clangd", "--background-index", "--clang-tidy" },
-        })
-        lspconfig.rust_analyzer.setup({ capabilities = capabilities })
-        lspconfig.gopls.setup({ capabilities = capabilities })
-
         local cmp_select = { behavior = cmp.SelectBehavior.Select }
         local luasnip = require('luasnip')
 
