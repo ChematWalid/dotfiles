@@ -179,15 +179,8 @@ focus_on_window_activation focus
 # ── Keyboard Layouts (Belgian/French AZERTY + Arabic) ──
 exec_always --no-startup-id setxkbmap -layout "be,ara" -option "grp:alt_shift_toggle"
 
-# ── Clipboard Manager (Greenclip) ───────────────
-
-# ── Clipboard Manager (Alt+V and Win+V) ─────────
-
-# ── CopyQ Clipboard Manager (Alt+V & Win+V) ──────
-for_window [class="copyq"] floating enable, resize set 650 500, move position center
-
 # ── CopyQ Clipboard Manager (Works in all layouts including Arabic) ──
+for_window [class="copyq"] floating enable, resize set 650 500, move position center
 bindcode Mod1+55 exec --no-startup-id copyq toggle
 bindcode Mod4+55 exec --no-startup-id copyq toggle
-bindsym Mod1+v exec --no-startup-id copyq toggle
-bindsym Mod4+v exec --no-startup-id copyq toggle
+
