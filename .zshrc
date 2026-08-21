@@ -233,6 +233,22 @@ alias vw='vaultwarden'                    # Open self-hosted Vaultwarden Web Vau
 alias bw-local='bw config server https://localhost:8222' # Point Bitwarden CLI to local Vaultwarden
 alias genpass='bw generate -u -l -n -s --length 24'       # Generate 24-char secure password (letters, numbers, symbols)
 alias genphrase='bw generate --passphrase --words 4 --separator -' # Generate 4-word passphrase
+
+# ── Bitwarden Session Auto-Persistence ─────────────────────────────────────
+bw-unlock() {
+    local session
+    session=$(bw unlock --raw "$@")
+    if [ -n "$session" ]; then
+        export BW_SESSION="$session"
+        echo "$BW_SESSION" > ~/.cache/.bw_session
+        chmod 600 ~/.cache/.bw_session
+        echo "✓ Bitwarden vault unlocked & session saved for all terminal tabs!"
+    fi
+}
+# Auto-load active Bitwarden session across all tabs
+if [ -f ~/.cache/.bw_session ] && [ -z "$BW_SESSION" ]; then
+    export BW_SESSION=$(cat ~/.cache/.bw_session 2>/dev/null)
+fi
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────

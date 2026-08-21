@@ -2,4 +2,7 @@ action = type
 clipboarder = xclip
 typer = xdotool
 selector = rofi
+selector-args = -theme /home/walid/.config/rofi/config.rasi
 prompt = "🔑 Passwords"
+clear-after = 45
+use-notify-send = true
