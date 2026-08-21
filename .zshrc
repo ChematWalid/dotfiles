@@ -35,6 +35,7 @@ export PIPX_HOME="$HDD/.local/pipx"
 export PNPM_HOME="$HDD/.pnpm-store"
 export npm_config_cache="$HDD/.cache/npm"   # npm cache on HDD
 export NODE_EXTRA_CA_CERTS="/mnt/drive2/docker-data/vaultwarden/ssl/cert.pem"
+export SSL_CERT_FILE="/etc/ssl/certs/ca-certificates.crt"
 # ~/.npm is symlinked → HDD via setup script
 
 # ── Go ───────────────────────────────────────────────────────────────────
