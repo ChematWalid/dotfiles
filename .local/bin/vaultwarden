@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# vaultwarden — Open self-hosted Vaultwarden in browser
+
+PORT=8080
+
+# Check if container is running
+if ! docker ps --format '{{.Names}}' | grep -q "^vaultwarden$"; then
+    echo "Starting Vaultwarden container..."
+    docker start vaultwarden >/dev/null 2>&1 || sudo docker start vaultwarden >/dev/null 2>&1
+    sleep 1
+fi
+
+if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "http://localhost:$PORT" &
+else
+    echo "Vaultwarden is live at: http://localhost:$PORT"
+fi

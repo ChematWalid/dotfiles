@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Vaultwarden (Bitwarden)
+Comment=Self-hosted Bitwarden Password Manager
+Exec=/home/walid/.local/bin/vaultwarden
+Icon=security-high
+Terminal=false
+Type=Application
+Categories=Utility;Security;
