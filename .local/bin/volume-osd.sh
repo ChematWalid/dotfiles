@@ -7,7 +7,7 @@ NOTIFICATION_ID=2593
 case "$1" in
     up)
         pamixer -u
-        pamixer -i "$STEP"
+        pamixer --allow-boost -i "$STEP"
         ;;
     down)
         pamixer -u
