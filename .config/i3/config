@@ -235,3 +235,8 @@ bindsym Mod4+w exec --no-startup-id ~/.local/bin/rofi-websearch.sh
 
 # ── Disable X11 Screen Blanking & Sleep ───────────
 exec_always --no-startup-id xset s off -dpms s noblank
+
+# ── Smart Autotiling (Auto switches vertical/horizontal splits based on aspect ratio) ──
+exec_always --no-startup-id pkill -x autotiling; autotiling -sr 1.0
+bindsym $mod+Shift+t exec --no-startup-id ~/.local/bin/toggle-autotiling.sh
+bindsym Mod4+Shift+t exec --no-startup-id ~/.local/bin/toggle-autotiling.sh
