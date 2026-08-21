@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # vaultwarden — Open self-hosted Vaultwarden in browser
 
-PORT=8080
+PORT=8222
 
 # Check if container is running
 if ! docker ps --format '{{.Names}}' | grep -q "^vaultwarden$"; then
