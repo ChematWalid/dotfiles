@@ -248,7 +248,9 @@ bw-unlock() {
 # Auto-load active Bitwarden session across all tabs
 if [ -f ~/.cache/.bw_session ] && [ -z "$BW_SESSION" ]; then
     export BW_SESSION=$(cat ~/.cache/.bw_session 2>/dev/null)
-fi
+# ── Antigravity AI CLI ─────────────────────────────────────────────────────
+alias agy-last='agy -c'                   # Continue last conversation in terminal
+alias agy-ask='agy -p'                    # Non-interactive quick question: agy-ask "how to X"
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────
