@@ -245,12 +245,19 @@ bw-unlock() {
         echo "✓ Bitwarden vault unlocked & session saved for all terminal tabs!"
     fi
 }
-# Auto-load active Bitwarden session across all tabs
 if [ -f ~/.cache/.bw_session ] && [ -z "$BW_SESSION" ]; then
     export BW_SESSION=$(cat ~/.cache/.bw_session 2>/dev/null)
+fi
+
 # ── Antigravity AI CLI ─────────────────────────────────────────────────────
 alias agy-last='agy -c'                   # Continue last conversation in terminal
 alias agy-ask='agy -p'                    # Non-interactive quick question: agy-ask "how to X"
+
+# ── TMUX (Terminal Multiplexer) ────────────────────────────────────────────
+alias tm='tmux'                           # Open / run tmux
+alias tma='tmux attach -t main 2>/dev/null || tmux new-session -s main' # Attach to main session or create
+alias tml='tmux list-sessions'            # List active tmux sessions
+alias tmk='tmux kill-session -t'          # Kill a session: tmk <name>
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────
