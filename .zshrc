@@ -221,7 +221,7 @@ alias dgui='docker-gui'                   # Docker GUI (Portainer Web UI on loca
 alias dtop='ctop'                         # Docker container live CPU/memory metrics top
 alias dps='docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"'
 alias vw='vaultwarden'                    # Open self-hosted Vaultwarden Web Vault on localhost:8222
-alias bw-local='bw config server http://localhost:8222' # Point Bitwarden CLI to local Vaultwarden
+alias bw-local='bw config server https://localhost:8222' # Point Bitwarden CLI to local Vaultwarden
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ if ! docker ps --format '{{.Names}}' | grep -q "^vaultwarden$"; then
 fi
 
 if command -v xdg-open >/dev/null 2>&1; then
-    xdg-open "http://localhost:$PORT" &
+    xdg-open "https://localhost:$PORT" &
 else
-    echo "Vaultwarden is live at: http://localhost:$PORT"
+    echo "Vaultwarden is live at: https://localhost:$PORT"
 fi
