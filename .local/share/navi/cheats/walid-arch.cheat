@@ -1,0 +1,210 @@
+% arch, system, storage, hdd
+
+# View HDD routing status and free disk space
+hdd-route status
+
+# Route Steam games and shader cache to HDD
+hdd-route steam
+
+# Route VSCode extensions and cache to HDD
+hdd-route vscode
+
+# Route Docker daemon root storage to HDD
+hdd-route docker
+
+# Route Flatpak applications to HDD
+hdd-route flatpak
+
+# Clean pacman cache, orphaned packages, and journal logs
+echo "azertyuiop" | sudo -S paccache -r && sudo pacman -Sc --noconfirm && sudo journalctl --vacuum-time=3d
+
+% security, passwords, vaultwarden
+
+# Unlock Bitwarden vault and persist session across all terminal tabs
+bw-unlock
+
+# Open self-hosted Vaultwarden Web Vault in browser
+vw
+
+# Generate 24-character secure password (letters, numbers, symbols)
+genpass
+
+# Generate 4-word hyphenated passphrase
+genphrase
+
+# List Bitwarden vault items in terminal
+bw list items
+
+# Get password for a specific item
+bw get password <item_name>
+
+% network, cloudflare, tunnels
+
+# Expose Vaultwarden server (8222) via instant Cloudflare HTTPS tunnel
+tunnel 8222
+
+# Expose a local web app or dev server (e.g. 3000) via Cloudflare tunnel
+share <port>
+
+# Real-time visual ping graph between hosts
+gping <host1> <host2>
+
+# Interactive LAN network device and port scanner
+netscanner
+
+# Interactive network traceroute with packet loss analysis
+trip <host>
+
+# Send formatted GET request with colored JSON
+xh get <url>
+
+# Send JSON POST request
+xh post <url> <key>=<value>
+
+% git, dev, github
+
+# Open GitHub TUI dashboard (PRs, Issues, Actions)
+ghd
+
+# Open GitUI terminal interface
+gg
+
+# Safely undo last commit while keeping modified files in working tree
+git undo
+
+# Visual ASCII Git commit branch tree graph
+git graph
+
+# One-command pull with rebase and push
+git sync
+
+# Add staged changes to last commit without rewriting message
+git amend
+
+# View Git commit history with syntax-aware semantic diffs
+dlog
+
+% docker, containers
+
+# Open Lazydocker TUI dashboard (containers, images, logs, volumes)
+ld
+
+# Open Portainer Web GUI on localhost:9000
+dgui
+
+# Real-time Docker container CPU/memory/network metrics monitor
+dtop
+
+# Clean all stopped Docker containers and dangling images
+docker system prune -f
+
+% ai, antigravity
+
+# Start interactive Antigravity agentic coding session
+agy
+
+# Resume and continue last Antigravity conversation in terminal
+agy-last
+
+# Ask a quick one-off question without entering full interactive mode
+agy-ask "<prompt>"
+
+% multiplexer, tmux
+
+# Attach to main Tmux session or create new one
+tma
+
+# List active Tmux sessions
+tml
+
+# Kill a specific Tmux session
+tmk <session_name>
+
+% files, navigation, search
+
+# Open LF terminal file manager with rich video and PDF previews
+lf
+
+# Open Superfile terminal file manager
+spf
+
+# Open Yazi async file manager
+yazi
+
+# Interactive tree directory navigator with disk weights
+br
+
+# Visual graphical disk space analyzer
+dust
+
+# Decompress any archive (.zip, .tar.gz, .7z, .tar.zst)
+ouch decompress <archive_file>
+
+# Safely move file to trash
+tp <file>
+
+# List all items in trash
+tl
+
+# Interactively restore items from trash
+trs
+
+# Sub-millisecond plocate file search across all drives
+plocate <filename>
+
+# AST code pattern search across codebase
+sg '<pattern>' --lang <language>
+
+% data, spreadsheets, text
+
+# Open spreadsheet/CSV/JSON in VisiData interactive table
+vd <file>
+
+# Query JSON/YAML/TOML structure value
+dasel -f <file> '<selector>'
+
+# Replace text directly across files (modern sed)
+sd '<old_text>' '<new_text>' <file>
+
+# Translate text between languages
+tr <source>:<target> "<text>"
+
+% tasks, time, calendar
+
+# Add high-priority task with deadline
+t add "<task_description>" priority:H due:tomorrow
+
+# List active pending tasks
+t
+
+# Mark task as completed
+t <task_id> done
+
+# Start tracking time on a task
+tw start "<task_name>"
+
+# Stop tracking time
+tw stop
+
+# Show time tracking summary for today/this week
+tw summary
+
+# View upcoming scheduled events and calendar
+agenda
+
+% media, audio, visuals
+
+# Open NCMPCPP terminal music player
+music
+
+# Open CAVA audio spectrum visualizer
+vis
+
+# Toggle Play/Pause on active music player
+playerctl play-pause
+
+# Skip to next song
+playerctl next
+
+# Skip to previous song
+playerctl previous
