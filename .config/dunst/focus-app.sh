@@ -1,9 +1,14 @@
 #!/bin/bash
 # Called by dunst on left-click with $APP_NAME set by dunst
 # Finds the window belonging to the app and switches i3 to its workspace
-
 APP="$APP_NAME"
 
+# Ignore OSD notifications
+case "$APP" in
+    Volume|volume|Brightness|brightness|"")
+        exit 0
+        ;;
+esac
 # Map common app names to their WM_CLASS (xdotool uses WM_CLASS)
 declare -A APP_CLASS_MAP
 APP_CLASS_MAP["Telegram Desktop"]="TelegramDesktop"

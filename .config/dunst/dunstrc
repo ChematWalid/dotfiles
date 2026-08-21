@@ -28,3 +28,11 @@
     background = "#1e1e2e"
     foreground = "#cdd6f4"
     script = ~/.config/dunst/focus-app.sh
+
+[volume]
+    appname = "Volume"
+    script = ""
+
+[brightness]
+    appname = "brightness"
+    script = ""
