@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Configure Bitwarden CLI to use local Vaultwarden server
+bw config server https://localhost:8222
