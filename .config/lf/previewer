@@ -1,10 +1,46 @@
 #!/usr/bin/env bash
 file=$1
 w=$2; h=$3; x=$4; y=$5
+cache_dir="/tmp/lf_previews"
+mkdir -p "$cache_dir"
 
-case $(file --mime-type -Lb "$file") in
-    text/*)  bat --color=always --style=numbers --line-range=:200 "$file" ;;
-    image/*) chafa -s "${w}x${h}" "$file" 2>/dev/null || file "$file" ;;
-    video/*) mediainfo "$file" 2>/dev/null | head -30 ;;
-    *)       file "$file" ;;
+mime=$(file --mime-type -Lb "$file" 2>/dev/null)
+
+case "$mime" in
+    text/*|application/json|application/javascript|application/xml|application/x-sh)
+        bat --color=always --style=numbers --line-range=:200 "$file"
+        ;;
+    image/*)
+        chafa -s "${w}x${h}" "$file" 2>/dev/null || file "$file"
+        ;;
+    video/*)
+        hash=$(echo -n "$file" | md5sum | cut -d' ' -f1)
+        thumb="$cache_dir/$hash.jpg"
+        if [ ! -f "$thumb" ]; then
+            ffmpegthumbnailer -i "$file" -o "$thumb" -s 512 -q 5 2>/dev/null
+        fi
+        if [ -f "$thumb" ]; then
+            chafa -s "${w}x${h}" "$thumb" 2>/dev/null
+        else
+            mediainfo "$file" 2>/dev/null | head -30
+        fi
+        ;;
+    application/pdf)
+        hash=$(echo -n "$file" | md5sum | cut -d' ' -f1)
+        thumb="$cache_dir/$hash-1.png"
+        if [ ! -f "$thumb" ]; then
+            pdftoppm -png -f 1 -l 1 -scale-to-x 512 -scale-to-y -1 "$file" "$cache_dir/$hash" 2>/dev/null
+        fi
+        if [ -f "$thumb" ]; then
+            chafa -s "${w}x${h}" "$thumb" 2>/dev/null
+        else
+            file "$file"
+        fi
+        ;;
+    archive/*|application/zip|application/x-tar|application/gzip|application/x-7z-compressed)
+        ouch list "$file" 2>/dev/null || file "$file"
+        ;;
+    *)
+        file "$file"
+        ;;
 esac

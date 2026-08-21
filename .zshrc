@@ -258,6 +258,11 @@ alias tm='tmux'                           # Open / run tmux
 alias tma='tmux attach -t main 2>/dev/null || tmux new-session -s main' # Attach to main session or create
 alias tml='tmux list-sessions'            # List active tmux sessions
 alias tmk='tmux kill-session -t'          # Kill a session: tmk <name>
+
+# ── GitHub TUI Dashboard & Cloudflare Tunnels ──────────────────────────────
+alias ghd='gh dash'                       # GitHub interactive TUI dashboard (PRs, Issues, Actions)
+alias tunnel='share-port'                 # Expose local port to internet via Cloudflare: tunnel 8222
+alias share='share-port'                  # Alias for share-port: share 3000
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────
