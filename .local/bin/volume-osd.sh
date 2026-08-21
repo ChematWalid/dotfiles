@@ -1,25 +1,44 @@
 #!/usr/bin/env bash
+# Volume OSD with Dunst notification bar
+
+STEP=5
+NOTIFICATION_ID=2593
 
 case "$1" in
     up)
-        pactl set-sink-mute @DEFAULT_SINK@ false
-        pactl set-sink-volume @DEFAULT_SINK@ +5%
+        pamixer -u
+        pamixer -i "$STEP"
         ;;
     down)
-        pactl set-sink-mute @DEFAULT_SINK@ false
-        pactl set-sink-volume @DEFAULT_SINK@ -5%
+        pamixer -u
+        pamixer -d "$STEP"
         ;;
     mute)
-        pactl set-sink-mute @DEFAULT_SINK@ toggle
+        pamixer -t
+        ;;
+    mic-mute)
+        pamixer --default-source -t
         ;;
 esac
 
-# Get current volume and mute status
-MUTED=$(pactl get-sink-mute @DEFAULT_SINK@ | awk '{print $2}')
-VOL=$(pactl get-sink-volume @DEFAULT_SINK@ | grep -Po '[0-9]+(?=%)' | head -1)
+MUTED=$(pamixer --get-mute 2>/dev/null || echo "false")
+VOL=$(pamixer --get-volume 2>/dev/null || echo "50")
 
-if [ "$MUTED" = "yes" ] || [ "$VOL" -eq 0 ]; then
-    dunstify -a "volume" -u low -r 9993 -h string:x-dunst-stack-tag:volume -h int:value:0 "󰝟  Muted" "Volume is turned off"
+if [ "$MUTED" = "true" ] || [ "$VOL" -eq 0 ]; then
+    ICON="audio-volume-muted"
+    TEXT="Muted"
+    VOL=0
 else
-    dunstify -a "volume" -u low -r 9993 -h string:x-dunst-stack-tag:volume -h int:value:"$VOL" "󰕾  Volume: ${VOL}%"
+    if [ "$VOL" -ge 70 ]; then
+        ICON="audio-volume-high"
+    elif [ "$VOL" -ge 30 ]; then
+        ICON="audio-volume-medium"
+    else
+        ICON="audio-volume-low"
+    fi
+    TEXT="${VOL}%"
+fi
+
+if command -v dunstify >/dev/null 2>&1; then
+    dunstify -a "Volume" -r "$NOTIFICATION_ID" -u low -i "$ICON" -h int:value:"$VOL" "Volume: $TEXT" -t 1200
 fi

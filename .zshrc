@@ -132,6 +132,13 @@ if command -v zoxide >/dev/null 2>&1; then
     eval "$(zoxide init zsh)"
 fi
 
+# === mise Runtime Manager (Fast polyglot runtime manager: Node, Python, Go) ===
+if command -v mise >/dev/null 2>&1; then
+    export MISE_DATA_DIR="/mnt/drive2/.mise"
+    export MISE_CACHE_DIR="/mnt/drive2/.cache/mise"
+    eval "$(mise activate zsh)"
+fi
+
 # FZF keybindings (Ctrl+T for files, Alt+C for cd — Ctrl+R overridden by atuin below)
 source /usr/share/fzf/key-bindings.zsh 2>/dev/null
 source /usr/share/fzf/completion.zsh 2>/dev/null

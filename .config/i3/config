@@ -9,7 +9,7 @@ font pango:JetBrainsMono Nerd Font 10
 
 # Autostart applications
 exec --no-startup-id dex --autostart --environment i3
-exec --no-startup-id xss-lock --transfer-sleep-lock -- i3lock --nofork
+exec --no-startup-id xss-lock --transfer-sleep-lock -- ~/.local/bin/lock.sh
 exec --no-startup-id nm-applet
 exec --no-startup-id blueman-applet
 exec --no-startup-id picom -b
@@ -20,16 +20,29 @@ exec_always --no-startup-id systemctl --user restart i3-autoname.service
 # Set wallpaper
 exec_always --no-startup-id feh --bg-fill /home/walid/Downloads/catppuccin-wall-dark.jpg 2>/dev/null || true
 
-# Audio volume controls via PipeWire / PulseAudio
+# Audio volume controls (Media Keys + Alt/Win+F1..F3 for non-Fn keyboards)
 bindsym XF86AudioRaiseVolume exec --no-startup-id ~/.local/bin/volume-osd.sh up
 bindsym XF86AudioLowerVolume exec --no-startup-id ~/.local/bin/volume-osd.sh down
 bindsym XF86AudioMute exec --no-startup-id ~/.local/bin/volume-osd.sh mute
 bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle
 
+bindsym Mod4+F1 exec --no-startup-id ~/.local/bin/volume-osd.sh mute
+bindsym Mod4+F2 exec --no-startup-id ~/.local/bin/volume-osd.sh down
+bindsym Mod4+F3 exec --no-startup-id ~/.local/bin/volume-osd.sh up
+bindsym $mod+F1 exec --no-startup-id ~/.local/bin/volume-osd.sh mute
+bindsym $mod+F2 exec --no-startup-id ~/.local/bin/volume-osd.sh down
+bindsym $mod+F3 exec --no-startup-id ~/.local/bin/volume-osd.sh up
+
 # Media player controls
 bindsym XF86AudioPlay exec --no-startup-id playerctl play-pause 2>/dev/null
 bindsym XF86AudioNext exec --no-startup-id playerctl next 2>/dev/null
 bindsym XF86AudioPrev exec --no-startup-id playerctl previous 2>/dev/null
+bindsym Mod4+F7 exec --no-startup-id playerctl previous 2>/dev/null
+bindsym Mod4+F8 exec --no-startup-id playerctl play-pause 2>/dev/null
+bindsym Mod4+F9 exec --no-startup-id playerctl next 2>/dev/null
+bindsym $mod+F7 exec --no-startup-id playerctl previous 2>/dev/null
+bindsym $mod+F8 exec --no-startup-id playerctl play-pause 2>/dev/null
+bindsym $mod+F9 exec --no-startup-id playerctl next 2>/dev/null
 
 # Drag floating windows
 floating_modifier $mod
@@ -170,11 +183,23 @@ exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
 # ── Input Settings (Keyboard Layouts, 250 50 Repeat Rate, Mouse Raw Input) ──
 exec_always --no-startup-id ~/.local/bin/apply-input-settings.sh
 
-# ── Brightness controls ───────────────────────────
+# ── Brightness controls (Hardware Keys & Alt/Win+F5..F6) ─────────────────────
 bindsym XF86MonBrightnessUp exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 bindsym XF86MonBrightnessDown exec --no-startup-id ~/.local/bin/brightness-osd.sh down
+bindsym Mod4+F5 exec --no-startup-id ~/.local/bin/brightness-osd.sh down
+bindsym Mod4+F6 exec --no-startup-id ~/.local/bin/brightness-osd.sh up
+bindsym $mod+F5 exec --no-startup-id ~/.local/bin/brightness-osd.sh down
+bindsym $mod+F6 exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
 focus_on_window_activation focus
+
+# ── Lock Screen (Win+L & Alt+Ctrl+L) ───────────────
+bindsym Mod4+l exec --no-startup-id ~/.local/bin/lock.sh
+bindsym $mod+Control+l exec --no-startup-id ~/.local/bin/lock.sh
+
+# ── Bitwarden / Vaultwarden Password Auto-Typer (Win+P & Alt+P) ──
+bindsym Mod4+p exec --no-startup-id rofi-rbw
+bindsym $mod+p exec --no-startup-id rofi-rbw
 
 # ── CopyQ Clipboard Manager (Follows active workspace & works in all layouts) ──
 for_window [class="[cC]opy[qQ]"] floating enable, resize set 650 500, move position center
