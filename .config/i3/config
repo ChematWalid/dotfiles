@@ -179,7 +179,7 @@ client.placeholder      #181825 #181825 #cdd6f4 #181825   #181825
 client.background       #1e1e2e
 exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
 exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
-exec_always --no-startup-id ~/.local/bin/conky-music-daemon.sh
+exec_always --no-startup-id ~/.local/bin/desktop-music-daemon.py
 
 # ── Input Settings (Keyboard Layouts, 250 50 Repeat Rate, Mouse Raw Input) ──
 exec_always --no-startup-id ~/.local/bin/apply-input-settings.sh
