@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Docker GUI (Portainer)
+Comment=Manage Docker containers, images, volumes, and stacks visually
+Exec=/home/walid/.local/bin/docker-gui
+Icon=docker
+Terminal=false
+Type=Application
+Categories=Development;System;

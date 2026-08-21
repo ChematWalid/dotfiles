@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=LazyDocker TUI
+Comment=Terminal UI for Docker and Docker Compose
+Exec=kitty -e lazydocker
+Icon=docker
+Terminal=false
+Type=Application
+Categories=Development;System;

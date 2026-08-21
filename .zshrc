@@ -216,7 +216,10 @@ alias sg='ast-grep'                       # ast-grep: code-structure-aware searc
 # plocate filename                        # fast file locate (updatedb to refresh)
 
 # ── Dev Tools ──────────────────────────────────────────────────────────────
-alias ld='lazydocker'                     # Docker TUI (like lazygit for Docker)
+alias ld='lazydocker'                     # Docker TUI (containers, images, logs, volumes)
+alias dgui='docker-gui'                   # Docker GUI (Portainer Web UI on localhost:9000)
+alias dtop='ctop'                         # Docker container live CPU/memory metrics top
+alias dps='docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"'
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────
