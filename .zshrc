@@ -223,6 +223,8 @@ alias dtop='ctop'                         # Docker container live CPU/memory met
 alias dps='docker ps --format "table {{.ID}}\t{{.Names}}\t{{.Status}}\t{{.Ports}}"'
 alias vw='vaultwarden'                    # Open self-hosted Vaultwarden Web Vault on localhost:8222
 alias bw-local='bw config server https://localhost:8222' # Point Bitwarden CLI to local Vaultwarden
+alias genpass='bw generate -u -l -n -s --length 24'       # Generate 24-char secure password (letters, numbers, symbols)
+alias genphrase='bw generate --passphrase --words 4 --separator -' # Generate 4-word passphrase
 # gh pr create / gh issue list / gh run watch  — GitHub CLI (already on PATH)
 
 # ── Benchmarking ───────────────────────────────────────────────────────────
