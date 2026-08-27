@@ -244,8 +244,8 @@ log "Fonts installed and cache updated"
 step "8 — Wallpaper"
 # ══════════════════════════════════════════════════════════════════════════════
 mkdir -p "$HOME/Pictures"
-cp -n "$DOTFILES_DIR/wallpaper.jpg" "$HOME/Pictures/wallpaper.jpg" 2>/dev/null || true
-log "Wallpaper → ~/Pictures/wallpaper.jpg"
+cp -n "$DOTFILES_DIR/wallpaper.jpg" "$HOME/Pictures/catppuccin-wall-dark.jpg" 2>/dev/null || true
+log "Wallpaper → ~/Pictures/catppuccin-wall-dark.jpg"
 
 # ══════════════════════════════════════════════════════════════════════════════
 step "9 — /etc system configs"
