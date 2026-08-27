@@ -61,3 +61,7 @@ i3lock \
   --bshl-color="${RED}" \
   --layout-color="${TEXT}" \
   --layout-font="JetBrainsMono Nerd Font"
+
+# Re-apply keyboard rate and mouse settings after unlocking
+~/.local/bin/apply-input-settings.sh &
+

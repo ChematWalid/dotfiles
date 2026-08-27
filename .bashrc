@@ -35,3 +35,5 @@ fi
 export PATH=$PATH:/home/walid/.spicetify
 export QT_QPA_PLATFORMTHEME=qt6ct
 export QT_STYLE_OVERRIDE=kvantum
+
+source /home/walid/.config/broot/launcher/bash/br

@@ -2,14 +2,14 @@
 # See fstab(5) for details.
 
 # <file system> <dir> <type> <options> <dump> <pass>
-# /dev/sda2
+# /dev/sda2 (Root)
 UUID=8aedd79c-b0f5-4e94-be26-e4aca43891f1	/         	ext4      	rw,relatime	0 1
 
-# /dev/sda1
+# /dev/sda1 (Boot EFI)
 UUID=BA4A-20AA      	/boot     	vfat      	rw,relatime,fmask=0077,dmask=0077,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2
 
-# D: drive
-UUID=B0C806ABC8066FC0  /mnt/drive2  ntfs-3g  defaults,uid=1000,gid=1000,dmask=0022,fmask=0022,nofail,windows_names  0  0
+# /dev/sdb5 (Drive D - ext4)
+UUID=9c7d7763-ced5-4b7b-a55e-cb194bd91ac0	/mnt/drive2	ext4      	defaults,noatime,nofail	0 2
 
-# E: drive
-UUID=1ED6F0D5D6F0AE61  /mnt/drive3  ntfs-3g  defaults,uid=1000,gid=1000,dmask=0022,fmask=0022,nofail,windows_names  0  0
+# /dev/sdb6 (Drive E - ext4)
+UUID=a7890d4c-d8ff-4f1c-b83a-6c81d07fad9e	/mnt/drive3	ext4      	defaults,noatime,nofail	0 2

@@ -1,144 +1,146 @@
-% arch, system, storage, hdd
+% system, arch, pacman, packages
 
-# View HDD routing status and free disk space
-hdd-route status
+# Update all packages (pacman + AUR via yay)
+update
 
-# Route Steam games and shader cache to HDD
-hdd-route steam
+# Full system upgrade with AUR
+yay -Syu
 
-# Route VSCode extensions and cache to HDD
-hdd-route vscode
+# Install a package (AUR-aware)
+yay -S <package>
 
-# Route Docker daemon root storage to HDD
-hdd-route docker
+# Remove package and unused dependencies
+sudo pacman -Rns <package>
 
-# Route Flatpak applications to HDD
-hdd-route flatpak
+# Search for a package
+yay -Ss <package>
 
-# Clean pacman cache, orphaned packages, and journal logs
-echo "azertyuiop" | sudo -S paccache -r && sudo pacman -Sc --noconfirm && sudo journalctl --vacuum-time=3d
+# List explicitly installed packages
+pacman -Qqe
 
-% security, passwords, vaultwarden
+# Clean pacman cache, orphans, and journal
+cleanup
 
-# Unlock Bitwarden vault and persist session across all terminal tabs
-bw-unlock
+# Clean only pacman cache (keep last 2 versions)
+sudo paccache -r
 
-# Open self-hosted Vaultwarden Web Vault in browser
-vw
+# Downgrade a package to a previous version
+downgrade <package>
 
-# Generate 24-character secure password (letters, numbers, symbols)
-genpass
+# Show package info
+pacman -Qi <package>
 
-# Generate 4-word hyphenated passphrase
-genphrase
+# Show files owned by a package
+pacman -Ql <package>
 
-# List Bitwarden vault items in terminal
-bw list items
+# Find which package owns a file
+pacman -Qo <file>
 
-# Get password for a specific item
-bw get password <item_name>
+# List orphaned packages
+pacman -Qtdq
 
-% network, cloudflare, tunnels
+# Check for failed systemd services
+systemctl --failed
 
-# Expose Vaultwarden server (8222) via instant Cloudflare HTTPS tunnel
-tunnel 8222
+# Enable and start a service
+sudo systemctl enable --now <service>
 
-# Expose a local web app or dev server (e.g. 3000) via Cloudflare tunnel
-share <port>
+# Restart a service
+sudo systemctl restart <service>
 
-# Real-time visual ping graph between hosts
-gping <host1> <host2>
+# Show service logs (live)
+journalctl -fu <service>
 
-# Interactive LAN network device and port scanner
-netscanner
+# Vacuum journal logs older than 3 days
+sudo journalctl --vacuum-time=3d
 
-# Interactive network traceroute with packet loss analysis
-trip <host>
+# UFW firewall status
+sudo ufw status verbose
 
-# Send formatted GET request with colored JSON
-xh get <url>
+# Allow a port through firewall
+sudo ufw allow <port>
 
-# Send JSON POST request
-xh post <url> <key>=<value>
+# Show CPU power info
+cpupower frequency-info
 
-% git, dev, github
+# Set CPU governor
+sudo cpupower frequency-set -g <governor>
 
-# Open GitHub TUI dashboard (PRs, Issues, Actions)
-ghd
+% system, monitoring, resources
 
-# Open GitUI terminal interface
-gg
+# All-in-one system overview (glances)
+sys
 
-# Safely undo last commit while keeping modified files in working tree
-git undo
+# Interactive process monitor (btop)
+btop
 
-# Visual ASCII Git commit branch tree graph
-git graph
+# GPU usage monitor (nvtop)
+nvtop
 
-# One-command pull with rebase and push
-git sync
+# Disk usage visual, biggest at bottom (dust)
+dust
 
-# Add staged changes to last commit without rewriting message
-git amend
+# Disk usage interactive ncurses (gdu)
+du
 
-# View Git commit history with syntax-aware semantic diffs
-dlog
+# Disk space overview, modern df (duf)
+df
 
-% docker, containers
+# Network bandwidth monitor per process
+bandwhich
 
-# Open Lazydocker TUI dashboard (containers, images, logs, volumes)
-ld
+# Show smart disk health
+sudo smartctl -a /dev/<disk>
 
-# Open Portainer Web GUI on localhost:9000
-dgui
-
-# Real-time Docker container CPU/memory/network metrics monitor
-dtop
-
-# Clean all stopped Docker containers and dangling images
-docker system prune -f
-
-% ai, antigravity
-
-# Start interactive Antigravity agentic coding session
-agy
-
-# Resume and continue last Antigravity conversation in terminal
-agy-last
-
-# Ask a quick one-off question without entering full interactive mode
-agy-ask "<prompt>"
-
-% multiplexer, tmux
-
-# Attach to main Tmux session or create new one
-tma
-
-# List active Tmux sessions
-tml
-
-# Kill a specific Tmux session
-tmk <session_name>
+# Show running processes (procs)
+ps
 
 % files, navigation, search
 
-# Open LF terminal file manager with rich video and PDF previews
+# Open Yazi async file manager
+y
+
+# Open LF terminal file manager
 lf
 
-# Open Superfile terminal file manager
+# Open Superfile file manager
 spf
 
-# Open Yazi async file manager
-yazi
+# Interactive broot tree navigator
+b
 
-# Interactive tree directory navigator with disk weights
-br
+# Long list with icons, git status, hidden files
+ll
 
-# Visual graphical disk space analyzer
-dust
+# List files with icons, grouped dirs first
+ls
 
-# Decompress any archive (.zip, .tar.gz, .7z, .tar.zst)
-ouch decompress <archive_file>
+# Tree view 2 levels deep
+lt
+
+# Tree view custom depth
+eza --tree --icons --level=<depth>
+
+# Fast file search by name (fd)
+fd <pattern>
+
+# Find files by name across all drives (plocate)
+plocate <filename>
+
+# Recursive text search (ripgrep)
+rg '<pattern>'
+
+# Ripgrep in specific file type
+rg '<pattern>' -t <filetype>
+
+# AST code-structure-aware search
+sg '<pattern>' --lang <language>
+
+# Interactive fuzzy file finder (fzf)
+fzf
+
+# SQL-like file queries (fselect)
+fselect name from <dir> where size > 1mb
 
 # Safely move file to trash
 tp <file>
@@ -146,65 +148,772 @@ tp <file>
 # List all items in trash
 tl
 
-# Interactively restore items from trash
+# Interactively restore from trash
 trs
 
-# Sub-millisecond plocate file search across all drives
-plocate <filename>
+# Empty trash permanently
+te
 
-# AST code pattern search across codebase
-sg '<pattern>' --lang <language>
+# Decompress any archive
+unpack <archive>
 
-% data, spreadsheets, text
+# Compress files into archive
+pack <files...> <output.tar.gz>
 
-# Open spreadsheet/CSV/JSON in VisiData interactive table
+# Copy file with progress bar
+rsync -ah --progress <src> <dest>
+
+# Sync two directories
+rsync -avz --delete <src>/ <dest>/
+
+% files, disk, backup, rclone
+
+# List rclone remotes
+rclone listremotes
+
+# Copy local to remote
+rclone copy <local_path> <remote>:<path>
+
+# Sync local to remote (one-way)
+rclone sync <local> <remote>:<path>
+
+# Mount remote as filesystem
+rclone mount <remote>:<path> <mountpoint> --daemon
+
+# Show rclone remote stats
+rclone about <remote>:
+
+# Timeshift — create manual snapshot
+sudo timeshift --create --comments "<label>"
+
+# Timeshift — list snapshots
+sudo timeshift --list
+
+# Timeshift — restore snapshot
+sudo timeshift --restore
+
+% text, editor, markdown
+
+# Open file in Neovim
+v <file>
+
+# Open file in Nano
+nano <file>
+
+# Render Markdown beautifully in terminal
+md <file.md>
+
+# View file with syntax highlighting (bat)
+cat <file>
+
+# View file with line numbers (bat)
+bat -n <file>
+
+# Replace text in file (modern sed)
+sd '<old>' '<new>' <file>
+
+# Replace across multiple files
+sd '<old>' '<new>' $(fd -e <ext>)
+
+# Select columns like cut/awk
+choose <col_indices>
+
+# Convert document to PDF (pandoc)
+pandoc <input.md> -o <output.pdf>
+
+# Convert Markdown to HTML
+pandoc <input.md> -o <output.html>
+
+% data, spreadsheets, json, csv
+
+# Open CSV/JSON/XLSX in VisiData
 vd <file>
 
-# Query JSON/YAML/TOML structure value
+# Query JSON/YAML/TOML values (dasel)
 dasel -f <file> '<selector>'
 
-# Replace text directly across files (modern sed)
-sd '<old_text>' '<new_text>' <file>
+# Pretty-print JSON (jq)
+jq '.' <file.json>
 
-# Translate text between languages
-tr <source>:<target> "<text>"
+# Flatten nested JSON to dotted paths (gron)
+gron <file.json>
+
+# Filter CSV rows (miller)
+mlr --csv filter '$col == "<value>"' <file.csv>
+
+# Stats on CSV column
+mlr --csv stats1 -a mean,min,max -f <column> <file.csv>
+
+# Convert CSV to JSON
+mlr --csv --ojson cat <file.csv>
+
+# CSV stats overview (xsv)
+xsv stats <file.csv>
+
+# Select CSV columns
+xsv select <col1,col2> <file.csv>
+
+% git, version control
+
+# Open Lazygit TUI
+lg
+
+# Open GitUI TUI
+gg
+
+# Open GitHub TUI dashboard
+ghd
+
+# Clone repository
+git clone <url>
+
+# Stage all changes
+git add -A
+
+# Commit with message
+git commit -m "<message>"
+
+# Push current branch
+git push
+
+# Pull with rebase
+git pull --rebase
+
+# Pull, rebase, push (one command)
+git sync
+
+# Undo last commit, keep changes
+git undo
+
+# Add staged to last commit
+git amend
+
+# Visual branch graph
+git graph
+
+# View semantic diffs (difftastic)
+dlog
+
+# Stash changes
+git stash
+
+# Pop stash
+git stash pop
+
+# Create and switch to new branch
+git checkout -b <branch>
+
+# Delete local branch
+git branch -d <branch>
+
+# Interactive rebase last N commits
+git rebase -i HEAD~<n>
+
+# Cherry-pick a commit
+git cherry-pick <hash>
+
+# Show diff of staged changes
+git diff --staged
+
+# Search commits by message
+git log --grep '<term>'
+
+% github, gh cli
+
+# Create a pull request
+gh pr create
+
+# List open PRs
+gh pr list
+
+# View PR status and checks
+gh pr status
+
+# Merge PR
+gh pr merge <number>
+
+# Create an issue
+gh issue create
+
+# List issues
+gh issue list
+
+# View CI/CD runs
+gh run list
+
+# Watch a workflow run live
+gh run watch
+
+# Clone a repo
+gh repo clone <owner>/<repo>
+
+# Fork a repo
+gh repo fork <owner>/<repo>
+
+% docker, containers
+
+# Open Lazydocker TUI
+ld
+
+# Open Portainer Web GUI (localhost:9000)
+dgui
+
+# Live container metrics (ctop)
+dtop
+
+# Show running containers formatted
+dps
+
+# Show all containers including stopped
+docker ps -a
+
+# Start a container
+docker start <name>
+
+# Stop a container
+docker stop <name>
+
+# Exec shell into running container
+docker exec -it <name> bash
+
+# View container logs live
+docker logs -f <name>
+
+# Build image from Dockerfile
+docker build -t <name>:<tag> .
+
+# Pull image from registry
+docker pull <image>:<tag>
+
+# Prune stopped containers and dangling images
+docker system prune -f
+
+# Remove unused volumes
+docker volume prune
+
+# List all images
+docker images
+
+# Docker Compose — start services
+docker compose up -d
+
+# Docker Compose — stop services
+docker compose down
+
+# Docker Compose — logs
+docker compose logs -f
+
+# Docker Compose — rebuild and restart
+docker compose up -d --build
+
+% network, tunnels, scanning
+
+# Expose local port via Cloudflare tunnel
+share <port>
+
+# Expose Vaultwarden port 8222
+tunnel 8222
+
+# Interactive LAN network scanner
+netscanner
+
+# Port scanner (nmap)
+nmap -sV <host>
+
+# Scan all ports
+nmap -p- <host>
+
+# Interactive traceroute with packet loss (trippy)
+trip <host>
+
+# DNS lookup (dog — modern dig)
+dog <domain>
+
+# DNS lookup specific record type
+dog <domain> <type>
+
+# Visual real-time ping graph
+gping <host1> <host2>
+
+# Real-time bandwidth per process
+bandwhich
+
+# Show open ports and connections
+ss -tulpn
+
+# Send GET request with colored output
+xh get <url>
+
+# Send POST with JSON body
+xh post <url> key=value
+
+# Download file
+wget <url>
+
+# Download file multi-connection (aria2c)
+aria2c -x 16 <url>
+
+# ARP scan LAN
+arp-scan -l
+
+% security, vpn, passwords
+
+# Unlock Bitwarden vault (persists session)
+bw-unlock
+
+# Open self-hosted Vaultwarden Web Vault
+vw
+
+# Point BW CLI to local Vaultwarden
+bw-local
+
+# Generate secure 24-char password
+genpass
+
+# Generate 4-word passphrase
+genphrase
+
+# List Bitwarden items
+bw list items
+
+# Get password for item
+bw get password <item_name>
+
+# Search Bitwarden items
+bw list items --search <query>
+
+# rbw list (no master password prompt)
+rbw list
+
+# rbw get password
+rbw get <item>
+
+# ProtonVPN — connect fastest server
+protonvpn-cli connect --fastest
+
+# ProtonVPN — connect to country
+protonvpn-cli connect --cc <CC>
+
+# ProtonVPN — disconnect
+protonvpn-cli disconnect
+
+# ProtonVPN — status
+protonvpn-cli status
+
+# SSH to remote host
+ssh <user>@<host>
+
+# Copy SSH key to remote
+ssh-copy-id <user>@<host>
+
+% media, video, audio, download
+
+# Open NCMPCPP music player
+music
+
+# Open CAVA audio visualizer
+vis
+
+# Play/pause media (playerctl)
+playerctl play-pause
+
+# Next track
+playerctl next
+
+# Previous track
+playerctl previous
+
+# Volume up (pamixer)
+pamixer -i 5
+
+# Volume down
+pamixer -d 5
+
+# Mute/unmute toggle
+pamixer -t
+
+# Download video best quality
+ytdl-best <url>
+
+# Download audio as MP3
+ytdl-mp3 <url>
+
+# Download video (yt-dlp)
+ytdl <url>
+
+# Download playlist
+yt-dlp -o '%(playlist_index)s-%(title)s.%(ext)s' <playlist_url>
+
+# Download Spotify track/album/playlist
+spot <url>
+
+# Download images from gallery sites
+gdl <url>
+
+# Play video in terminal (mpv)
+mpv <file>
+
+# Play video with subtitles
+mpv --sub-file=<subtitle.srt> <video>
+
+# Convert video format (ffmpeg)
+ffmpeg -i <input> <output.mp4>
+
+# Extract audio from video
+ffmpeg -i <input.mp4> -q:a 0 -map a <output.mp3>
+
+# Record screen (ffmpeg)
+ffmpeg -f x11grab -r 30 -s 1920x1080 -i :0.0 <output.mp4>
+
+# Compress video (HandBrake CLI)
+HandBrakeCLI -i <input> -o <output.mp4> --preset "Fast 1080p30"
+
+# Show media file info (mediainfo)
+mediainfo <file>
+
+# Display image in terminal (chafa)
+chafa <image>
+
+# Display image in terminal (timg)
+timg <image>
+
+# Open image viewer (imv)
+imv <image>
+
+# Convert image format (imagemagick)
+convert <input.png> <output.jpg>
+
+# Resize image
+convert <input> -resize 1920x1080 <output>
+
+# Image to ASCII art (jp2a)
+jp2a <image>
+
+% recording, screenshots
+
+# Screenshot with selection (flameshot)
+flameshot gui
+
+# Screenshot full screen to file
+maim ~/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png
+
+# Screenshot selection to clipboard
+maim -s | xclip -selection clipboard -t image/png
+
+# Record terminal session (asciinema)
+asciinema rec <output.cast>
+
+# Play recorded terminal session
+asciinema play <file.cast>
+
+# Upload recording to asciinema.org
+asciinema upload <file.cast>
+
+# Open OBS Studio
+obs
+
+% development, coding, tools
+
+# Count lines of code by language (tokei)
+tokei
+
+# Count and sort by lines
+tokei --sort code
+
+# Generate regex from examples (grex)
+grex <example1> <example2>
+
+# Benchmark command speed (hyperfine)
+bench '<command>'
+
+# Compare two benchmarks
+hyperfine '<cmd1>' '<cmd2>'
+
+# Format/query JSON (jq)
+jq '<filter>' <file.json>
+
+# HTTP API client (xh)
+xh get <url>
+
+# AI pair programming (aider)
+aider
+
+# Aider with specific model
+aider --model <model>
+
+# Open Postman
+postman
+
+# Maven build
+mvn clean install
+
+# Maven run Spring Boot
+mvn spring-boot:run
+
+# Gradle build
+gradle build
+
+# Gradle run
+gradle bootRun
+
+# pnpm install
+pnpm install
+
+# pnpm dev server
+pnpm dev
+
+# pnpm build
+pnpm build
+
+# Install runtime version (mise)
+mise install <runtime>@<version>
+
+# Use runtime version in project
+mise use <runtime>@<version>
+
+# Allow .envrc (direnv)
+direnv allow
+
+# Spell-correct last command (thefuck)
+fuck
+
+% ai, antigravity
+
+# Start Antigravity interactive session
+agy
+
+# Resume last Antigravity conversation
+agy-last
+
+# Quick one-off AI question
+agy-ask "<prompt>"
+
+# AI pair programming with Aider
+aider
+
+% databases
+
+# Connect to PostgreSQL
+psql -U <user> -d <database>
+
+# Connect to PostgreSQL on host
+psql -h <host> -U <user> -d <database>
+
+# Dump PostgreSQL database
+pg_dump -U <user> <database> > backup.sql
+
+# Restore PostgreSQL database
+psql -U <user> <database> < backup.sql
+
+# Start PostgreSQL service
+sudo systemctl start postgresql
+
+# Connect to MariaDB/MySQL
+mysql -u <user> -p <database>
+
+# Open DBeaver GUI database client
+dbeaver
+
+% multiplexer, sessions
+
+# Attach to main tmux session or create new
+tma
+
+# List tmux sessions
+tml
+
+# Kill tmux session
+tmk <session_name>
+
+# Open Zellij multiplexer
+zellij
+
+# Zellij — attach to session
+zellij attach <session>
+
+# Zellij — list sessions
+zellij list-sessions
 
 % tasks, time, calendar
 
 # Add high-priority task with deadline
-t add "<task_description>" priority:H due:tomorrow
+t add "<task>" priority:H due:tomorrow
 
-# List active pending tasks
+# List pending tasks
 t
 
-# Mark task as completed
-t <task_id> done
+# Complete a task
+t <id> done
 
-# Start tracking time on a task
-tw start "<task_name>"
+# Delete a task
+t <id> delete
 
-# Stop tracking time
+# Filter tasks by project
+t project:<name>
+
+# Start time tracking (timew)
+tw start "<task>"
+
+# Stop time tracking
 tw stop
 
-# Show time tracking summary for today/this week
+# Time summary today/this week
 tw summary
 
-# View upcoming scheduled events and calendar
+# View upcoming calendar events (khal)
 agenda
 
-% media, audio, visuals
+# Open khal interactive TUI
+kc
 
-# Open NCMPCPP terminal music player
-music
+# Open calcurse TUI calendar
+cal
 
-# Open CAVA audio spectrum visualizer
-vis
+# Add event to khal
+khal new <datetime> <duration> '<title>'
 
-# Toggle Play/Pause on active music player
-playerctl play-pause
+% android, sync, remote
 
-# Skip to next song
-playerctl next
+# Screen mirror Android device (scrcpy)
+scrcpy
 
-# Skip to previous song
-playerctl previous
+# ADB shell into device
+adb shell
+
+# ADB list connected devices
+adb devices
+
+# ADB push file to device
+adb push <local> <remote>
+
+# ADB pull file from device
+adb pull <remote> <local>
+
+# ADB install APK
+adb install <file.apk>
+
+# KDE Connect — list paired devices
+kdeconnect-cli -l
+
+# KDE Connect — send file to phone
+kdeconnect-cli --share <file> -n <device>
+
+# Open LocalSend file sharing app
+localsend
+
+# Open Syncthing Web UI
+syncthing
+
+% clipboard
+
+# Copy text to clipboard
+echo "<text>" | copy
+
+# Paste from clipboard
+paste
+
+# Copy file contents to clipboard
+cat <file> | copy
+
+# Open CopyQ clipboard manager
+copyq show
+
+% translation
+
+# Translate to English
+tren "<text>"
+
+# Translate to French
+trfr "<text>"
+
+# Translate to Arabic
+trar "<text>"
+
+# Translate between languages
+tr <src>:<target> "<text>"
+
+% hdd, storage routing
+
+# View HDD routing status
+hdd-route status
+
+# Route Steam to HDD
+hdd-route steam
+
+# Route VSCode to HDD
+hdd-route vscode
+
+# Route Docker to HDD
+hdd-route docker
+
+# Route Flatpak to HDD
+hdd-route flatpak
+
+% i3, desktop, window manager
+
+# Reload i3 config
+i3-msg reload
+
+# Restart i3 in-place
+i3-msg restart
+
+# Open rofi launcher
+rofi -show drun
+
+# Open rofi window switcher
+rofi -show window
+
+# Open rofi calculator
+rofi -show calc
+
+# Open Thunar file manager
+thunar
+
+% pdf, documents
+
+# Generate TOC from PDF (pdftocgen)
+pdftocgen <file.pdf>
+
+# Import TOC into PDF (pdftocio)
+pdftocio <file.pdf>
+
+# Extract PDF metadata (pdfxmeta)
+pdfxmeta <file.pdf>
+
+# Convert PDF pages to images
+convert -density 300 <file.pdf> page-%03d.png
+
+# Compress PDF (ghostscript)
+gs -sDEVICE=pdfwrite -dPDFSETTINGS=/ebook -o <out.pdf> <in.pdf>
+
+% fun, eye candy
+
+# Animated bonsai tree
+bonsai
+
+# ASCII fish tank
+aquarium
+
+# Matrix digital rain
+matrix
+
+# Pipes screensaver
+pipes.sh
+
+# ASCII art banner
+banner "<text>"
+
+# Colored styled banner (toilet)
+cbanner "<text>"
+
+# Rainbow-colorize output
+<command> | rainbow
+
+# Draw a box around text
+echo "<text>" | box
+
+# System info with ASCII art (fastfetch)
+fastfetch
+
+# Terminal Wordle game
+wordle

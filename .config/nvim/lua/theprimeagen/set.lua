@@ -32,3 +32,15 @@ vim.opt.colorcolumn = "80"
 
 -- Allow switching buffers with unsaved changes in background
 vim.opt.hidden = true
+
+-- Auto-save on insert leave, text changed, or focus lost
+vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged", "FocusLost" }, {
+    pattern = "*",
+    callback = function()
+        if vim.bo.modified and vim.bo.buftype == "" and vim.fn.expand("%") ~= "" and vim.bo.filetype ~= "" then
+            vim.cmd("silent! write")
+        end
+    end,
+    desc = "Auto-save buffer on change",
+})
+

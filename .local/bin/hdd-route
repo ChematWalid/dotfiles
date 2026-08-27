@@ -80,11 +80,39 @@ case "${1:-help}" in
     move_and_link "$HOME/.cache/BraveSoftware"   "$CACHE/BraveSoftware"
     ;;
 
+  jetbrains)
+    echo "=== Routing JetBrains Toolbox data to HDD ==="
+    # Toolbox app itself (small, stays on SSD at ~/.local/share/JetBrains/Toolbox)
+    # But IDEs, caches, logs and plugins go to HDD
+
+    # IDE installations installed by Toolbox
+    move_and_link "$HOME/.local/share/JetBrains/Toolbox/apps" \
+                  "$HOME_SHARE/JetBrains/Toolbox/apps"
+
+    # Per-IDE caches (can be multi-GB per IDE)
+    move_and_link "$HOME/.cache/JetBrains" \
+                  "$CACHE/JetBrains"
+
+    # Per-IDE config (settings, keymaps, plugins — lighter but grows)
+    move_and_link "$HOME/.config/JetBrains" \
+                  "$HDD/.config/JetBrains"
+
+    # Per-IDE local state / logs
+    move_and_link "$HOME/.local/share/JetBrains" \
+                  "$HOME_SHARE/JetBrains"
+
+    echo ""
+    echo "  ℹ  Open JetBrains Toolbox → Settings → Tools"
+    echo "     and set 'Tools install location' to: $HOME_SHARE/JetBrains/Toolbox/apps"
+    echo "     (already symlinked — Toolbox will write directly to HDD)"
+    ;;
+
   all)
     echo "=== Routing all supported apps to HDD ==="
     $0 steam
     $0 vscode
     $0 brave
+    $0 jetbrains
     ;;
 
   status)
@@ -94,6 +122,9 @@ case "${1:-help}" in
     echo ""
     echo "--- Symlinks in ~/.local/share ---"
     ls -la ~/.local/share/ | grep "^l" 2>/dev/null || echo "(none)"
+    echo ""
+    echo "--- Symlinks in ~/.config ---"
+    ls -la ~/.config/ | grep "^l" 2>/dev/null || echo "(none)"
     echo ""
     echo "--- Symlinks in ~/ ---"
     ls -la ~/ | grep "^l" | grep "mnt"
@@ -117,6 +148,7 @@ case "${1:-help}" in
     echo "  flatpak    — Move Flatpak data to HDD"
     echo "  virtualbox — Move VirtualBox VMs to HDD"
     echo "  brave      — Move Brave cache to HDD"
+    echo "  jetbrains  — Move JetBrains Toolbox apps, caches, and logs to HDD"
     echo "  all        — Route all detected apps"
     echo "  status     — Show current routing and disk usage"
     ;;

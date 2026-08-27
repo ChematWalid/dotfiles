@@ -95,14 +95,30 @@ plugins=(
     zsh-completions
 )
 
+# Custom completions directory
+fpath=(~/.zsh/completions $fpath)
+
 # Load Oh-My-Zsh
 [ -s "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 
 # === Smart Completion & FZF-Tab Settings ===
+# Enable verbose mode and descriptions for flags/options
+zstyle ':completion:*' verbose yes
+zstyle ':completion:*:descriptions' format '[%d]'
+zstyle ':completion:*:options' description 'yes'
+zstyle ':completion:*:options' auto-description '%d'
+zstyle ':completion:*:corrections' format '%B%d (errors: %e)%b'
+zstyle ':completion:*:messages' format '%d'
+zstyle ':completion:*:warnings' format 'No matches for: %d'
+
+# Group matches by category (Commands, Options, Arguments, etc.)
+zstyle ':completion:*' group-name ''
+
+# Case-insensitive, partial-word, and substring completion
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+
 # Disable sort when completing `git checkout`
 zstyle ':completion:*:git-checkout:*' sort false
-# Set descriptions format to enable group support
-zstyle ':completion:*:descriptions' format '[%d]'
 # Set list-colors to enable filename colorizing
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 # Force zsh not to show completion menu, allow fzf-tab to capture
@@ -382,7 +398,7 @@ fi
 # ── carapace — Smart Multi-Shell Completions ───────────────────────────────
 # Covers 1000+ CLI tools (git, docker, kubectl, ffmpeg, etc.)
 if command -v carapace >/dev/null 2>&1; then
-    export CARAPACE_BRIDGES='zsh,fish'
+    export CARAPACE_BRIDGES='zsh,fish,bash'
     zstyle ':completion:*' format $'\e[2;37mCompleting %d\e[m'
     source <(carapace _carapace zsh)
 fi

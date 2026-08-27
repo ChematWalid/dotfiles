@@ -43,3 +43,12 @@ vim.keymap.set("n", "<leader>s", [[:%s/\<<C-r><C-w>\>/<C-r><C-w>/gI<Left><Left><
 
 -- Make current file executable
 vim.keymap.set("n", "<leader>x", "<cmd>!chmod +x %<CR>", { silent = true })
+
+-- Auto-save & run Makefile for C/C++ files
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = { "cpp", "c" },
+    callback = function()
+        vim.keymap.set("n", "<leader>r", "<cmd>w<CR><cmd>!make run<CR>", { buffer = true, desc = "Save & Run Makefile" })
+    end,
+})
+

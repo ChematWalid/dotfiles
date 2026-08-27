@@ -1,1 +1,1 @@
-require("prime")
+require("theprimeagen")

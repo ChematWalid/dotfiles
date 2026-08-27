@@ -14,6 +14,7 @@ exec --no-startup-id nm-applet
 exec --no-startup-id blueman-applet
 exec --no-startup-id picom -b
 exec --no-startup-id dunst
+exec --no-startup-id flameshot
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id systemctl --user restart i3-autoname.service
 
@@ -64,18 +65,17 @@ bindsym $mod+d exec --no-startup-id rofi -show drun -theme ~/.config/rofi/config
 bindsym $mod+space exec --no-startup-id rofi -show drun -theme ~/.config/rofi/config.rasi
 bindsym $mod+Tab exec --no-startup-id rofi -show window -theme ~/.config/rofi/config.rasi
 
-# Screenshots (maim)
-bindsym Mod4+Shift+s exec --no-startup-id bash -c 'maim -s | xclip -selection clipboard -t image/png'
-# ── Screenshot Utilities (Print, Shift+Print, Ctrl+Print, Mod+Print) ──
-bindsym Print exec --no-startup-id ~/.local/bin/screenshot.sh select
-bindsym $mod+Shift+s exec --no-startup-id ~/.local/bin/screenshot.sh select
-bindsym Shift+Print exec --no-startup-id ~/.local/bin/screenshot.sh full
-bindsym Control+Print exec --no-startup-id ~/.local/bin/screenshot.sh delay 3
-bindsym Mod4+Print exec --no-startup-id ~/.local/bin/screenshot.sh window
+# ── Screenshot Utilities (Flameshot) ──────────────────────────
+bindsym Print exec --no-startup-id flameshot gui
+bindsym Mod4+Shift+s exec --no-startup-id flameshot gui
+bindsym $mod+Shift+s exec --no-startup-id flameshot gui
+bindsym Shift+Print exec --no-startup-id flameshot full -c
+bindsym Control+Print exec --no-startup-id flameshot gui -d 3000
+bindsym Mod4+Print exec --no-startup-id flameshot screen -c
 
 
 # Quick App Launchers
-bindsym $mod+b exec google-chrome
+bindsym $mod+b exec google-chrome-stable
 bindsym $mod+Shift+b exec firefox
 bindsym $mod+e exec thunar
 bindsym $mod+t exec telegram-desktop
@@ -240,3 +240,8 @@ exec_always --no-startup-id xset s off -dpms s noblank
 exec_always --no-startup-id pkill -x autotiling; autotiling -sr 1.0
 bindsym $mod+Shift+t exec --no-startup-id ~/.local/bin/toggle-autotiling.sh
 bindsym Mod4+Shift+t exec --no-startup-id ~/.local/bin/toggle-autotiling.sh
+bindsym $mod+Shift+Control+x [con_on_workspace=current] kill
+
+# ── Language / Keyboard Layout Switcher (Win+Space) ─────────────
+bindsym Mod4+space exec --no-startup-id ~/.local/bin/switch-layout.sh
+

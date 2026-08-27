@@ -1,4 +1,7 @@
 # Catppuccin Mocha Starship Prompt
+scan_timeout = 300
+command_timeout = 1000
+
 format = """
 [┌───────────────────>](bold #cba6f7)
 [│](bold #cba6f7) $directory$git_branch$git_status$nodejs$golang$rust$java$python$docker_context$cmd_duration

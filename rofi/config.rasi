@@ -1,3 +1,16 @@
+configuration {
+    modi: "drun,run,window";
+    show-icons: true;
+    icon-theme: "Papirus-Dark";
+    terminal: "kitty";
+    drun-display-format: "{icon} {name}";
+    disable-history: false;
+    hide-scrollbar: true;
+    display-drun: "   Apps ";
+    display-run: "   Run ";
+    display-window: "   Window ";
+}
+
 * {
     bg-col:  #1e1e2e;
     bg-col-light: #313244;
@@ -13,13 +26,13 @@
     font: "JetBrainsMono Nerd Font 11";
 }
 
-element-text, element-icon , mode-switcher {
+element-text, element-icon, mode-switcher {
     background-color: inherit;
     text-color:       inherit;
 }
 
 window {
-    height: 380px;
+    height: 400px;
     border: 2px;
     border-color: @border-col;
     background-color: @bg-col;
