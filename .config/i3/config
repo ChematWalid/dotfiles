@@ -19,7 +19,7 @@ exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id systemctl --user restart i3-autoname.service
 
 # Set wallpaper
-exec_always --no-startup-id feh --bg-fill /home/walid/Downloads/catppuccin-wall-dark.jpg 2>/dev/null || true
+exec_always --no-startup-id feh --bg-fill "$HOME/Pictures/wallpaper.jpg" 2>/dev/null || true
 
 # Audio volume controls (Media Keys + Alt/Win+F1..F3 for non-Fn keyboards)
 bindsym XF86AudioRaiseVolume exec --no-startup-id ~/.local/bin/volume-osd.sh up
