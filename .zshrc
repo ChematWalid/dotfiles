@@ -56,7 +56,7 @@ export GEM_HOME="$HDD/.gems"
 export GEM_PATH="$HDD/.gems"
 
 # ── PATH ─────────────────────────────────────────────────────────────────
-export PATH="$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:$PATH"
+export PATH="$HOME/.spicetify:$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:$PATH"
 export EDITOR="nvim"
 export VISUAL="nvim"
 
@@ -126,8 +126,8 @@ zstyle ':completion:*' menu no
 # Preview directory contents with eza when completing cd / z
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath'
 zstyle ':fzf-tab:complete:z:*' fzf-preview 'eza -1 --color=always $realpath'
-# Preview file content with bat
-zstyle ':fzf-tab:complete:*:*' fzf-preview 'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; fi'
+# Preview file/dir content only — not for flags/options completions
+zstyle ':fzf-tab:complete:*:argument-rest' fzf-preview 'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; fi'
 # Custom popup styling for fzf-tab
 zstyle ':fzf-tab:*' fzf-flags '--color=bg+:#313244,bg:#1e1e2e,fg:#cdd6f4,hl:#f38ba8,prompt:#cba6f7'
 
@@ -414,3 +414,8 @@ fi
 if [ -f ~/.config/broot/launcher/bash/br ]; then
     source ~/.config/broot/launcher/bash/br
 fi
+
+# Fix COLUMNS not being set correctly (especially in tmux)
+# Recalculate terminal width before each prompt
+precmd_fix_columns() { COLUMNS=$(tput cols) }
+precmd_functions+=(precmd_fix_columns)

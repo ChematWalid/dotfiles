@@ -186,7 +186,7 @@ CONFIG_DIRS=(
   alacritty atuin broot btop cava conky copyq direnv dunst fish
   flameshot fselect gh-dash gitui glow i3 khal kitty lazydocker
   lazygit lf mpd ncmpcpp nvim picom polybar rofi starship
-  systemd tealdeer thefuck tmux xsettingsd zellij
+  spicetify systemd tealdeer thefuck tmux xsettingsd zellij
 )
 for d in "${CONFIG_DIRS[@]}"; do
   link "$DOTFILES_DIR/.config/$d" "$HOME/.config/$d"
