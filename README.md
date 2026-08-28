@@ -97,9 +97,6 @@ dotfiles/
 │   ├── bin/           # Custom scripts (lock.sh, switch-layout.sh, hdd-route…)
 │   └── share/         # Desktop entries, navi cheatsheets, tealdeer pages, fonts
 ├── etc/               # System configs (fstab, sddm, sysctl, logind)
-├── i3/                # i3 config mirror (top-level copy)
-├── nvim/              # Neovim config mirror
-├── polybar/           # Polybar config mirror
 ├── install.sh         # 🚀 One-shot bootstrap script
 ├── pkglist-pacman.txt # pacman explicit packages (with versions)
 ├── pkglist-aur.txt    # AUR packages (with versions)

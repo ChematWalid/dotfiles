@@ -196,6 +196,7 @@ done
 link "$DOTFILES_DIR/.config/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
 link "$DOTFILES_DIR/.config/greenclip.toml"    "$HOME/.config/greenclip.toml"
 link "$DOTFILES_DIR/.config/rofi-rbw.rc"       "$HOME/.config/rofi-rbw.rc"
+link "$DOTFILES_DIR/.config/starship.toml"     "$HOME/.config/starship.toml"
 link "$DOTFILES_DIR/.config/gtk-3.0"           "$HOME/.config/gtk-3.0"
 link "$DOTFILES_DIR/.config/gtk-4.0"           "$HOME/.config/gtk-4.0"
 
