@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
-# hdd-route — Move large app data to HDD and symlink back
-# Edit: $EDITOR ~/.local/bin/hdd-route
-# Usage: hdd-route steam | hdd-route docker | hdd-route all
+# ══════════════════════════════════════════════════════════════════════════════
+#  hdd-route — Move large app & cache data from SSD to HDD and symlink back
+#  Repo: https://github.com/ACEECA1/dotfiles
+#  Usage: hdd-route all | hdd-route telegram | hdd-route rust | hdd-route status
+# ══════════════════════════════════════════════════════════════════════════════
 
 HDD="/mnt/drive2"
 HOME_SHARE="$HDD/.local/share"
 CACHE="$HDD/.cache/home"
+
+# Verify HDD is mounted
+if [ ! -d "$HDD" ]; then
+    echo "❌ Error: HDD mount point $HDD is not available."
+    exit 1
+fi
 
 move_and_link() {
     local src="$1"
@@ -14,52 +22,108 @@ move_and_link() {
     name=$(basename "$src")
 
     if [ -L "$src" ]; then
-        echo "  → $name already symlinked, skipping"
+        echo "  → $src is already symlinked to $(readlink "$src"), skipping"
         return
     fi
 
     if [ ! -e "$src" ]; then
-        echo "  → $name not found at $src, creating empty dir on HDD"
+        echo "  → $name not found at $src, creating empty dir on HDD and symlinking"
         mkdir -p "$dst"
+        mkdir -p "$(dirname "$src")"
         ln -sfn "$dst" "$src"
         return
     fi
 
-    echo "  Moving $src → $dst..."
-    mkdir -p "$(dirname "$dst")"
+    echo "  📦 Moving $src → $dst..."
+    mkdir -p "$dst"
     rsync -a --info=progress2 "$src/" "$dst/"
     if [ $? -eq 0 ]; then
         rm -rf "$src"
         ln -sfn "$dst" "$src"
-        echo "  ✓ $name → HDD (symlinked)"
+        echo "  ✓ $name → HDD (symlinked successfully)"
     else
-        echo "  ✗ failed to move $name"
+        echo "  ✗ Failed to move $name"
     fi
 }
 
 case "${1:-help}" in
 
-  steam)
-    echo "=== Routing Steam to HDD ==="
-    move_and_link "$HOME/.local/share/Steam"     "$HOME_SHARE/Steam"
-    move_and_link "$HOME/.steam"                 "$HDD/.steam"
+  telegram)
+    echo "=== Routing Telegram, AyuGram & 64Gram to HDD ==="
+    move_and_link "$HOME/.local/share/AyuGram"          "$HOME_SHARE/AyuGram"
+    move_and_link "$HOME/.local/share/AyuGramDesktop"   "$HOME_SHARE/AyuGramDesktop"
+    move_and_link "$HOME/.local/share/64Gram"           "$HOME_SHARE/64Gram"
+    move_and_link "$HOME/.local/share/TelegramDesktop"  "$HOME_SHARE/TelegramDesktop"
     ;;
 
-  docker)
-    echo "=== Routing Docker to HDD (needs sudo) ==="
-    sudo systemctl stop docker 2>/dev/null
-    sudo mkdir -p "$HDD/.docker"
-    sudo rsync -a /var/lib/docker/ "$HDD/.docker/"
-    sudo rm -rf /var/lib/docker
-    sudo ln -sfn "$HDD/.docker" /var/lib/docker
-    sudo systemctl start docker 2>/dev/null
-    echo "  ✓ Docker data → HDD"
+  rust)
+    echo "=== Routing Rust toolchains and cargo cache to HDD ==="
+    move_and_link "$HOME/.rustup"                       "$HDD/.rustup"
+    move_and_link "$HOME/.cargo/registry"               "$HDD/.cargo/registry"
+    ;;
+
+  flutter|pub)
+    echo "=== Routing Dart / Flutter Pub cache to HDD ==="
+    move_and_link "$HOME/.pub-cache"                    "$HDD/.pub-cache"
+    ;;
+
+  python|uv)
+    echo "=== Routing UV and Pipx packages to HDD ==="
+    move_and_link "$HOME/.local/share/uv"               "$HOME_SHARE/uv"
+    move_and_link "$HOME/.local/share/pipx"             "$HOME_SHARE/pipx"
+    ;;
+
+  dev-caches)
+    echo "=== Routing Developer caches (C++, Yarn, PNPM, Electron, Go) to HDD ==="
+    move_and_link "$HOME/.cache/vscode-cpptools"        "$CACHE/vscode-cpptools"
+    move_and_link "$HOME/.cache/electron"               "$CACHE/electron"
+    move_and_link "$HOME/.cache/yarn"                   "$CACHE/yarn"
+    move_and_link "$HOME/.cache/pnpm"                   "$CACHE/pnpm"
+    move_and_link "$HOME/go/pkg"                        "$HDD/go/pkg"
+    ;;
+
+  downloaders)
+    echo "=== Routing Download Manager data to HDD ==="
+    move_and_link "$HOME/.local/share/abdownloadmanager"   "$HOME_SHARE/abdownloadmanager"
+    move_and_link "$HOME/.local/share/freedownloadmanager" "$HOME_SHARE/freedownloadmanager"
+    ;;
+
+  browsers)
+    echo "=== Routing Browser & Discord caches to HDD ==="
+    move_and_link "$HOME/.cache/google-chrome"          "$CACHE/google-chrome"
+    move_and_link "$HOME/.cache/chromium"               "$CACHE/chromium"
+    move_and_link "$HOME/.cache/BraveSoftware"          "$CACHE/BraveSoftware"
+    move_and_link "$HOME/.config/discord/Cache"         "$HDD/.config/discord/Cache"
+    move_and_link "$HOME/.config/discord/Code Cache"    "$HDD/.config/discord/Code Cache"
+    move_and_link "$HOME/.config/discord/GPUCache"      "$HDD/.config/discord/GPUCache"
+    ;;
+
+  wallpapers)
+    echo "=== Routing Wallpapers repository to HDD ==="
+    move_and_link "$HOME/Pictures/walls-catppuccin-mocha" "$HDD/Pictures/walls-catppuccin-mocha"
+    ;;
+
+  steam)
+    echo "=== Routing Steam to HDD ==="
+    move_and_link "$HOME/.local/share/Steam"            "$HOME_SHARE/Steam"
+    move_and_link "$HOME/.steam"                        "$HDD/.steam"
     ;;
 
   vscode)
     echo "=== Routing VSCode extensions to HDD ==="
-    move_and_link "$HOME/.vscode"                "$HDD/.vscode"
-    move_and_link "$HOME/.vscode-server"         "$HDD/.vscode-server"
+    move_and_link "$HOME/.vscode"                       "$HDD/.vscode"
+    move_and_link "$HOME/.vscode-server"                "$HDD/.vscode-server"
+    ;;
+
+  docker)
+    echo "=== Routing Docker to HDD (needs sudo) ==="
+    sudo systemctl stop docker 2>/dev/null || true
+    sudo mkdir -p "$HDD/.docker"
+    sudo rsync -a /var/lib/docker/ "$HDD/.docker/"
+    sudo rm -rf /var/lib/docker
+    sudo ln -sfn "$HDD/.docker" /var/lib/docker
+    sudo systemctl start docker 2>/dev/null || true
+    echo "  ✓ Docker data → HDD"
     ;;
 
   flatpak)
@@ -72,84 +136,70 @@ case "${1:-help}" in
 
   virtualbox)
     echo "=== Routing VirtualBox VMs to HDD ==="
-    move_and_link "$HOME/VirtualBox VMs"         "$HDD/VirtualBox VMs"
-    ;;
-
-  brave)
-    echo "=== Routing Brave browser cache to HDD ==="
-    move_and_link "$HOME/.cache/BraveSoftware"   "$CACHE/BraveSoftware"
+    move_and_link "$HOME/VirtualBox VMs"                "$HDD/VirtualBox VMs"
     ;;
 
   jetbrains)
     echo "=== Routing JetBrains Toolbox data to HDD ==="
-    # Toolbox app itself (small, stays on SSD at ~/.local/share/JetBrains/Toolbox)
-    # But IDEs, caches, logs and plugins go to HDD
-
-    # IDE installations installed by Toolbox
-    move_and_link "$HOME/.local/share/JetBrains/Toolbox/apps" \
-                  "$HOME_SHARE/JetBrains/Toolbox/apps"
-
-    # Per-IDE caches (can be multi-GB per IDE)
-    move_and_link "$HOME/.cache/JetBrains" \
-                  "$CACHE/JetBrains"
-
-    # Per-IDE config (settings, keymaps, plugins — lighter but grows)
-    move_and_link "$HOME/.config/JetBrains" \
-                  "$HDD/.config/JetBrains"
-
-    # Per-IDE local state / logs
-    move_and_link "$HOME/.local/share/JetBrains" \
-                  "$HOME_SHARE/JetBrains"
-
-    echo ""
-    echo "  ℹ  Open JetBrains Toolbox → Settings → Tools"
-    echo "     and set 'Tools install location' to: $HOME_SHARE/JetBrains/Toolbox/apps"
-    echo "     (already symlinked — Toolbox will write directly to HDD)"
+    move_and_link "$HOME/.local/share/JetBrains/Toolbox/apps" "$HOME_SHARE/JetBrains/Toolbox/apps"
+    move_and_link "$HOME/.cache/JetBrains"                   "$CACHE/JetBrains"
+    move_and_link "$HOME/.config/JetBrains"                  "$HDD/.config/JetBrains"
+    move_and_link "$HOME/.local/share/JetBrains"             "$HOME_SHARE/JetBrains"
     ;;
 
   all)
-    echo "=== Routing all supported apps to HDD ==="
+    echo "=== Routing all large app and cache data to HDD ==="
+    $0 telegram
+    $0 rust
+    $0 flutter
+    $0 python
+    $0 dev-caches
+    $0 downloaders
+    $0 browsers
+    $0 wallpapers
     $0 steam
     $0 vscode
-    $0 brave
     $0 jetbrains
+    echo ""
+    echo "🎉 All heavy folders successfully routed to HDD and symlinked back!"
     ;;
 
   status)
-    echo "=== HDD routing status ==="
-    echo "--- Symlinks in ~/.cache ---"
-    ls -la ~/.cache/ | grep "^l"
-    echo ""
+    echo "=== HDD Routing Status ==="
     echo "--- Symlinks in ~/.local/share ---"
     ls -la ~/.local/share/ | grep "^l" 2>/dev/null || echo "(none)"
     echo ""
-    echo "--- Symlinks in ~/.config ---"
-    ls -la ~/.config/ | grep "^l" 2>/dev/null || echo "(none)"
+    echo "--- Symlinks in ~/.cache ---"
+    ls -la ~/.cache/ | grep "^l" 2>/dev/null || echo "(none)"
     echo ""
     echo "--- Symlinks in ~/ ---"
-    ls -la ~/ | grep "^l" | grep "mnt"
+    ls -la ~/ | grep "^l" | grep "mnt" 2>/dev/null || echo "(none)"
     echo ""
-    echo "--- HDD usage ---"
-    df -h /mnt/drive2 /mnt/drive3
-    echo ""
-    echo "--- SSD root free ---"
-    df -h /
+    echo "--- Storage Capacity & Free Space ---"
+    df -h / /mnt/drive2 /mnt/drive3
     ;;
 
   help|*)
-    echo "hdd-route — Route large app data to HDD"
+    echo "hdd-route — Route large application and cache data to HDD"
     echo ""
-    echo "Usage: hdd-route <app>"
+    echo "Usage: hdd-route <target>"
     echo ""
-    echo "Apps:"
-    echo "  steam      — Move Steam library to HDD"
-    echo "  docker     — Move Docker data to HDD"
-    echo "  vscode     — Move VSCode extensions to HDD"
-    echo "  flatpak    — Move Flatpak data to HDD"
-    echo "  virtualbox — Move VirtualBox VMs to HDD"
-    echo "  brave      — Move Brave cache to HDD"
-    echo "  jetbrains  — Move JetBrains Toolbox apps, caches, and logs to HDD"
-    echo "  all        — Route all detected apps"
-    echo "  status     — Show current routing and disk usage"
+    echo "Targets:"
+    echo "  all         — Route all heavy caches, toolchains, and apps"
+    echo "  telegram    — Move AyuGram, 64Gram, and Telegram data"
+    echo "  rust        — Move Rust toolchains & Cargo cache"
+    echo "  flutter     — Move Flutter / Dart Pub cache"
+    echo "  python      — Move UV and Pipx Python packages"
+    echo "  dev-caches  — Move VSCode C++, Yarn, PNPM, Electron, Go caches"
+    echo "  browsers    — Move Chrome, Chromium, Brave, and Discord caches"
+    echo "  downloaders — Move AB and Free Download Manager caches"
+    echo "  wallpapers  — Move 800MB Catppuccin wallpaper git repository"
+    echo "  steam       — Move Steam library"
+    echo "  vscode      — Move VSCode extensions"
+    echo "  jetbrains   — Move JetBrains Toolbox apps and caches"
+    echo "  docker      — Move Docker containers/images"
+    echo "  flatpak     — Move Flatpak runtime data"
+    echo "  virtualbox  — Move VirtualBox virtual machines"
+    echo "  status      — View active symlinks and disk usage"
     ;;
 esac
