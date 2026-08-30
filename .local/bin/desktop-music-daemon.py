@@ -5,6 +5,23 @@ import threading
 import os
 
 OUTPUT_FILE = "/tmp/conky-music.txt"
+PID_FILE = "/tmp/.desktop-music-daemon.pid"
+
+def ensure_single_instance():
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, 'r') as pf:
+                old_pid = int(pf.read().strip())
+            if old_pid != os.getpid():
+                os.kill(old_pid, 9)
+        except Exception:
+            pass
+    try:
+        with open(PID_FILE, 'w') as pf:
+            pf.write(str(os.getpid()))
+    except Exception:
+        pass
+
 lock = threading.Lock()
 state = {"text": ""}
 
@@ -87,6 +104,7 @@ def dbus_listener():
         time.sleep(0.5)
 
 def main():
+    ensure_single_instance()
     initial = get_track_info()
     state["text"] = initial
     write_output(initial)

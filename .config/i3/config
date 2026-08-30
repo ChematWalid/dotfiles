@@ -178,8 +178,8 @@ client.urgent           #00000000 #f38ba8   #11111b   #00000000  #00000000
 client.placeholder      #00000000 #181825   #cdd6f4   #00000000  #00000000
 client.background       #1e1e2e
 exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
-exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
-exec_always --no-startup-id ~/.local/bin/desktop-music-daemon.py
+exec_always --no-startup-id sh -c 'killall -q conky; sleep 0.2; conky -c ~/.config/conky/conky.conf -q &'
+exec_always --no-startup-id sh -c 'pkill -f desktop-music-daemon.py; sleep 0.2; ~/.local/bin/desktop-music-daemon.py &'
 
 # ── Input Settings (Keyboard Layouts, 250 50 Repeat Rate, Mouse Raw Input) ──
 exec_always --no-startup-id ~/.local/bin/apply-input-settings.sh
