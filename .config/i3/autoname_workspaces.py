@@ -24,6 +24,9 @@ WINDOW_ICONS = {
     # Chat & Communication
     'telegramdesktop': '',
     'telegram-desktop': '',
+    'telegram': '',
+    'ayugram': '',
+    '64gram': '',
     'discord': '󰙯',
     'webcord': '󰙯',
     'vesktop': '󰙯',
@@ -64,6 +67,16 @@ WINDOW_ICONS = {
     'lxappearance': '󰔎',
     'postman': '󱂛',
     'dbeaver': '󰆼',
+    'qbittorrent': '󰇚',
+
+    # Mathematics & Science
+    'kmplot': '',
+    'kig': '',
+    'labplot': '',
+    'cantor': '',
+    'geogebra': '',
+    'maxima': '',
+    'wxmaxima': '',
 }
 
 IGNORE_CLASSES = [
