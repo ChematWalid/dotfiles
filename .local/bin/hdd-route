@@ -99,8 +99,8 @@ case "${1:-help}" in
     ;;
 
   wallpapers)
-    echo "=== Routing Wallpapers repository to HDD ==="
-    move_and_link "$HOME/Pictures/walls-catppuccin-mocha" "$HDD/Pictures/walls-catppuccin-mocha"
+    echo "=== Routing Wallpapers repository to Drive E ==="
+    move_and_link "$HOME/Pictures/walls-catppuccin-mocha" "/mnt/drive3/Pictures/walls-catppuccin-mocha"
     ;;
 
   steam)

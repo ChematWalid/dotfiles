@@ -181,6 +181,13 @@ mkdir -p "$HOME/.calcurse"
 mkdir -p "$HOME/.task/hooks"
 [[ -f "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" ]] && link "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" "$HOME/.task/hooks/on-modify.timewarrior"
 
+# ── Storage Drives & Personal Symlinks ───────────────────────────────────────
+[[ -d "/mnt/drive2" ]] && link "/mnt/drive2" "$HOME/D"
+[[ -d "/mnt/drive3" ]] && link "/mnt/drive3" "$HOME/E"
+[[ -d "/mnt/drive3/Coding" ]] && link "/mnt/drive3/Coding" "$HOME/Coding"
+[[ -d "/mnt/drive3/Pictures/walls-catppuccin-mocha" ]] && link "/mnt/drive3/Pictures/walls-catppuccin-mocha" "$HOME/Pictures/walls-catppuccin-mocha"
+[[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && link "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+
 # ── ~/.config directories — symlinked wholesale ───────────────────────────────
 CONFIG_DIRS=(
   alacritty atuin bat BetterDiscord broot btop cava conky copyq

@@ -11,5 +11,5 @@ hide_env_diff = true
 prefix = [
     "~/projects",
     "~/code",
-    "/mnt/drive2/Coding",
+    "/mnt/drive3/Coding",
 ]

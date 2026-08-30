@@ -17,8 +17,8 @@ zstyle ':omz:update' mode reminder
 
 # === Developer Environment & HDD Cache Routing ===
 # SSD (sda) = executables, configs, fast access
-# HDD Drive D (sdb5 → /mnt/drive2) = caches, large downloads, build artifacts
-# HDD Drive E (sdb6 → /mnt/drive3) = media, big storage
+# HDD Drive D (sdb5 → /mnt/drive2) = developer toolchains, docker, caches, app-data
+# HDD Drive E (sdb6 → /mnt/drive3) = personal data, coding projects, study, media, backups
 
 HDD="/mnt/drive2"   # edit this if your HDD mount changes
 
