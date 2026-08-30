@@ -18,8 +18,8 @@ exec --no-startup-id flameshot
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id systemctl --user restart i3-autoname.service
 
-# Set wallpaper
-exec_always --no-startup-id feh --bg-fill "$HOME/Pictures/catppuccin-wall-dark.jpg" 2>/dev/null || true
+# Wallpaper — rotate through ~/Pictures/walls-catppuccin-mocha/ every 30 min
+exec_always --no-startup-id ~/.local/bin/wallpaper-rotate.sh &
 
 # Audio volume controls (Media Keys + Alt/Win+F1..F3 for non-Fn keyboards)
 bindsym XF86AudioRaiseVolume exec --no-startup-id ~/.local/bin/volume-osd.sh up
@@ -169,13 +169,13 @@ for_window [class="Lxappearance"] floating enable
 
 for_window [class="File-roller"] floating enable
 
-# --- Catppuccin Mocha Color Theme for i3 Windows ---
-# class                 border  bground text    indicator child_border
-client.focused          #cba6f7 #1e1e2e #cdd6f4 #89b4fa   #cba6f7
-client.focused_inactive #313244 #181825 #a6adc8 #313244   #313244
-client.unfocused        #1e1e2e #181825 #6c7086 #1e1e2e   #1e1e2e
-client.urgent           #f38ba8 #f38ba8 #11111b #f38ba8   #f38ba8
-client.placeholder      #181825 #181825 #cdd6f4 #181825   #181825
+# --- Window Color Theme (borders transparent — pixel 0) ---
+# class                 border    bground   text      indicator  child_border
+client.focused          #00000000 #1e1e2e   #cdd6f4   #00000000  #00000000
+client.focused_inactive #00000000 #181825   #a6adc8   #00000000  #00000000
+client.unfocused        #00000000 #181825   #6c7086   #00000000  #00000000
+client.urgent           #00000000 #f38ba8   #11111b   #00000000  #00000000
+client.placeholder      #00000000 #181825   #cdd6f4   #00000000  #00000000
 client.background       #1e1e2e
 exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
 exec_always --no-startup-id conky -c ~/.config/conky/conky.conf -q
@@ -245,3 +245,5 @@ bindsym $mod+Shift+Control+x [con_on_workspace=current] kill
 # ── Language / Keyboard Layout Switcher (Win+Space) ─────────────
 bindsym Mod4+space exec --no-startup-id ~/.local/bin/switch-layout.sh
 
+# ── Wallpaper — pick next now (Super+N) ─────────────────────────
+bindsym Mod4+n exec --no-startup-id ~/.local/bin/wallpaper-next.sh

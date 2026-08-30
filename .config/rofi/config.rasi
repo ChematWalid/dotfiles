@@ -1,43 +1,48 @@
 configuration {
-    modi: "drun,run,window";
-    show-icons: true;
+    modi: "run,drun,window";
     icon-theme: "Papirus-Dark";
+    show-icons: true;
     terminal: "kitty";
     drun-display-format: "{icon} {name}";
+    location: 0;
     disable-history: false;
     hide-scrollbar: true;
-    display-drun: "   Apps ";
-    display-run: "   Run ";
-    display-window: "   Window ";
+    display-drun: "   Apps ";
+    display-run: "   Run ";
+    display-window: " 󰕰  Window";
+    sidebar-mode: true;
+
+    /* Keybindings to switch between modes */
+    kb-mode-next: "Shift+Right,Control+Tab";
+    kb-mode-previous: "Shift+Left,Control+ISO_Left_Tab";
 }
 
+/* --- THEME: CATPPUCCIN MOCHA (MAUVE EDITION) --- */
 * {
     bg-col:  #1e1e2e;
-    bg-col-light: #313244;
-    border-col: #cba6f7;
-    selected-col: #313244;
-    blue: #89b4fa;
+    bg-col-light: #1e1e2e;
+    border-col: #1e1e2e;
+    selected-col: #1e1e2e;
+    mauve: #cba6f7;
     fg-col: #cdd6f4;
-    fg-col2: #f38ba8;
+    fg-col2: #f38ba8; /* Red for urgent */
     grey: #6c7086;
-    highlight: bold #cba6f7;
 
     width: 600;
-    font: "JetBrainsMono Nerd Font 11";
+    font: "JetBrainsMono Nerd Font 12";
 }
 
-element-text, element-icon, mode-switcher {
+element-text, element-icon , mode-switcher {
     background-color: inherit;
     text-color:       inherit;
 }
 
 window {
-    height: 400px;
-    border: 2px;
-    border-color: @border-col;
-    background-color: @bg-col;
+    height: 360px;
+    border: 3px;
+    border-color: @mauve;
     border-radius: 12px;
-    padding: 10px;
+    background-color: @bg-col;
 }
 
 mainbox {
@@ -47,16 +52,16 @@ mainbox {
 inputbar {
     children: [prompt,entry];
     background-color: @bg-col;
-    border-radius: 6px;
+    border-radius: 5px;
     padding: 2px;
 }
 
 prompt {
-    background-color: @blue;
-    padding: 6px 12px;
+    background-color: @mauve;
+    padding: 6px;
     text-color: @bg-col;
-    border-radius: 6px;
-    margin: 10px 0px 0px 10px;
+    border-radius: 3px;
+    margin: 20px 0px 0px 20px;
 }
 
 textbox-prompt-colon {
@@ -65,39 +70,85 @@ textbox-prompt-colon {
 }
 
 entry {
-    padding: 6px 10px;
-    margin: 10px 0px 0px 10px;
+    padding: 6px;
+    margin: 20px 0px 0px 10px;
     text-color: @fg-col;
-    background-color: @bg-col-light;
-    border-radius: 6px;
+    background-color: @bg-col;
 }
 
 listview {
     border: 0px 0px 0px;
     padding: 6px 0px 0px;
-    margin: 10px 0px 0px 10px;
-    columns: 1;
-    lines: 7;
+    margin: 10px 0px 0px 20px;
+    columns: 2;
+    lines: 5;
     background-color: @bg-col;
+    scrollbar: false;
 }
 
 element {
-    padding: 6px 10px;
+    padding: 5px;
     background-color: @bg-col;
     text-color: @fg-col;
-    border-radius: 6px;
 }
 
 element-icon {
-    size: 24px;
-    margin: 0px 10px 0px 0px;
+    size: 25px;
+    background-color: transparent;
 }
 
-element selected {
-    background-color: @selected-col;
-    text-color: @border-col;
+element-text {
+    vertical-align: 0.5;
+    background-color: transparent;
 }
 
+/* --- STATE MANAGEMENT --- */
+
+/* Normal Rows */
+element normal.normal {
+    background-color: @bg-col;
+    text-color: @fg-col;
+}
+element alternate.normal {
+    background-color: @bg-col;
+    text-color: @fg-col;
+}
+element selected.normal {
+    background-color: @bg-col;
+    text-color: @mauve;
+}
+
+/* Active Rows */
+element normal.active {
+    background-color: @bg-col;
+    text-color: @mauve;
+}
+element alternate.active {
+    background-color: @bg-col;
+    text-color: @mauve;
+}
+element selected.active {
+    background-color: @bg-col;
+    text-color: @mauve;
+    border: 0px 0px 0px 2px;
+    border-color: @mauve;
+}
+
+/* Urgent Rows */
+element normal.urgent {
+    background-color: @bg-col;
+    text-color: @fg-col2;
+}
+element alternate.urgent {
+    background-color: @bg-col;
+    text-color: @fg-col2;
+}
+element selected.urgent {
+    background-color: @bg-col;
+    text-color: @fg-col2;
+}
+
+/* --- BOTTOM BUTTONS --- */
 mode-switcher {
     spacing: 0;
 }
@@ -106,25 +157,11 @@ button {
     padding: 10px;
     background-color: @bg-col-light;
     text-color: @grey;
-    vertical-align: 0.5; 
+    vertical-align: 0.5;
     horizontal-align: 0.5;
 }
 
 button selected {
-    background-color: @bg-col;
-    text-color: @blue;
-}
-
-message {
-    background-color: @bg-col-light;
-    margin: 2px;
-    padding: 2px;
-    border-radius: 5px;
-}
-
-textbox {
-    padding: 6px;
-    margin: 10px 0px 0px 10px;
-    text-color: @fg-col;
-    background-color: @bg-col-light;
+  background-color: @bg-col;
+  text-color: @mauve;
 }
