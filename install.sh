@@ -257,6 +257,20 @@ fi
 
 # ══════════════════════════════════════════════════════════════════════════════
 step "8 — App Configurations & Catppuccin Mocha Hooks"
+# BetterDiscord injection into Discord
+DISCORD_CORE=$(find "$HOME/.config/discord" -name "discord_desktop_core" -type d 2>/dev/null | head -1)
+if [[ -n "$DISCORD_CORE" && -f "$DISCORD_CORE/index.js" ]]; then
+  if ! grep -q "betterdiscord.asar" "$DISCORD_CORE/index.js"; then
+    echo "require('$HOME/.config/BetterDiscord/data/betterdiscord.asar');" | cat - "$DISCORD_CORE/index.js" > "$DISCORD_CORE/index.js.tmp" && mv "$DISCORD_CORE/index.js.tmp" "$DISCORD_CORE/index.js"
+    log "BetterDiscord injected into Discord core"
+  fi
+fi
+
+# Git Delta Catppuccin Include
+if [[ -f "$HOME/.config/delta/catppuccin.gitconfig" ]]; then
+  git config --global include.path "$HOME/.config/delta/catppuccin.gitconfig" 2>/dev/null || true
+  log "Git Delta Catppuccin theme registered"
+fi
 # ══════════════════════════════════════════════════════════════════════════════
 # Thunar Location Entry
 if command -v xfconf-query &>/dev/null; then
