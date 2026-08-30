@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=AyuGram Desktop
+GenericName=Telegram Desktop Client
+Comment=AyuGram Desktop Telegram Client
+Exec=/home/walid/.local/bin/ayugram -- %u
+Icon=com.ayugram.desktop
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;Chat;
+Keywords=telegram;tg;ayugram;chat;messaging;
+StartupWMClass=AyuGram

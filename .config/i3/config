@@ -105,8 +105,12 @@ bindsym $mod+Shift+Right move right
 bindsym $mod+backslash split h
 bindsym $mod+minus split v
 
-# Fullscreen
-bindsym $mod+f fullscreen toggle
+# Polybar toggle on demand (Alt+F)
+bindsym $mod+f exec --no-startup-id ~/.local/bin/toggle-polybar.sh
+
+# Window Fullscreen toggle (Super+F & Alt+Shift+F)
+bindsym Mod4+f fullscreen toggle
+bindsym $mod+Shift+f fullscreen toggle
 
 # Toggle floating / tiling
 bindsym $mod+Shift+space floating toggle

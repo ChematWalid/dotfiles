@@ -1,0 +1,2 @@
+#!/bin/bash
+exec "$HOME/.local/share/64Gram/64Gram" "$@"

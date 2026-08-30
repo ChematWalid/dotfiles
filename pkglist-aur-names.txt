@@ -2,6 +2,7 @@ antigravity
 antigravity-cli
 ascii-image-converter
 ascii-image-converter-debug
+betterdiscord-installer
 bibata-cursor-theme-bin
 bitwarden-cli-bin
 boxes
@@ -32,5 +33,6 @@ tdrop
 timg
 timg-debug
 visual-studio-code-bin
+wxmaxima
 yay
 yay-debug

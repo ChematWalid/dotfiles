@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=64Gram
+GenericName=Telegram Desktop Client
+Comment=64Gram Desktop Telegram Client
+Exec=/home/walid/.local/bin/64gram -- %u
+Icon=64gram
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;Chat;
+Keywords=telegram;tg;64gram;tdesktop;chat;messaging;
+StartupWMClass=TelegramDesktop

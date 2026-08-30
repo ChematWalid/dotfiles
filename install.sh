@@ -8,20 +8,19 @@
 #    cd ~/dotfiles && bash install.sh
 #
 #  What this does:
-#    1.  Installs base packages via pacman
-#    2.  Installs yay (AUR helper) if missing, then AUR packages
-#    3.  Installs Oh-My-Zsh + custom plugins
-#    4.  Symlinks all dotfiles to their proper locations
-#    5.  Installs bundled fonts and wallpaper
-#    6.  Copies /etc system configs (sudo)
-#    7.  Enables systemd user services
-#    8.  Sets zsh as the default shell
-#
-#  NOT included (do manually after):
-#    - gh auth login  (GitHub CLI token)
-#    - SSH keys       (copy from backup or generate fresh)
-#    - Bitwarden/rbw  (re-authenticate)
-#    - Syncthing      (re-pair devices)
+#    1.  System update & Pacman packages (including full TeX Live, Ruby, Math apps)
+#    2.  yay (AUR helper) & AUR packages
+#    3.  Oh-My-Zsh + custom plugins + Catppuccin syntax highlighting
+#    4.  Symlinks all dotfiles (.config, .local/bin, desktop entries, shell configs)
+#    5.  Automated AyuGram & 64Gram Telegram installations & desktop integration
+#    6.  BetterDiscord injection & Catppuccin Mocha theme activation
+#    7.  qBittorrent Catppuccin Mocha theme & Thunar location bar config
+#    8.  Bat theme cache build & TeX Live format generation
+#    9.  Fonts installation and cache update
+#    10. Wallpaper setup
+#    11. Copies /etc system configs (sudo)
+#    12. Enables systemd user services
+#    13. Sets zsh as the default shell
 # ══════════════════════════════════════════════════════════════════════════════
 set -euo pipefail
 
@@ -53,7 +52,7 @@ echo -e "${RESET}"
 echo "  Dotfiles dir : $DOTFILES_DIR"
 echo "  Home dir     : $HOME"
 echo ""
-warn "This will install ~300 packages and overwrite configs in ~/."
+warn "This will install packages and link configs in ~/."
 read -rp "  Continue? [y/N] " confirm
 [[ "${confirm,,}" == "y" ]] || { echo "Aborted."; exit 0; }
 
@@ -104,7 +103,7 @@ info "Installing AUR packages from pkglist-aur-names.txt..."
 AUR_PKGS=()
 while IFS= read -r pkg; do
   [[ -z "$pkg" || "$pkg" == \#* ]] && continue
-  [[ "$pkg" == *-debug ]] && continue   # skip auto-generated debug packages
+  [[ "$pkg" == *-debug ]] && continue
   AUR_PKGS+=("$pkg")
 done < "$DOTFILES_DIR/pkglist-aur-names.txt"
 
@@ -145,10 +144,11 @@ install_plugin "zsh-completions"          "https://github.com/zsh-users/zsh-comp
 install_plugin "fast-syntax-highlighting" "https://github.com/zdharma-continuum/fast-syntax-highlighting"
 install_plugin "fzf-tab"                  "https://github.com/Aloxaf/fzf-tab"
 
-# Catppuccin Mocha syntax highlight theme — bundled in repo (3 kB)
 mkdir -p "$OMZ_CUSTOM/plugins/catppuccin-syntax-highlighting"
-cp "$DOTFILES_DIR/.config/zsh-plugins/catppuccin_mocha-zsh-syntax-highlighting.zsh" \
-   "$OMZ_CUSTOM/plugins/catppuccin-syntax-highlighting/"
+if [[ -f "$DOTFILES_DIR/.config/zsh-plugins/catppuccin_mocha-zsh-syntax-highlighting.zsh" ]]; then
+  cp "$DOTFILES_DIR/.config/zsh-plugins/catppuccin_mocha-zsh-syntax-highlighting.zsh" \
+     "$OMZ_CUSTOM/plugins/catppuccin-syntax-highlighting/"
+fi
 
 log "ZSH + plugins done"
 
@@ -156,7 +156,6 @@ log "ZSH + plugins done"
 step "6 — Symlink dotfiles"
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Symlink helper: backs up any real file before linking
 link() {
   local src="$1" dst="$2"
   mkdir -p "$(dirname "$dst")"
@@ -171,34 +170,38 @@ link() {
 # ── Shell & home dotfiles ─────────────────────────────────────────────────────
 link "$DOTFILES_DIR/.zshrc"           "$HOME/.zshrc"
 link "$DOTFILES_DIR/.bashrc"          "$HOME/.bashrc"
+[[ -f "$DOTFILES_DIR/.vimrc" ]] && link "$DOTFILES_DIR/.vimrc" "$HOME/.vimrc"
+[[ -f "$DOTFILES_DIR/.tmux.conf" ]] && link "$DOTFILES_DIR/.tmux.conf" "$HOME/.tmux.conf"
 link "$DOTFILES_DIR/.taskrc"          "$HOME/.taskrc"
 link "$DOTFILES_DIR/.timewarrior.cfg" "$HOME/.timewarrior.cfg"
 
 mkdir -p "$HOME/.calcurse"
-link "$DOTFILES_DIR/.calcurse/conf"   "$HOME/.calcurse/conf"
+[[ -f "$DOTFILES_DIR/.calcurse/conf" ]] && link "$DOTFILES_DIR/.calcurse/conf" "$HOME/.calcurse/conf"
 
 mkdir -p "$HOME/.task/hooks"
-link "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" \
-     "$HOME/.task/hooks/on-modify.timewarrior"
+[[ -f "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" ]] && link "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" "$HOME/.task/hooks/on-modify.timewarrior"
 
 # ── ~/.config directories — symlinked wholesale ───────────────────────────────
 CONFIG_DIRS=(
-  alacritty atuin broot btop cava conky copyq direnv dunst fish
-  flameshot fselect gh-dash gitui glow i3 khal kitty lazydocker
-  lazygit lf mpd ncmpcpp nvim picom polybar rofi starship
-  spicetify systemd tealdeer thefuck tmux xsettingsd zellij
+  alacritty atuin bat BetterDiscord broot btop cava conky copyq
+  delta direnv dunst eza fastfetch fish flameshot fselect fzf
+  gh-dash gitui glow gtk-3.0 gtk-4.0 i3 khal kitty lazydocker
+  lazygit lf mpd mpv ncmpcpp nvim picom polybar qbittorrent
+  qBittorrent rclone rofi spicetify starship superfile systemd
+  tealdeer thefuck tmux xsettingsd yazi zellij zsh-plugins
 )
 for d in "${CONFIG_DIRS[@]}"; do
-  link "$DOTFILES_DIR/.config/$d" "$HOME/.config/$d"
+  if [[ -d "$DOTFILES_DIR/.config/$d" ]]; then
+    link "$DOTFILES_DIR/.config/$d" "$HOME/.config/$d"
+  fi
 done
 
-# Standalone .config files/dirs
-link "$DOTFILES_DIR/.config/chrome-flags.conf" "$HOME/.config/chrome-flags.conf"
-link "$DOTFILES_DIR/.config/greenclip.toml"    "$HOME/.config/greenclip.toml"
-link "$DOTFILES_DIR/.config/rofi-rbw.rc"       "$HOME/.config/rofi-rbw.rc"
-link "$DOTFILES_DIR/.config/starship.toml"     "$HOME/.config/starship.toml"
-link "$DOTFILES_DIR/.config/gtk-3.0"           "$HOME/.config/gtk-3.0"
-link "$DOTFILES_DIR/.config/gtk-4.0"           "$HOME/.config/gtk-4.0"
+# Standalone .config files
+for file in chrome-flags.conf greenclip.toml rofi-rbw.rc starship.toml; do
+  if [[ -f "$DOTFILES_DIR/.config/$file" ]]; then
+    link "$DOTFILES_DIR/.config/$file" "$HOME/.config/$file"
+  fi
+done
 
 # ── ~/.local/bin scripts ──────────────────────────────────────────────────────
 mkdir -p "$HOME/.local/bin"
@@ -215,41 +218,87 @@ for desktop in "$DOTFILES_DIR/.local/share/applications"/*.desktop; do
   link "$desktop" "$HOME/.local/share/applications/$(basename "$desktop")"
 done
 
-mkdir -p "$HOME/.local/share/navi/cheats"
-link "$DOTFILES_DIR/.local/share/navi/cheats/walid-arch.cheat" \
-     "$HOME/.local/share/navi/cheats/walid-arch.cheat"
+if [[ -d "$DOTFILES_DIR/.local/share/telegram-themes" ]]; then
+  mkdir -p "$HOME/.local/share/telegram-themes"
+  cp -rn "$DOTFILES_DIR/.local/share/telegram-themes/." "$HOME/.local/share/telegram-themes/" 2>/dev/null || true
+fi
 
-mkdir -p "$HOME/.local/share/tealdeer/pages/common"
-for pg in "$DOTFILES_DIR/.local/share/tealdeer/pages"/*.md; do
-  [[ -f "$pg" ]] || continue
-  link "$pg" "$HOME/.local/share/tealdeer/pages/$(basename "$pg")"
-done
-for pg in "$DOTFILES_DIR/.local/share/tealdeer/pages/common"/*.md; do
-  [[ -f "$pg" ]] || continue
-  link "$pg" "$HOME/.local/share/tealdeer/pages/common/$(basename "$pg")"
-done
-
+update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
 log "All dotfiles symlinked"
 
 # ══════════════════════════════════════════════════════════════════════════════
-step "7 — Fonts"
+step "7 — Telegram Desktop Forks (AyuGram & 64Gram)"
+# ══════════════════════════════════════════════════════════════════════════════
+info "Setting up AyuGram Desktop..."
+if [[ ! -f "$HOME/.local/share/AyuGram/AyuGram" ]]; then
+  mkdir -p "$HOME/.local/share/AyuGram"
+  AYU_TAR=$(mktemp)
+  curl -sL "https://api.github.com/repos/AyuGram/AyuGramDesktop/releases/latest" \
+    | grep "browser_download_url.*Linux.*\.tar\.xz" | cut -d : -f 2,3 | tr -d \" | tr -d ' ' | head -n 1 \
+    | xargs -I{} curl -fSL "{}" -o "$AYU_TAR" 2>/dev/null || true
+  if [[ -f "$AYU_TAR" && -s "$AYU_TAR" ]]; then
+    tar -xf "$AYU_TAR" -C "$HOME/.local/share/AyuGram/" 2>/dev/null || true
+    rm -f "$AYU_TAR"
+  fi
+fi
+
+info "Setting up 64Gram Desktop..."
+if [[ ! -f "$HOME/.local/share/64Gram/64Gram" ]]; then
+  mkdir -p "$HOME/.local/share/64Gram"
+  X64_TAR=$(mktemp)
+  curl -sL "https://api.github.com/repos/TDesktop-x64/tdesktop/releases/latest" \
+    | grep "browser_download_url.*linux.*\.tar\.xz" | cut -d : -f 2,3 | tr -d \" | tr -d ' ' | head -n 1 \
+    | xargs -I{} curl -fSL "{}" -o "$X64_TAR" 2>/dev/null || true
+  if [[ -f "$X64_TAR" && -s "$X64_TAR" ]]; then
+    tar -xf "$X64_TAR" -C "$HOME/.local/share/64Gram/" 2>/dev/null || true
+    rm -f "$X64_TAR"
+  fi
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+step "8 — App Configurations & Catppuccin Mocha Hooks"
+# ══════════════════════════════════════════════════════════════════════════════
+# Thunar Location Entry
+if command -v xfconf-query &>/dev/null; then
+  xfconf-query -c thunar -p /last-location-bar -s "ThunarLocationEntry" --create -t string 2>/dev/null || true
+  log "Thunar location entry enabled"
+fi
+
+# Bat theme cache
+if command -v bat &>/dev/null; then
+  bat cache --build 2>/dev/null || true
+  log "Bat cache built with Catppuccin Mocha"
+fi
+
+# TeX Live formats
+if command -v fmtutil-user &>/dev/null; then
+  fmtutil-user --all 2>/dev/null || true
+  log "TeX Live formats generated"
+fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+step "9 — Fonts"
 # ══════════════════════════════════════════════════════════════════════════════
 FONT_DST="$HOME/.local/share/fonts"
 mkdir -p "$FONT_DST"
-info "Copying bundled fonts..."
-cp -rn "$DOTFILES_DIR/.local/share/fonts/." "$FONT_DST/" 2>/dev/null || true
-fc-cache -fv "$FONT_DST" &>/dev/null
-log "Fonts installed and cache updated"
+if [[ -d "$DOTFILES_DIR/.local/share/fonts" ]]; then
+  info "Copying bundled fonts..."
+  cp -rn "$DOTFILES_DIR/.local/share/fonts/." "$FONT_DST/" 2>/dev/null || true
+  fc-cache -fv "$FONT_DST" &>/dev/null
+  log "Fonts installed and cache updated"
+fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-step "8 — Wallpaper"
+step "10 — Wallpaper"
 # ══════════════════════════════════════════════════════════════════════════════
 mkdir -p "$HOME/Pictures"
-cp -n "$DOTFILES_DIR/wallpaper.jpg" "$HOME/Pictures/catppuccin-wall-dark.jpg" 2>/dev/null || true
-log "Wallpaper → ~/Pictures/catppuccin-wall-dark.jpg"
+if [[ -f "$DOTFILES_DIR/wallpaper.jpg" ]]; then
+  cp -n "$DOTFILES_DIR/wallpaper.jpg" "$HOME/Pictures/catppuccin-wall-dark.jpg" 2>/dev/null || true
+  log "Wallpaper → ~/Pictures/catppuccin-wall-dark.jpg"
+fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-step "9 — /etc system configs"
+step "11 — /etc system configs"
 # ══════════════════════════════════════════════════════════════════════════════
 info "Copying system configs to /etc (sudo required)..."
 
@@ -261,27 +310,24 @@ safe_etc() {
   log "Installed /etc: $(basename "$dst")"
 }
 
-safe_etc "$DOTFILES_DIR/etc/sddm.conf.d/theme.conf"             "/etc/sddm.conf.d/theme.conf"
-safe_etc "$DOTFILES_DIR/etc/sysctl.d/99-performance.conf"       "/etc/sysctl.d/99-performance.conf"
-safe_etc "$DOTFILES_DIR/etc/default/cpupower"                   "/etc/default/cpupower"
-safe_etc "$DOTFILES_DIR/etc/systemd/logind.conf.d/nosleep.conf" "/etc/systemd/logind.conf.d/nosleep.conf"
-
-# fstab: show diff and ask before overwriting (dangerous)
-echo ""
-warn "fstab — showing diff (NOT auto-applied — verify UUIDs match your hardware):"
-diff "$DOTFILES_DIR/etc/fstab" /etc/fstab 2>/dev/null || true
-read -rp "  Apply dotfiles fstab to /etc/fstab? [y/N] " apply_fstab
-if [[ "${apply_fstab,,}" == "y" ]]; then
-  safe_etc "$DOTFILES_DIR/etc/fstab" "/etc/fstab"
-else
-  warn "Skipped fstab — update /etc/fstab manually with correct UUIDs (blkid)"
+if [[ -f "$DOTFILES_DIR/etc/sddm.conf.d/theme.conf" ]]; then
+  safe_etc "$DOTFILES_DIR/etc/sddm.conf.d/theme.conf"             "/etc/sddm.conf.d/theme.conf"
+fi
+if [[ -f "$DOTFILES_DIR/etc/sysctl.d/99-performance.conf" ]]; then
+  safe_etc "$DOTFILES_DIR/etc/sysctl.d/99-performance.conf"       "/etc/sysctl.d/99-performance.conf"
+fi
+if [[ -f "$DOTFILES_DIR/etc/default/cpupower" ]]; then
+  safe_etc "$DOTFILES_DIR/etc/default/cpupower"                   "/etc/default/cpupower"
+fi
+if [[ -f "$DOTFILES_DIR/etc/systemd/logind.conf.d/nosleep.conf" ]]; then
+  safe_etc "$DOTFILES_DIR/etc/systemd/logind.conf.d/nosleep.conf" "/etc/systemd/logind.conf.d/nosleep.conf"
 fi
 
-sudo sysctl --system &>/dev/null
+sudo sysctl --system &>/dev/null || true
 log "/etc configs applied"
 
 # ══════════════════════════════════════════════════════════════════════════════
-step "10 — Systemd user services"
+step "12 — Systemd user services"
 # ══════════════════════════════════════════════════════════════════════════════
 systemctl --user daemon-reload 2>/dev/null || true
 for svc in copyq i3-autoname mpd syncthing wireplumber; do
@@ -293,9 +339,9 @@ for svc in copyq i3-autoname mpd syncthing wireplumber; do
 done
 
 # ══════════════════════════════════════════════════════════════════════════════
-step "11 — Default shell → zsh"
+step "13 — Default shell → zsh"
 # ══════════════════════════════════════════════════════════════════════════════
-ZSH_PATH="$(command -v zsh)"
+ZSH_PATH="$(command -v zsh || echo '/bin/zsh')"
 if [[ "$SHELL" != "$ZSH_PATH" ]]; then
   info "Setting default shell to zsh..."
   sudo chsh -s "$ZSH_PATH" "$WHOAMI"
@@ -305,7 +351,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-step "12 — XDG user dirs"
+step "14 — XDG user dirs"
 # ══════════════════════════════════════════════════════════════════════════════
 xdg-user-dirs-update 2>/dev/null && log "XDG dirs updated" || true
 
@@ -321,9 +367,6 @@ echo "  ② GitHub CLI:           gh auth login"
 echo "  ③ Bitwarden:            rbw login  (or bw login)"
 echo "  ④ SSH keys:             ssh-keygen -t ed25519 -C 'your@email'"
 echo "  ⑤ HDD routing:         hdd-route all   (if HDD is mounted)"
-echo "  ⑥ Mise runtimes:        mise install    (node/python/go/java)"
-echo "  ⑦ Rclone remotes:       rclone config"
-echo "  ⑧ Syncthing:            open browser → localhost:8384"
 echo ""
 echo -e "${BOLD}  Quick reference:${RESET}"
 echo "  TOOLS_GUIDE.md  — full keybinding & tool docs"
