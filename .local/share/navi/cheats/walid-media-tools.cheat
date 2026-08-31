@@ -200,3 +200,17 @@ instaloader :self
 
 # Resume interrupted download
 instaloader --latest-stamps <username>
+
+% wallpaper, desktop, feh, background
+
+# View current wallpaper directory and image count
+wallpaper-dir
+
+# Change wallpaper directory (searches 3 folders deep)
+wallpaper-dir <folder_path>
+
+# Reset wallpaper directory to default Catppuccin collection
+wallpaper-dir reset
+
+# Pick next random wallpaper immediately (Super + N)
+wallpaper-next.sh

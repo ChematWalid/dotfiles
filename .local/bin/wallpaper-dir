@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# ══════════════════════════════════════════════════════════════════════════════
+#  wallpaper-dir — View or change the wallpaper directory (searches 3 folders deep)
+#  Usage:
+#    wallpaper-dir                 — Show current wallpaper directory and image count
+#    wallpaper-dir <path>          — Set new wallpaper directory and apply immediately
+#    wallpaper-dir reset           — Reset to default Catppuccin Mocha collection
+# ══════════════════════════════════════════════════════════════════════════════
+
+CONFIG_FILE="$HOME/.config/wallpaper-dir"
+DEFAULT_DIR="$HOME/Pictures/walls-catppuccin-mocha"
+
+get_current_dir() {
+    local dir
+    if [ -f "$CONFIG_FILE" ]; then
+        dir=$(cat "$CONFIG_FILE" 2>/dev/null | tr -d '\n')
+    fi
+    if [ -z "$dir" ] || [ ! -d "$dir" ]; then
+        dir="$DEFAULT_DIR"
+    fi
+    echo "$dir"
+}
+
+count_wallpapers() {
+    local target="$1"
+    find -L "$target" -maxdepth 3 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | wc -l
+}
+
+TARGET="$1"
+
+if [ -z "$TARGET" ]; then
+    CURRENT=$(get_current_dir)
+    TOTAL=$(count_wallpapers "$CURRENT")
+    echo "🌄 Current wallpaper directory:"
+    echo "   $CURRENT"
+    echo "   Found $TOTAL wallpapers (searching 3 folders deep)"
+    echo ""
+    echo "Usage:"
+    echo "   wallpaper-dir <path/to/folder>   — Switch to a new wallpaper folder"
+    echo "   wallpaper-dir reset              — Reset to default Catppuccin collection"
+    exit 0
+fi
+
+if [ "$TARGET" = "reset" ] || [ "$TARGET" = "--reset" ]; then
+    TARGET="$DEFAULT_DIR"
+fi
+
+# Expand ~ and relative paths
+TARGET=$(realpath -m "${TARGET/#\~/$HOME}")
+
+if [ ! -d "$TARGET" ]; then
+    echo "❌ Error: Directory '$TARGET' does not exist."
+    exit 1
+fi
+
+TOTAL=$(count_wallpapers "$TARGET")
+if [ "$TOTAL" -eq 0 ]; then
+    echo "⚠️  Warning: No images (.jpg, .png, .jpeg, .webp) found in '$TARGET' (searched 3 folders deep)."
+    echo "Directory was not changed."
+    exit 1
+fi
+
+# Save to persistent config
+mkdir -p "$(dirname "$CONFIG_FILE")"
+echo "$TARGET" > "$CONFIG_FILE"
+
+echo "✅ Wallpaper directory updated to: $TARGET"
+echo "   Found $TOTAL wallpapers."
+echo "   Switching wallpaper now..."
+
+# Trigger immediate wallpaper switch
+~/.local/bin/wallpaper-next.sh

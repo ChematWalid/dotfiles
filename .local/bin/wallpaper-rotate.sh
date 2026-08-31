@@ -1,18 +1,32 @@
 #!/usr/bin/env bash
 # wallpaper-rotate.sh — Rotate wallpapers every 30 min
+# Respects ~/.config/wallpaper-dir (searches 3 folders deep)
 # Managed by systemd wallpaper-rotate.service
 
-WALLPAPER_DIR="$HOME/Pictures/walls-catppuccin-mocha"
+CONFIG_FILE="$HOME/.config/wallpaper-dir"
+DEFAULT_DIR="$HOME/Pictures/walls-catppuccin-mocha"
 LOCK_FILE="/tmp/.wallpaper-current"
 INTERVAL=1800  # 30 min
 
-# On startup, ensure the current wallpaper is set if already saved, or pick initial one
+get_wall_dir() {
+    local dir="$DEFAULT_DIR"
+    if [ -f "$CONFIG_FILE" ]; then
+        local cfg
+        cfg=$(cat "$CONFIG_FILE" 2>/dev/null | tr -d '\n')
+        [ -d "$cfg" ] && dir="$cfg"
+    fi
+    echo "$dir"
+}
+
+WALLPAPER_DIR=$(get_wall_dir)
+
+# On startup, restore last active wallpaper or pick initial
 CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
 if [ -n "$CURRENT" ] && [ -f "$CURRENT" ]; then
     feh --bg-fill "$CURRENT"
     ~/.local/bin/conky-colors.sh "$CURRENT" 2>/dev/null || true
 else
-    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
+    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 3 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort)
     if [ ${#WALLS[@]} -gt 0 ]; then
         WALL=$(printf '%s\n' "${WALLS[@]}" | shuf -n 1)
         echo "$WALL" > "$LOCK_FILE"
@@ -21,12 +35,13 @@ else
     fi
 fi
 
-# Then loop: sleep 30 minutes, then rotate
+# Rotate every 30 minutes
 while true; do
     sleep "$INTERVAL"
 
+    WALLPAPER_DIR=$(get_wall_dir)
     CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
-    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
+    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 3 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort)
     COUNT=${#WALLS[@]}
 
     if [ "$COUNT" -gt 0 ]; then
