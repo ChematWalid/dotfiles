@@ -1,0 +1,38 @@
+# ==============================================================================
+#                      TUMBLER THUMBNAIL DAEMON CONFIG
+# ==============================================================================
+
+[PixbufThumbnailer]
+Disabled=false
+Priority=1
+Locations=
+Excludes=
+MaxFileSize=0
+
+[FfmpegThumbnailer]
+Disabled=false
+Priority=1
+Locations=
+Excludes=
+MaxFileSize=0
+
+[PopplerThumbnailer]
+Disabled=false
+Priority=1
+Locations=
+Excludes=
+MaxFileSize=0
+
+[GsfThumbnailer]
+Disabled=false
+Priority=1
+Locations=
+Excludes=
+MaxFileSize=0
+
+[FontThumbnailer]
+Disabled=false
+Priority=1
+Locations=
+Excludes=
+MaxFileSize=0
