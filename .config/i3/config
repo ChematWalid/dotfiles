@@ -251,3 +251,10 @@ bindsym Mod4+space exec --no-startup-id ~/.local/bin/switch-layout.sh
 
 # ── Wallpaper — pick next now (Super+N) ─────────────────────────
 bindsym Mod4+n exec --no-startup-id ~/.local/bin/wallpaper-next.sh
+
+# ── Notification Center & History (Win+` / Win+Shift+N / Alt+Shift+N) ───────────
+bindsym Mod4+grave exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
+bindsym Mod4+Shift+n exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
+bindsym $mod+Shift+n exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
+bindsym Mod4+Control+n exec --no-startup-id dunstctl history-pop
+bindsym Mod4+Control+space exec --no-startup-id dunstctl close-all

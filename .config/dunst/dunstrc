@@ -75,8 +75,8 @@
     mouse_left_click = do_action, close_current
     # Middle click: dismiss all notifications
     mouse_middle_click = close_all
-    # Right click: context menu (rofi) & dismiss current
-    mouse_right_click = context, close_current
+    # Right click: dismiss current notification
+    mouse_right_click = close_current
 
 # ==============================================================================
 #                              URGENCY LEVELS
