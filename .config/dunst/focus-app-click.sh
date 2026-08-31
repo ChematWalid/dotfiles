@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # ~/.config/dunst/focus-app-click.sh
 # Triggered ONLY when the user clicks a notification in Dunst
+# Silently focuses the target application window in i3 without leaking stdout to Dunst
 
-# 1. Extract appname from the most recent notification in history
+# Ensure no output leaks to stdout/stderr (which Dunst might interpret as a URL)
+exec 1>/dev/null 2>/dev/null
+
 APP=$(dunstctl history 2>/dev/null | jq -r '.data[0][0].appname.data // empty' 2>/dev/null)
+
+if [ -z "$APP" ]; then
+    exit 0
+fi
 
 # Ignore volume / brightness OSD feedback
 case "$APP" in
@@ -12,55 +19,60 @@ case "$APP" in
         ;;
 esac
 
-# 2. Complete mapping of application names to X11 WM_CLASS & window titles
-declare -A APP_CLASS_MAP
-APP_CLASS_MAP["Telegram Desktop"]="TelegramDesktop"
-APP_CLASS_MAP["telegram-desktop"]="TelegramDesktop"
-APP_CLASS_MAP["telegram"]="TelegramDesktop"
-APP_CLASS_MAP["AyuGram"]="AyuGram"
-APP_CLASS_MAP["AyuGram Desktop"]="AyuGram"
-APP_CLASS_MAP["64Gram"]="TelegramDesktop"
-APP_CLASS_MAP["64Gram Desktop"]="TelegramDesktop"
-APP_CLASS_MAP["Spotify"]="Spotify"
-APP_CLASS_MAP["spotify"]="Spotify"
-APP_CLASS_MAP["Google Chrome"]="Google-chrome"
-APP_CLASS_MAP["google-chrome"]="Google-chrome"
-APP_CLASS_MAP["Chromium"]="Chromium"
-APP_CLASS_MAP["chromium"]="Chromium"
-APP_CLASS_MAP["Firefox"]="firefox"
-APP_CLASS_MAP["firefox"]="firefox"
-APP_CLASS_MAP["Brave"]="brave-browser"
-APP_CLASS_MAP["brave"]="brave-browser"
-APP_CLASS_MAP["discord"]="discord"
-APP_CLASS_MAP["Discord"]="discord"
-APP_CLASS_MAP["Vesktop"]="vesktop"
-APP_CLASS_MAP["WebCord"]="webcord"
-APP_CLASS_MAP["VLC"]="vlc"
-APP_CLASS_MAP["vlc"]="vlc"
-APP_CLASS_MAP["Thunar"]="Thunar"
-APP_CLASS_MAP["thunar"]="Thunar"
-APP_CLASS_MAP["qBittorrent"]="qbittorrent"
-APP_CLASS_MAP["qbittorrent"]="qbittorrent"
-APP_CLASS_MAP["Code"]="Code"
-APP_CLASS_MAP["Visual Studio Code"]="Code"
-APP_CLASS_MAP["Cursor"]="Cursor"
-APP_CLASS_MAP["kitty"]="kitty"
-APP_CLASS_MAP["alacritty"]="Alacritty"
-APP_CLASS_MAP["Obsidian"]="obsidian"
-APP_CLASS_MAP["Slack"]="Slack"
+# Comprehensive regex patterns for i3 class matching
+case "$APP" in
+    *Telegram*|*telegram*|*AyuGram*|*ayugram*|*64Gram*|*64gram*)
+        CLASS_REGEX="(?i)(TelegramDesktop|AyuGramDesktop|AyuGram|64Gram)"
+        ;;
+    *Spotify*|*spotify*)
+        CLASS_REGEX="(?i)Spotify"
+        ;;
+    *Chrome*|*chrome*|*Chromium*|*chromium*)
+        CLASS_REGEX="(?i)(Google-chrome|Chromium)"
+        ;;
+    *Firefox*|*firefox*)
+        CLASS_REGEX="(?i)firefox"
+        ;;
+    *Brave*|*brave*)
+        CLASS_REGEX="(?i)brave-browser"
+        ;;
+    *Discord*|*discord*|*Vesktop*|*vesktop*|*WebCord*|*webcord*)
+        CLASS_REGEX="(?i)(discord|vesktop|webcord)"
+        ;;
+    *Code*|*code*|*VSCode*|*VSCodium*|*Cursor*|*cursor*)
+        CLASS_REGEX="(?i)(Code|Cursor|VSCodium)"
+        ;;
+    *Kitty*|*kitty*)
+        CLASS_REGEX="(?i)kitty"
+        ;;
+    *Alacritty*|*alacritty*)
+        CLASS_REGEX="(?i)Alacritty"
+        ;;
+    *Thunar*|*thunar*)
+        CLASS_REGEX="(?i)Thunar"
+        ;;
+    *qBittorrent*|*qbittorrent*)
+        CLASS_REGEX="(?i)qbittorrent"
+        ;;
+    *Obsidian*|*obsidian*)
+        CLASS_REGEX="(?i)obsidian"
+        ;;
+    *Slack*|*slack*)
+        CLASS_REGEX="(?i)Slack"
+        ;;
+    *)
+        # Default fallback: search by app name directly (case-insensitive)
+        CLASS_REGEX="(?i)$APP"
+        ;;
+esac
 
-WM_CLASS="${APP_CLASS_MAP[$APP]:-$APP}"
+# 1. Try focusing directly via i3 class regex
+i3-msg "[class=\"$CLASS_REGEX\"] focus" > /dev/null 2>&1
 
-# 3. Find the matching window
-WIN_ID=$(DISPLAY=:0 xdotool search --classname "$WM_CLASS" 2>/dev/null | tail -1)
-if [ -z "$WIN_ID" ]; then
-    WIN_ID=$(DISPLAY=:0 xdotool search --class "$WM_CLASS" 2>/dev/null | tail -1)
-fi
-if [ -z "$WIN_ID" ]; then
-    WIN_ID=$(DISPLAY=:0 xdotool search --name "$APP" 2>/dev/null | tail -1)
-fi
-
-# 4. Focus window in i3 (automatically switches workspace and raises window)
-if [ -n "$WIN_ID" ]; then
-    DISPLAY=:0 i3-msg "[id=$WIN_ID] focus"
+# 2. Fallback: search window tree for partial class or title match
+if [ $? -ne 0 ]; then
+    CON_ID=$(i3-msg -t get_tree 2>/dev/null | jq -r --arg pat "$APP" '.. | select(.window_properties? != null) | select((.window_properties.class | test($pat; "i")) or (.window_properties.title | test($pat; "i"))) | .id' 2>/dev/null | tail -1)
+    if [ -n "$CON_ID" ]; then
+        i3-msg "[con_id=$CON_ID] focus" > /dev/null 2>&1
+    fi
 fi
