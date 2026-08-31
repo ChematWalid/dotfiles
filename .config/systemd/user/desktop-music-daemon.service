@@ -1,0 +1,14 @@
+[Unit]
+Description=Desktop Music Now-Playing Daemon (playerctl → /tmp/conky-music.txt)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/walid/.local/bin/desktop-music-daemon.py
+Restart=always
+RestartSec=2
+Environment=DISPLAY=:0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+
+[Install]
+WantedBy=default.target
