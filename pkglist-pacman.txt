@@ -124,6 +124,7 @@ lazygit 0.64.1-1
 lf 42-1
 lib32-mesa 1:26.2.1-1
 lib32-vulkan-nouveau 1:26.2.1-1
+libgsf
 libpulse 17.0+r98+gb096704c0-1
 libreoffice-fresh 26.2.5-3
 libva-intel-driver 2.4.5-1
@@ -182,6 +183,7 @@ playerctl 2.4.1-5
 plocate 1.1.24-2
 pnpm 11.3.0-1
 polybar 3.7.2-2
+poppler-glib
 postgresql 18.6-1
 postman-bin 12.25.1-1
 procs 0.14.12-1
@@ -251,6 +253,7 @@ ttf-dejavu 2.37+18+g9b5d1b2f-8
 ttf-fira-code 6.2-4
 ttf-jetbrains-mono-nerd 3.5.1-2
 ttf-liberation 2.1.5-2
+tumbler
 ufw 0.36.2-7
 unzip 6.0-23
 vim 9.2.1011-1
@@ -261,6 +264,7 @@ vlc-plugins-all 3.0.23_2-12
 vulkan-intel 1:26.2.1-1
 vulkan-nouveau 1:26.2.1-1
 vulkan-radeon 1:26.2.1-1
+webp-pixbuf-loader
 wget 1.25.0-6
 wireplumber 0.5.15-1
 woff2-font-awesome 7.3.1-1

@@ -9,7 +9,7 @@ PIDFILE="/tmp/.wallpaper-rotate.pid"
 # Read current wall to avoid repeating
 CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
 
-mapfile -t WALLS < <(find "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
+mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
 COUNT=${#WALLS[@]}
 
 if [ "$COUNT" -eq 0 ]; then exit 1; fi

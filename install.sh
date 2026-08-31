@@ -195,7 +195,7 @@ CONFIG_DIRS=(
   gh-dash gitui glow gtk-3.0 gtk-4.0 i3 khal kitty lazydocker
   lazygit lf mpd mpv ncmpcpp nvim picom polybar qbittorrent
   qBittorrent rclone rofi spicetify starship superfile systemd
-  tealdeer thefuck tmux xsettingsd yazi zellij zsh-plugins
+  tealdeer thefuck Thunar tmux xfce4 xsettingsd yazi zellij zsh-plugins
 )
 for d in "${CONFIG_DIRS[@]}"; do
   if [[ -d "$DOTFILES_DIR/.config/$d" ]]; then

@@ -130,6 +130,7 @@ lazygit
 lf
 lib32-mesa
 lib32-vulkan-nouveau
+libgsf
 libpulse
 libreoffice-fresh
 libva-intel-driver
@@ -189,6 +190,7 @@ playerctl
 plocate
 pnpm
 polybar
+poppler-glib
 postgresql
 postman-bin
 procs
@@ -264,6 +266,7 @@ ttf-dejavu
 ttf-fira-code
 ttf-jetbrains-mono-nerd
 ttf-liberation
+tumbler
 ufw
 unzip
 vim
@@ -274,6 +277,7 @@ vlc-plugins-all
 vulkan-intel
 vulkan-nouveau
 vulkan-radeon
+webp-pixbuf-loader
 wget
 wireplumber
 woff2-font-awesome

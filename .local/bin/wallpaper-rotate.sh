@@ -17,7 +17,7 @@ INTERVAL=1800  # 30 min — change to e.g. 300 for 5 min
 
 while true; do
     CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
-    mapfile -t WALLS < <(find "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
+    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
     COUNT=${#WALLS[@]}
 
     if [ "$COUNT" -gt 0 ]; then
