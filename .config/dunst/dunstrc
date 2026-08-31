@@ -65,7 +65,7 @@
     history_length = 30
     dmenu = /usr/bin/rofi -dmenu -p "Notifications"
     browser = /usr/bin/firefox -new-tab
-    always_run_script = true
+    always_run_script = false
     title = Dunst
     class = Dunst
     ignore_dbusclose = false
@@ -89,7 +89,6 @@
     highlight = "#89b4fa"
     timeout = 4
     default_icon = "dialog-information"
-    script = ~/.config/dunst/focus-app.sh
 
 [urgency_normal]
     background = "#1e1e2e"
@@ -98,7 +97,6 @@
     highlight = "#cba6f7"
     timeout = 6
     default_icon = "dialog-information"
-    script = ~/.config/dunst/focus-app.sh
 
 [urgency_critical]
     background = "#1e1e2e"
@@ -107,7 +105,6 @@
     highlight = "#f38ba8"
     timeout = 0
     default_icon = "dialog-warning"
-    script = ~/.config/dunst/focus-app.sh
 
 # ==============================================================================
 #                          PER-APPLICATION RULES

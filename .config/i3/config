@@ -195,7 +195,7 @@ bindsym Mod4+F6 exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 bindsym $mod+F5 exec --no-startup-id ~/.local/bin/brightness-osd.sh down
 bindsym $mod+F6 exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
-focus_on_window_activation focus
+focus_on_window_activation urgent
 
 # ── Lock Screen (Win+L & Alt+Ctrl+L) ───────────────
 bindsym Mod4+l exec --no-startup-id ~/.local/bin/lock.sh
