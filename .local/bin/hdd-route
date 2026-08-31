@@ -2,7 +2,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 #  hdd-route — Move large app & cache data from SSD to HDD and symlink back
 #  Repo: https://github.com/ACEECA1/dotfiles
-#  Usage: hdd-route all | hdd-route telegram | hdd-route rust | hdd-route status
+#  Usage: hdd-route all | hdd-route pictures | hdd-route status
 # ══════════════════════════════════════════════════════════════════════════════
 
 HDD="/mnt/drive2"
@@ -15,6 +15,12 @@ if [ ! -d "$HDD" ]; then
     exit 1
 fi
 
+DRY_RUN=0
+if [[ "$*" == *"--dry-run"* ]] || [[ "$*" == *"-n"* ]]; then
+    DRY_RUN=1
+    echo "🔍 DRY RUN MODE: No files will be moved or modified."
+fi
+
 move_and_link() {
     local src="$1"
     local dst="$2"
@@ -23,6 +29,11 @@ move_and_link() {
 
     if [ -L "$src" ]; then
         echo "  → $src is already symlinked to $(readlink "$src"), skipping"
+        return
+    fi
+
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "  [dry-run] Would move $src → $dst and symlink back"
         return
     fi
 
@@ -46,7 +57,10 @@ move_and_link() {
     fi
 }
 
-case "${1:-help}" in
+TARGET="${1:-help}"
+[[ "$TARGET" == "--dry-run" || "$TARGET" == "-n" ]] && TARGET="${2:-help}"
+
+case "$TARGET" in
 
   telegram)
     echo "=== Routing Telegram, AyuGram & 64Gram to HDD ==="
@@ -98,9 +112,9 @@ case "${1:-help}" in
     move_and_link "$HOME/.config/discord/GPUCache"      "$HDD/.config/discord/GPUCache"
     ;;
 
-  wallpapers)
-    echo "=== Routing Wallpapers repository to Drive E ==="
-    move_and_link "$HOME/Pictures/walls-catppuccin-mocha" "/mnt/drive3/Pictures/walls-catppuccin-mocha"
+  wallpapers|pictures)
+    echo "=== Routing Pictures & Wallpapers to Drive E ==="
+    move_and_link "$HOME/Pictures" "/mnt/drive3/Pictures"
     ;;
 
   steam)
@@ -117,21 +131,29 @@ case "${1:-help}" in
 
   docker)
     echo "=== Routing Docker to HDD (needs sudo) ==="
-    sudo systemctl stop docker 2>/dev/null || true
-    sudo mkdir -p "$HDD/.docker"
-    sudo rsync -a /var/lib/docker/ "$HDD/.docker/"
-    sudo rm -rf /var/lib/docker
-    sudo ln -sfn "$HDD/.docker" /var/lib/docker
-    sudo systemctl start docker 2>/dev/null || true
-    echo "  ✓ Docker data → HDD"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "  [dry-run] Would stop docker, move /var/lib/docker → $HDD/.docker and restart"
+    else
+        sudo systemctl stop docker 2>/dev/null || true
+        sudo mkdir -p "$HDD/.docker"
+        sudo rsync -a /var/lib/docker/ "$HDD/.docker/"
+        sudo rm -rf /var/lib/docker
+        sudo ln -sfn "$HDD/.docker" /var/lib/docker
+        sudo systemctl start docker 2>/dev/null || true
+        echo "  ✓ Docker data → HDD"
+    fi
     ;;
 
   flatpak)
     echo "=== Routing Flatpak to HDD (needs sudo) ==="
-    sudo rsync -a /var/lib/flatpak/ "$HDD/.flatpak/"
-    sudo rm -rf /var/lib/flatpak
-    sudo ln -sfn "$HDD/.flatpak" /var/lib/flatpak
-    echo "  ✓ Flatpak → HDD"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        echo "  [dry-run] Would move /var/lib/flatpak → $HDD/.flatpak"
+    else
+        sudo rsync -a /var/lib/flatpak/ "$HDD/.flatpak/"
+        sudo rm -rf /var/lib/flatpak
+        sudo ln -sfn "$HDD/.flatpak" /var/lib/flatpak
+        echo "  ✓ Flatpak → HDD"
+    fi
     ;;
 
   virtualbox)
@@ -156,7 +178,7 @@ case "${1:-help}" in
     $0 dev-caches
     $0 downloaders
     $0 browsers
-    $0 wallpapers
+    $0 pictures
     $0 steam
     $0 vscode
     $0 jetbrains
@@ -182,7 +204,7 @@ case "${1:-help}" in
   help|*)
     echo "hdd-route — Route large application and cache data to HDD"
     echo ""
-    echo "Usage: hdd-route <target>"
+    echo "Usage: hdd-route [--dry-run|-n] <target>"
     echo ""
     echo "Targets:"
     echo "  all         — Route all heavy caches, toolchains, and apps"
@@ -193,7 +215,7 @@ case "${1:-help}" in
     echo "  dev-caches  — Move VSCode C++, Yarn, PNPM, Electron, Go caches"
     echo "  browsers    — Move Chrome, Chromium, Brave, and Discord caches"
     echo "  downloaders — Move AB and Free Download Manager caches"
-    echo "  wallpapers  — Move 800MB Catppuccin wallpaper git repository"
+    echo "  pictures    — Move ~/Pictures (wallpapers, screenshots) to Drive E"
     echo "  steam       — Move Steam library"
     echo "  vscode      — Move VSCode extensions"
     echo "  jetbrains   — Move JetBrains Toolbox apps and caches"

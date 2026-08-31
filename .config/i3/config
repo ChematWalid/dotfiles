@@ -17,9 +17,8 @@ exec --no-startup-id dunst
 exec --no-startup-id flameshot
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec_always --no-startup-id systemctl --user restart i3-autoname.service
-
-# Wallpaper — rotate through ~/Pictures/walls-catppuccin-mocha/ every 30 min
-exec_always --no-startup-id ~/.local/bin/wallpaper-rotate.sh &
+exec_always --no-startup-id systemctl --user restart conky.service
+exec_always --no-startup-id systemctl --user restart wallpaper-rotate.service
 
 # Audio volume controls (Media Keys + Alt/Win+F1..F3 for non-Fn keyboards)
 bindsym XF86AudioRaiseVolume exec --no-startup-id ~/.local/bin/volume-osd.sh up
@@ -182,8 +181,8 @@ client.urgent           #00000000 #f38ba8   #11111b   #00000000  #00000000
 client.placeholder      #00000000 #181825   #cdd6f4   #00000000  #00000000
 client.background       #1e1e2e
 exec --no-startup-id /usr/bin/gnome-keyring-daemon --start --components=pkcs11,secrets,ssh
-exec_always --no-startup-id sh -c 'killall -q conky; sleep 0.2; conky -c ~/.config/conky/conky.conf -q &'
-# desktop-music-daemon — managed by systemd (desktop-music-daemon.service), not launched here
+# conky — managed by systemd (conky.service), restarted via exec_always at top of config
+# desktop-music-daemon — managed by systemd (desktop-music-daemon.service)
 
 # ── Input Settings (Keyboard Layouts, 250 50 Repeat Rate, Mouse Raw Input) ──
 exec_always --no-startup-id ~/.local/bin/apply-input-settings.sh
@@ -241,7 +240,7 @@ bindsym Mod4+w exec --no-startup-id ~/.local/bin/rofi-websearch.sh
 exec_always --no-startup-id xset s off -dpms s noblank
 
 # ── Smart Autotiling (Auto switches vertical/horizontal splits based on aspect ratio) ──
-exec_always --no-startup-id pkill -x autotiling; autotiling -sr 1.0
+exec_always --no-startup-id sh -c 'pkill -x autotiling 2>/dev/null; sleep 0.1; autotiling -sr 1.0 &'
 bindsym $mod+Shift+t exec --no-startup-id ~/.local/bin/toggle-autotiling.sh
 bindsym Mod4+Shift+t exec --no-startup-id ~/.local/bin/toggle-autotiling.sh
 bindsym $mod+Shift+Control+x [con_on_workspace=current] kill
@@ -252,9 +251,8 @@ bindsym Mod4+space exec --no-startup-id ~/.local/bin/switch-layout.sh
 # ── Wallpaper — pick next now (Super+N) ─────────────────────────
 bindsym Mod4+n exec --no-startup-id ~/.local/bin/wallpaper-next.sh
 
-# ── Notification Center & History (Win+` / Win+Shift+N / Alt+Shift+N) ───────────
+# ── Notification Center & History (Win+` / Win+Shift+N) ─────────────────────
 bindsym Mod4+grave exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
 bindsym Mod4+Shift+n exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
-bindsym $mod+Shift+n exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
 bindsym Mod4+Control+n exec --no-startup-id dunstctl history-pop
 bindsym Mod4+Control+space exec --no-startup-id dunstctl close-all

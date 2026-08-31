@@ -3,6 +3,7 @@ import subprocess
 import time
 import threading
 import os
+import shutil
 
 OUTPUT_FILE = "/tmp/conky-music.txt"
 PID_FILE = "/tmp/.desktop-music-daemon.pid"
@@ -25,6 +26,12 @@ def ensure_single_instance():
 lock = threading.Lock()
 state = {"text": ""}
 
+def notify_conky():
+    try:
+        subprocess.run(['killall', '-SIGUSR1', 'conky'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
 def get_track_info():
     try:
         out = subprocess.check_output(
@@ -37,7 +44,7 @@ def get_track_info():
                 return f"󰐊 {mpc}" if mpc else ""
             except Exception:
                 return ""
-            
+
         players = [line.split(':::') for line in out.splitlines() if ':::' in line]
         active_player, status = None, None
         for p, s in players:
@@ -63,13 +70,13 @@ def get_track_info():
 
         if not title and not artist:
             return ""
-            
+
+        # 󰐊 = play triangle, 󰏤 = pause bars (NO [Paused] text)
         icon = "󰐊 " if status == "Playing" else "󰏤 "
-        paused_tag = "" if status == "Playing" else "[Paused] "
-        
+
         if artist and title:
-            return f"{icon}{paused_tag}{artist} - {title}"
-        return f"{icon}{paused_tag}{title or artist}"
+            return f"{icon}{artist} - {title}"
+        return f"{icon}{title or artist}"
     except Exception:
         return ""
 
@@ -79,25 +86,29 @@ def write_output(text):
         with open(tmp, "w") as f:
             f.write(text.strip())
         os.replace(tmp, OUTPUT_FILE)
+        notify_conky()
     except Exception:
         pass
 
-def dbus_listener():
+def update_now():
+    info = get_track_info()
+    with lock:
+        if info != state["text"]:
+            state["text"] = info
+            write_output(info)
+
+def listen_command(cmd):
     while True:
         try:
             proc = subprocess.Popen(
-                ['playerctl', 'metadata', '-a', '--format', '{{playerName}}:::{{status}}:::{{artist}}:::{{title}}', '--follow'],
+                cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 universal_newlines=True,
                 bufsize=1
             )
-            for line in proc.stdout:
-                info = get_track_info()
-                with lock:
-                    if info != state["text"]:
-                        state["text"] = info
-                        write_output(info)
+            for _ in proc.stdout:
+                update_now()
             proc.wait()
         except Exception:
             pass
@@ -109,16 +120,24 @@ def main():
     state["text"] = initial
     write_output(initial)
 
-    t = threading.Thread(target=dbus_listener, daemon=True)
-    t.start()
+    # Listen to both metadata and status changes
+    t1 = threading.Thread(
+        target=listen_command,
+        args=(['playerctl', 'metadata', '-a', '--format', '{{playerName}}:::{{status}}:::{{artist}}:::{{title}}', '--follow'],),
+        daemon=True
+    )
+    t2 = threading.Thread(
+        target=listen_command,
+        args=(['playerctl', 'status', '-a', '--follow'],),
+        daemon=True
+    )
+    t1.start()
+    t2.start()
 
+    # Low frequency poll fallback (every 1s) to catch any edge cases
     while True:
-        info = get_track_info()
-        with lock:
-            if info != state["text"]:
-                state["text"] = info
-                write_output(info)
-        time.sleep(0.5)
+        update_now()
+        time.sleep(1.0)
 
 if __name__ == '__main__':
     main()

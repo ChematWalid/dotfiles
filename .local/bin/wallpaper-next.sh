@@ -1,25 +1,23 @@
 #!/usr/bin/env bash
 # wallpaper-next.sh — Pick a new random wallpaper immediately
-# Called by keybinding — also resets the rotation daemon timer
+# Systemd wallpaper-rotate.service handles the timed rotation.
+# This script just picks the next wall and signals the service to reset its timer.
 
 WALLPAPER_DIR="$HOME/Pictures/walls-catppuccin-mocha"
 LOCK_FILE="/tmp/.wallpaper-current"
-PIDFILE="/tmp/.wallpaper-rotate.pid"
 
 # Read current wall to avoid repeating
 CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
 
+# Use shuf for uniform random distribution (unlike bash $RANDOM which biases on small modulo)
 mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
 COUNT=${#WALLS[@]}
 
 if [ "$COUNT" -eq 0 ]; then exit 1; fi
 
 if [ "$COUNT" -gt 1 ]; then
-    CANDIDATES=()
-    for w in "${WALLS[@]}"; do
-        [ "$w" != "$CURRENT" ] && CANDIDATES+=("$w")
-    done
-    WALL="${CANDIDATES[RANDOM % ${#CANDIDATES[@]}]}"
+    WALL=$(printf '%s\n' "${WALLS[@]}" | grep -Fxv "$CURRENT" | shuf -n 1)
+    [ -z "$WALL" ] && WALL="${WALLS[0]}"
 else
     WALL="${WALLS[0]}"
 fi
@@ -27,11 +25,5 @@ fi
 echo "$WALL" > "$LOCK_FILE"
 feh --bg-fill "$WALL"
 
-# Restart the rotation daemon so the 30-min timer resets from NOW
-if [ -f "$PIDFILE" ]; then
-    OLD_PID=$(cat "$PIDFILE" 2>/dev/null)
-    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-        kill "$OLD_PID" 2>/dev/null
-    fi
-fi
-nohup "$HOME/.local/bin/wallpaper-rotate.sh" >/dev/null 2>&1 &
+# Signal systemd service to restart (resets the 30-min sleep timer)
+systemctl --user restart wallpaper-rotate.service 2>/dev/null || true

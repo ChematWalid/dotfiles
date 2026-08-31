@@ -1,0 +1,14 @@
+[Unit]
+Description=Wallpaper Rotation Daemon (30-min cycle)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/home/walid/.local/bin/wallpaper-rotate.sh
+Restart=always
+RestartSec=3
+Environment=DISPLAY=:0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+
+[Install]
+WantedBy=default.target

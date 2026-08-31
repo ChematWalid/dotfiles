@@ -185,7 +185,7 @@ mkdir -p "$HOME/.task/hooks"
 [[ -d "/mnt/drive2" ]] && link "/mnt/drive2" "$HOME/D"
 [[ -d "/mnt/drive3" ]] && link "/mnt/drive3" "$HOME/E"
 [[ -d "/mnt/drive3/Coding" ]] && link "/mnt/drive3/Coding" "$HOME/Coding"
-[[ -d "/mnt/drive3/Pictures/walls-catppuccin-mocha" ]] && link "/mnt/drive3/Pictures/walls-catppuccin-mocha" "$HOME/Pictures/walls-catppuccin-mocha"
+[[ -d "/mnt/drive3/Pictures" ]] && link "/mnt/drive3/Pictures" "$HOME/Pictures"
 [[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && link "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
 
 # ── ~/.config directories — symlinked wholesale ───────────────────────────────
@@ -228,6 +228,11 @@ done
 if [[ -d "$DOTFILES_DIR/.local/share/telegram-themes" ]]; then
   mkdir -p "$HOME/.local/share/telegram-themes"
   cp -rn "$DOTFILES_DIR/.local/share/telegram-themes/." "$HOME/.local/share/telegram-themes/" 2>/dev/null || true
+fi
+
+if [[ -d "$DOTFILES_DIR/.local/share/navi" ]]; then
+  mkdir -p "$HOME/.local/share/navi/cheats"
+  cp -rn "$DOTFILES_DIR/.local/share/navi/cheats/." "$HOME/.local/share/navi/cheats/" 2>/dev/null || true
 fi
 
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
@@ -351,13 +356,28 @@ log "/etc configs applied"
 step "12 — Systemd user services"
 # ══════════════════════════════════════════════════════════════════════════════
 systemctl --user daemon-reload 2>/dev/null || true
-for svc in copyq i3-autoname mpd syncthing wireplumber; do
+for svc in copyq greenclip i3-autoname mpd syncthing wireplumber conky desktop-music-daemon wallpaper-rotate; do
   if systemctl --user enable "$svc" 2>/dev/null; then
     log "Enabled: $svc"
   else
     warn "Could not enable $svc (needs graphical session; run manually after login)"
   fi
 done
+
+# ── Carapace completions setup for fish ───────────────────────────────────────
+if command -v carapace &>/dev/null && [[ -d "$HOME/.config/fish" ]]; then
+  mkdir -p "$HOME/.config/fish/conf.d"
+  carapace _carapace fish > "$HOME/.config/fish/conf.d/carapace.fish" 2>/dev/null || true
+  cat >> "$HOME/.config/fish/conf.d/carapace.fish" << 'CARAPACE_EOF'
+
+# ── Custom completions via carapace ──────────────────────────────────────
+for __tool in instagram-cli gallery-dl spotdl instaloader aider
+  complete -e "$__tool"
+  complete -c "$__tool" -f -a '(_carapace_completer "'$__tool'")'
+end
+CARAPACE_EOF
+  log "Carapace completions generated for fish"
+fi
 
 # ══════════════════════════════════════════════════════════════════════════════
 step "13 — Default shell → zsh"
