@@ -3,7 +3,6 @@ import subprocess
 import time
 import threading
 import os
-import shutil
 
 OUTPUT_FILE = "/tmp/conky-music.txt"
 PID_FILE = "/tmp/.desktop-music-daemon.pid"
@@ -25,12 +24,6 @@ def ensure_single_instance():
 
 lock = threading.Lock()
 state = {"text": ""}
-
-def notify_conky():
-    try:
-        subprocess.run(['killall', '-SIGUSR1', 'conky'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        pass
 
 def get_track_info():
     try:
@@ -86,7 +79,6 @@ def write_output(text):
         with open(tmp, "w") as f:
             f.write(text.strip())
         os.replace(tmp, OUTPUT_FILE)
-        notify_conky()
     except Exception:
         pass
 
@@ -112,7 +104,7 @@ def listen_command(cmd):
             proc.wait()
         except Exception:
             pass
-        time.sleep(0.5)
+        time.sleep(0.3)
 
 def main():
     ensure_single_instance()
@@ -120,7 +112,6 @@ def main():
     state["text"] = initial
     write_output(initial)
 
-    # Listen to both metadata and status changes
     t1 = threading.Thread(
         target=listen_command,
         args=(['playerctl', 'metadata', '-a', '--format', '{{playerName}}:::{{status}}:::{{artist}}:::{{title}}', '--follow'],),
@@ -134,10 +125,9 @@ def main():
     t1.start()
     t2.start()
 
-    # Low frequency poll fallback (every 1s) to catch any edge cases
     while True:
         update_now()
-        time.sleep(1.0)
+        time.sleep(0.5)
 
 if __name__ == '__main__':
     main()

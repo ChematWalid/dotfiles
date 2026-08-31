@@ -9,7 +9,7 @@ LOCK_FILE="/tmp/.wallpaper-current"
 # Read current wall to avoid repeating
 CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
 
-# Use shuf for uniform random distribution (unlike bash $RANDOM which biases on small modulo)
+# Use shuf for uniform random distribution
 mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
 COUNT=${#WALLS[@]}
 
@@ -25,5 +25,5 @@ fi
 echo "$WALL" > "$LOCK_FILE"
 feh --bg-fill "$WALL"
 
-# Signal systemd service to restart (resets the 30-min sleep timer)
+# Restart the service to reset the 30-minute timer without triggering another change
 systemctl --user restart wallpaper-rotate.service 2>/dev/null || true

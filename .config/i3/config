@@ -16,9 +16,8 @@ exec --no-startup-id picom -b
 exec --no-startup-id dunst
 exec --no-startup-id flameshot
 exec_always --no-startup-id ~/.config/polybar/launch.sh
-exec_always --no-startup-id systemctl --user restart i3-autoname.service
-exec_always --no-startup-id systemctl --user restart conky.service
-exec_always --no-startup-id systemctl --user restart wallpaper-rotate.service
+# Desktop services (conky, desktop-music-daemon, wallpaper-rotate, i3-autoname, copyq, greenclip)
+# are managed by systemd user units (`systemctl --user enable ...`) for true zero-disruption i3 reloads.
 
 # Audio volume controls (Media Keys + Alt/Win+F1..F3 for non-Fn keyboards)
 bindsym XF86AudioRaiseVolume exec --no-startup-id ~/.local/bin/volume-osd.sh up
