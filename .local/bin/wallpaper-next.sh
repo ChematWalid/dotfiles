@@ -34,8 +34,5 @@ fi
 echo "$WALL" > "$LOCK_FILE"
 feh --bg-fill "$WALL"
 
-# Compute inverted complementary Catppuccin contrast colors for desktop text
-~/.local/bin/conky-contrast.py "$WALL" 2>/dev/null || true
-
 # Reset rotation timer
 systemctl --user restart wallpaper-rotate.service 2>/dev/null || true
