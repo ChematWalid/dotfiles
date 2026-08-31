@@ -71,7 +71,7 @@
     ignore_dbusclose = false
 
     # --- Mouse Actions ---
-    # Left click: trigger default action & switch focus to window
+    # Left click: trigger default action / focus app script & close notification
     mouse_left_click = do_action, close_current
     # Middle click: dismiss all notifications
     mouse_middle_click = close_all
@@ -89,6 +89,7 @@
     highlight = "#89b4fa"
     timeout = 4
     default_icon = "dialog-information"
+    script = ~/.config/dunst/focus-app.sh
 
 [urgency_normal]
     background = "#1e1e2e"
@@ -97,6 +98,7 @@
     highlight = "#cba6f7"
     timeout = 6
     default_icon = "dialog-information"
+    script = ~/.config/dunst/focus-app.sh
 
 [urgency_critical]
     background = "#1e1e2e"
@@ -105,6 +107,7 @@
     highlight = "#f38ba8"
     timeout = 0
     default_icon = "dialog-warning"
+    script = ~/.config/dunst/focus-app.sh
 
 # ==============================================================================
 #                          PER-APPLICATION RULES
@@ -113,25 +116,21 @@
 [volume]
     appname = "Volume"
     timeout = 2
-    script = ""
     highlight = "#89b4fa"
 
 [volume_lower]
     appname = "volume"
     timeout = 2
-    script = ""
     highlight = "#89b4fa"
 
 [brightness]
     appname = "Brightness"
     timeout = 2
-    script = ""
     highlight = "#f9e2af"
 
 [brightness_lower]
     appname = "brightness"
     timeout = 2
-    script = ""
     highlight = "#f9e2af"
 
 [spotify]
