@@ -10,12 +10,14 @@ INTERVAL=1800  # 30 min
 CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
 if [ -n "$CURRENT" ] && [ -f "$CURRENT" ]; then
     feh --bg-fill "$CURRENT"
+    ~/.local/bin/conky-colors.sh "$CURRENT" 2>/dev/null || true
 else
     mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 1 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" \) 2>/dev/null | sort)
     if [ ${#WALLS[@]} -gt 0 ]; then
         WALL=$(printf '%s\n' "${WALLS[@]}" | shuf -n 1)
         echo "$WALL" > "$LOCK_FILE"
         feh --bg-fill "$WALL"
+        ~/.local/bin/conky-colors.sh "$WALL" 2>/dev/null || true
     fi
 fi
 
@@ -36,5 +38,6 @@ while true; do
         fi
         echo "$WALL" > "$LOCK_FILE"
         feh --bg-fill "$WALL"
+        ~/.local/bin/conky-colors.sh "$WALL" 2>/dev/null || true
     fi
 done

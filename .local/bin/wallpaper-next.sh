@@ -25,5 +25,8 @@ fi
 echo "$WALL" > "$LOCK_FILE"
 feh --bg-fill "$WALL"
 
+# Update text contrast colors for Conky based on new wallpaper brightness
+~/.local/bin/conky-colors.sh "$WALL" 2>/dev/null || true
+
 # Restart the service to reset the 30-minute timer without triggering another change
 systemctl --user restart wallpaper-rotate.service 2>/dev/null || true
