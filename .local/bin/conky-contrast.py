@@ -3,13 +3,10 @@ import sys
 import os
 import subprocess
 import colorsys
-import math
 
 COLORS_LUA = os.path.expanduser("~/.config/conky/colors.lua")
 
-# Catppuccin palette entries (name -> (hex, R, G, B))
 CATPPUCCIN_PALETTE = {
-    # Light/Pastel accents (for dark & medium backgrounds)
     'rosewater': ('#f5e0dc', 245, 224, 220),
     'flamingo':  ('#f2cdcd', 242, 205, 205),
     'pink':      ('#f5c2e7', 245, 194, 231),
@@ -24,7 +21,6 @@ CATPPUCCIN_PALETTE = {
     'lavender':  ('#b4befe', 180, 190, 254),
     'text':      ('#cdd6f4', 205, 214, 244),
     
-    # Deep/Dark accents (for bright/light backgrounds)
     'latte_mauve':   ('#8839ef', 136, 57, 239),
     'latte_blue':    ('#1e66f5', 30, 102, 245),
     'latte_maroon':  ('#e64553', 230, 69, 83),
@@ -38,7 +34,6 @@ CATPPUCCIN_PALETTE = {
 }
 
 def rel_luminance(r, g, b):
-    # Standard sRGB relative luminance formula
     rs = r / 255.0
     gs = g / 255.0
     bs = b / 255.0
@@ -70,49 +65,18 @@ def get_wallpaper_center_rgb(wall_path):
 def pick_inverted_palette(r, g, b):
     bg_lum = rel_luminance(r, g, b)
     
-    # Inverted target color
-    inv_r, inv_g, inv_b = 255 - r, 255 - g, 255 - b
-    inv_h, inv_s, inv_v = colorsys.rgb_to_hsv(inv_r / 255.0, inv_g / 255.0, inv_b / 255.0)
-
-    # Filter candidates by minimum contrast ratio (at least 3.0:1, ideally > 4.5:1)
-    candidates = []
-    for name, (hex_val, cr, cg, cb) in CATPPUCCIN_PALETTE.items():
-        c_lum = rel_luminance(cr, cg, cb)
-        c_ratio = contrast_ratio(bg_lum, c_lum)
-        if c_ratio >= 2.5:
-            # Score candidate based on contrast and hue similarity to inverted target
-            c_h, c_s, c_v = colorsys.rgb_to_hsv(cr / 255.0, cg / 255.0, cb / 255.0)
-            hue_diff = abs(c_h - inv_h)
-            if hue_diff > 0.5:
-                hue_diff = 1.0 - hue_diff
-            score = (c_ratio * 2.0) - (hue_diff * 3.0)
-            candidates.append((score, hex_val, name, c_ratio))
-
-    candidates.sort(reverse=True, key=lambda x: x[0])
-
-    if bg_lum < 0.35:
-        # Dark wallpaper:
-        # Time = warm Rosewater/Peach or Mauve, Date = Lavender/Sapphire, Music = Green/Teal
-        time_color = '#f5e0dc'  # Rosewater
+    if bg_lum < 0.45:
+        # Dark or medium wallpaper:
+        time_color = '#f5e0dc'  # Rosewater (warm sand/cream)
         date_color = '#b4befe'  # Lavender
         music_color = '#a6e3a1' # Green
         shade_color = '#11111b' # Deep dark shadow
-    elif bg_lum > 0.60:
-        # Very bright / light wallpaper (sky, white, daylight):
-        # Time = Deep Mocha / Latte contrast, Date = Latte Blue, Music = Latte Green/Maroon
-        time_color = '#11111b'  # Crust
-        date_color = '#1e66f5'  # Latte Blue
-        music_color = '#40a02b' # Latte Green
-        shade_color = '#eff1f5' # Light shadow
     else:
-        # Medium / In-between wallpaper: use the best scored inverted Catppuccin color
-        best_hex = candidates[0][1] if candidates else '#f5e0dc'
-        second_hex = candidates[1][1] if len(candidates) > 1 else '#b4befe'
-        third_hex = candidates[2][1] if len(candidates) > 2 else '#a6e3a1'
-        time_color = best_hex
-        date_color = second_hex
-        music_color = third_hex
-        shade_color = '#11111b' if bg_lum < 0.5 else '#ffffff'
+        # Light or bright wallpaper:
+        time_color = '#fab387'  # Peach
+        date_color = '#89b4fa'  # Blue
+        music_color = '#a6e3a1' # Green
+        shade_color = '#11111b' # Dark shadow ensures readability over light backgrounds
 
     return time_color, date_color, music_color, shade_color
 
@@ -141,8 +105,7 @@ return {{
 }}
 """)
     
-    # Reload conky to apply new colors
-    subprocess.run(['killall -SIGUSR1 conky 2>/dev/null || true'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(['killall', '-SIGUSR1', 'conky'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 if __name__ == '__main__':
     main()
