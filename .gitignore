@@ -7,3 +7,5 @@ __pycache__/
 default.target.wants/
 copyq_tab_*
 copyq.lock
+*.bak
+*.bak.*
