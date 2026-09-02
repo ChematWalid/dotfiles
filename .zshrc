@@ -131,9 +131,9 @@ zstyle ':fzf-tab:complete:*:argument-rest' fzf-preview 'if [ -d "$realpath" ]; t
 # Custom popup styling for fzf-tab
 zstyle ':fzf-tab:*' fzf-flags '--color=bg+:#313244,bg:#1e1e2e,fg:#cdd6f4,hl:#f38ba8,prompt:#cba6f7'
 
-# === Smart Auto-suggestions (History + Zsh Smart Completions) ===
+# === Smart Auto-suggestions (Predictive Completion First, then History) ===
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#6c7086"
-ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_STRATEGY=(completion history)
 ZSH_AUTOSUGGEST_USE_ASYNC=1
 
 # === Syntax Highlighting Catppuccin Mocha ===
