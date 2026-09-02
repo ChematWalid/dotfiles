@@ -96,6 +96,25 @@ case "$TARGET" in
     move_and_link "$HOME/go/pkg"                        "$HDD/go/pkg"
     ;;
 
+  toolchains)
+    echo "=== Routing Polyglot Toolchains & Caches to HDD ==="
+    move_and_link "$HOME/.julia"                        "$HDD/.julia"
+    move_and_link "$HOME/.opam"                         "$HDD/.opam"
+    move_and_link "$HOME/.ghcup"                        "$HDD/.ghcup"
+    move_and_link "$HOME/.cabal"                        "$HDD/.cabal"
+    move_and_link "$HOME/.stack"                        "$HDD/.stack"
+    move_and_link "$HOME/.dotnet"                       "$HDD/.dotnet"
+    move_and_link "$HOME/.nuget"                        "$HDD/.nuget"
+    move_and_link "$HOME/.bun"                          "$HDD/.bun"
+    move_and_link "$HOME/.elm"                          "$HDD/.elm"
+    move_and_link "$HOME/.hex"                          "$HDD/.hex"
+    move_and_link "$HOME/.mix"                          "$HDD/.mix"
+    move_and_link "$HOME/.choosenim"                    "$HDD/.choosenim"
+    move_and_link "$HOME/.nimble"                       "$HDD/.nimble"
+    move_and_link "$HOME/.cache/typst"                  "$CACHE/typst"
+    move_and_link "$HOME/.cache/zig"                    "$CACHE/zig"
+    ;;
+
   downloaders)
     echo "=== Routing Download Manager data to HDD ==="
     move_and_link "$HOME/.local/share/abdownloadmanager"   "$HOME_SHARE/abdownloadmanager"
@@ -176,6 +195,7 @@ case "$TARGET" in
     $0 flutter
     $0 python
     $0 dev-caches
+    $0 toolchains
     $0 downloaders
     $0 browsers
     $0 pictures
@@ -213,6 +233,7 @@ case "$TARGET" in
     echo "  flutter     — Move Flutter / Dart Pub cache"
     echo "  python      — Move UV and Pipx Python packages"
     echo "  dev-caches  — Move VSCode C++, Yarn, PNPM, Electron, Go caches"
+    echo "  toolchains  — Move Polyglot language toolchains and caches"
     echo "  browsers    — Move Chrome, Chromium, Brave, and Discord caches"
     echo "  downloaders — Move AB and Free Download Manager caches"
     echo "  pictures    — Move ~/Pictures (wallpapers, screenshots) to Drive E"
