@@ -19,9 +19,12 @@ ZSH_DISABLE_COMPFIX="true"
 # === Developer Environment & HDD Cache Routing ===
 # SSD (sda) = executables, configs, fast access
 # HDD Drive D (sdb5 → /mnt/drive2) = developer toolchains, docker, caches, app-data
-# HDD Drive E (sdb6 → /mnt/drive3) = personal data, coding projects, study, media, backups
-
-HDD="/mnt/drive2"   # edit this if your HDD mount changes
+# Smart HDD detection (routes caches to HDD if present, otherwise defaults to $HOME)
+if [[ -d "/mnt/drive2" ]]; then
+    HDD="/mnt/drive2"
+else
+    HDD="$HOME"
+fi
 
 # ── Rust (cargo bin stays on SSD for speed, registry/git on HDD) ──────────
 export CARGO_HOME="$HOME/.cargo"            # bin stays on SSD
@@ -168,8 +171,8 @@ fi
 
 # === mise Runtime Manager (Fast polyglot runtime manager: Node, Python, Go) ===
 if command -v mise >/dev/null 2>&1; then
-    export MISE_DATA_DIR="/mnt/drive2/.mise"
-    export MISE_CACHE_DIR="/mnt/drive2/.cache/mise"
+    export MISE_DATA_DIR="$HDD/.mise"
+    export MISE_CACHE_DIR="$HDD/.cache/mise"
     eval "$(mise activate zsh)"
 fi
 
