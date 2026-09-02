@@ -9,12 +9,21 @@ alias ls='ls --color=auto'
 alias grep='grep --color=auto'
 PS1='[\u@\h \W]\$ '
 
-# === Developer Environment & Caches on Drive D ===
+# === Developer Environment & Caches ===
+[[ -f "$HOME/.config/dotfiles-storage.env" ]] && source "$HOME/.config/dotfiles-storage.env"
+if [[ -n "${HDD_MOUNT:-}" && -d "$HDD_MOUNT" ]]; then
+    HDD="$HDD_MOUNT"
+elif [[ -d "/mnt/drive2" ]]; then
+    HDD="/mnt/drive2"
+else
+    HDD="$HOME"
+fi
+
 export CARGO_HOME="$HOME/.cargo"
-export PNPM_HOME="/mnt/drive2/.pnpm-store"
+export PNPM_HOME="$HDD/.pnpm-store"
 export PATH="$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$PATH"
-export HF_HOME="/mnt/drive2/.cache/huggingface"
-export ANDROID_HOME="/mnt/drive2/Android/Sdk"
+export HF_HOME="$HDD/.cache/huggingface"
+export ANDROID_HOME="$HDD/Android/Sdk"
 
 # === Aliases ===
 alias ls='eza --icons'

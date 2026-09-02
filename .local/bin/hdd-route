@@ -5,13 +5,20 @@
 #  Usage: hdd-route all | hdd-route pictures | hdd-route status
 # ══════════════════════════════════════════════════════════════════════════════
 
-HDD="/mnt/drive2"
+# Load user storage configuration if present
+if [[ -f "$HOME/.config/dotfiles-storage.env" ]]; then
+    source "$HOME/.config/dotfiles-storage.env"
+fi
+
+HDD="${HDD_MOUNT:-/mnt/drive2}"
+DATA="${DATA_MOUNT:-/mnt/drive3}"
 HOME_SHARE="$HDD/.local/share"
 CACHE="$HDD/.cache/home"
 
 # Verify HDD is mounted
 if [ ! -d "$HDD" ]; then
-    echo "❌ Error: HDD mount point $HDD is not available."
+    echo "❌ Error: Secondary storage mount point '$HDD' is not available or not mounted."
+    echo "   Configure your mount path in ~/.config/dotfiles-storage.env (export HDD_MOUNT='/path/to/drive')"
     exit 1
 fi
 
@@ -132,8 +139,9 @@ case "$TARGET" in
     ;;
 
   wallpapers|pictures)
-    echo "=== Routing Pictures & Wallpapers to Drive E ==="
-    move_and_link "$HOME/Pictures" "/mnt/drive3/Pictures"
+    echo "=== Routing Pictures & Wallpapers to Secondary Drive ==="
+    TARGET_PIC="${DATA:-$HDD}/Pictures"
+    move_and_link "$HOME/Pictures" "$TARGET_PIC"
     ;;
 
   steam)
@@ -218,7 +226,7 @@ case "$TARGET" in
     ls -la ~/ | grep "^l" | grep "mnt" 2>/dev/null || echo "(none)"
     echo ""
     echo "--- Storage Capacity & Free Space ---"
-    df -h / /mnt/drive2 /mnt/drive3
+    df -h / "$HDD" "$DATA" 2>/dev/null || df -h / "$HDD" 2>/dev/null || df -h /
     ;;
 
   help|*)

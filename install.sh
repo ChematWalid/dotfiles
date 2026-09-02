@@ -57,6 +57,42 @@ read -rp "  Continue? [y/N] " confirm
 [[ "${confirm,,}" == "y" ]] || { echo "Aborted."; exit 0; }
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Storage Layout Configuration (Single Drive vs Multi-Drive)
+# ══════════════════════════════════════════════════════════════════════════════
+echo ""
+echo -e "${BOLD}${CYAN}══ Storage Layout Configuration ══${RESET}"
+echo "  [1] Single Drive (Default) — Store all caches, toolchains, and data on primary drive"
+echo "  [2] Multi-Drive Routing    — Route heavy caches and toolchains to a secondary drive (HDD/SSD)"
+read -rp "  Select storage layout [1/2, default: 1]: " storage_choice
+storage_choice="${storage_choice:-1}"
+
+mkdir -p "$HOME/.config"
+if [[ "$storage_choice" == "2" ]]; then
+  echo ""
+  echo "Available storage mount points:"
+  df -h | grep -E '^/dev/' || true
+  echo ""
+  read -rp "  Enter secondary drive mount path (e.g. /mnt/drive2, /mnt/storage): " user_hdd
+  read -rp "  Enter optional data drive mount path (e.g. /mnt/drive3, press Enter to use same): " user_data
+  user_data="${user_data:-$user_hdd}"
+  
+  cat > "$HOME/.config/dotfiles-storage.env" << EOF
+# Dotfiles secondary storage routing
+export HDD_MOUNT="$user_hdd"
+export DATA_MOUNT="$user_data"
+EOF
+  log "Storage configuration saved → ~/.config/dotfiles-storage.env"
+else
+  cat > "$HOME/.config/dotfiles-storage.env" << EOF
+# Dotfiles single-drive storage layout
+export HDD_MOUNT=""
+export DATA_MOUNT=""
+EOF
+  log "Single-drive layout configured"
+fi
+source "$HOME/.config/dotfiles-storage.env"
+
+# ══════════════════════════════════════════════════════════════════════════════
 step "1 — System update"
 # ══════════════════════════════════════════════════════════════════════════════
 info "Updating pacman databases..."
@@ -182,11 +218,23 @@ mkdir -p "$HOME/.task/hooks"
 [[ -f "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" ]] && link "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" "$HOME/.task/hooks/on-modify.timewarrior"
 
 # ── Storage Drives & Personal Symlinks ───────────────────────────────────────
-[[ -d "/mnt/drive2" ]] && link "/mnt/drive2" "$HOME/D"
-[[ -d "/mnt/drive3" ]] && link "/mnt/drive3" "$HOME/E"
-[[ -d "/mnt/drive3/Coding" ]] && link "/mnt/drive3/Coding" "$HOME/Coding"
-[[ -d "/mnt/drive3/Pictures" ]] && link "/mnt/drive3/Pictures" "$HOME/Pictures"
-[[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && link "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+if [[ -n "${HDD_MOUNT:-}" && -d "$HDD_MOUNT" ]]; then
+  link "$HDD_MOUNT" "$HOME/D"
+elif [[ -d "/mnt/drive2" ]]; then
+  link "/mnt/drive2" "$HOME/D"
+fi
+
+if [[ -n "${DATA_MOUNT:-}" && -d "$DATA_MOUNT" ]]; then
+  link "$DATA_MOUNT" "$HOME/E"
+  [[ -d "$DATA_MOUNT/Coding" ]] && link "$DATA_MOUNT/Coding" "$HOME/Coding"
+  [[ -d "$DATA_MOUNT/Pictures" ]] && link "$DATA_MOUNT/Pictures" "$HOME/Pictures"
+  [[ -d "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" ]] && link "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+elif [[ -d "/mnt/drive3" ]]; then
+  link "/mnt/drive3" "$HOME/E"
+  [[ -d "/mnt/drive3/Coding" ]] && link "/mnt/drive3/Coding" "$HOME/Coding"
+  [[ -d "/mnt/drive3/Pictures" ]] && link "/mnt/drive3/Pictures" "$HOME/Pictures"
+  [[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && link "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+fi
 
 # ── ~/.config directories — symlinked wholesale ───────────────────────────────
 CONFIG_DIRS=(
@@ -310,18 +358,23 @@ if command -v fmtutil-user &>/dev/null; then
   log "TeX Live formats generated"
 fi
 
-# HDD cache routing (if secondary drive is mounted)
-if [[ -d "/mnt/drive2" ]] && command -v hdd-route &>/dev/null; then
-  info "Applying HDD routing for developer caches and toolchains..."
+# Secondary drive cache routing (if configured and mounted)
+if [[ -f "$HOME/.config/dotfiles-storage.env" ]]; then
+  source "$HOME/.config/dotfiles-storage.env"
+fi
+
+ACTIVE_HDD="${HDD_MOUNT:-/mnt/drive2}"
+if [[ -n "$ACTIVE_HDD" && -d "$ACTIVE_HDD" ]] && command -v hdd-route &>/dev/null; then
+  info "Applying secondary drive routing for developer caches and toolchains..."
   hdd-route all 2>/dev/null || true
-  log "HDD routing configured"
+  log "Secondary drive routing configured"
 fi
 
 # Polyglot runtime restoration via mise
 if command -v mise &>/dev/null; then
   info "Restoring polyglot runtimes via mise..."
-  export MISE_DATA_DIR="${HDD:-/mnt/drive2}/.mise"
-  export MISE_CACHE_DIR="${HDD:-/mnt/drive2}/.cache/mise"
+  export MISE_DATA_DIR="${ACTIVE_HDD:-$HOME}/.mise"
+  export MISE_CACHE_DIR="${ACTIVE_HDD:-$HOME}/.cache/mise"
   mise install -y 2>/dev/null || true
   log "Mise polyglot toolchains restored"
 fi

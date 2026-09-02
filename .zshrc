@@ -18,9 +18,13 @@ ZSH_DISABLE_COMPFIX="true"
 
 # === Developer Environment & HDD Cache Routing ===
 # SSD (sda) = executables, configs, fast access
-# HDD Drive D (sdb5 → /mnt/drive2) = developer toolchains, docker, caches, app-data
-# Smart HDD detection (routes caches to HDD if present, otherwise defaults to $HOME)
-if [[ -d "/mnt/drive2" ]]; then
+# Load user storage configuration if defined (~/.config/dotfiles-storage.env)
+[[ -f "$HOME/.config/dotfiles-storage.env" ]] && source "$HOME/.config/dotfiles-storage.env"
+
+# Smart secondary drive detection (routes caches to secondary drive if present, otherwise defaults to $HOME)
+if [[ -n "${HDD_MOUNT:-}" && -d "$HDD_MOUNT" ]]; then
+    HDD="$HDD_MOUNT"
+elif [[ -d "/mnt/drive2" ]]; then
     HDD="/mnt/drive2"
 else
     HDD="$HOME"
