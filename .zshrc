@@ -104,12 +104,12 @@ fpath=(~/.zsh/completions $fpath)
 # === Smart Completion & FZF-Tab Settings ===
 # Enable verbose mode and descriptions for flags/options
 zstyle ':completion:*' verbose yes
-zstyle ':completion:*:descriptions' format '[%d]'
+zstyle ':completion:*:descriptions' format $'%{\e[1;35m%}[%d]%{\e[0m%}'
 zstyle ':completion:*:options' description 'yes'
 zstyle ':completion:*:options' auto-description '%d'
-zstyle ':completion:*:corrections' format '%B%d (errors: %e)%b'
-zstyle ':completion:*:messages' format '%d'
-zstyle ':completion:*:warnings' format 'No matches for: %d'
+zstyle ':completion:*:corrections' format $'%{\e[1;31m%}[%d (errors: %e)]%{\e[0m%}'
+zstyle ':completion:*:messages' format $'%{\e[1;34m%}%d%{\e[0m%}'
+zstyle ':completion:*:warnings' format $'%{\e[1;33m%}No matches for: %d%{\e[0m%}'
 
 # Group matches by category (Commands, Options, Arguments, etc.)
 zstyle ':completion:*' group-name ''
@@ -123,13 +123,31 @@ zstyle ':completion:*:git-checkout:*' sort false
 zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
 # Force zsh not to show completion menu, allow fzf-tab to capture
 zstyle ':completion:*' menu no
+
+# Custom popup styling for fzf-tab
+zstyle ':fzf-tab:*' fzf-flags '--color=bg+:#313244,bg:#1e1e2e,fg:#cdd6f4,hl:#f38ba8,prompt:#cba6f7' '--preview-window=right:60%:wrap'
+zstyle ':fzf-tab:*' fzf-pad 4
+
+# Preview command documentation (tldr, whatis, man, or --help) when completing commands
+zstyle ':fzf-tab:complete:-command-:*' fzf-preview \
+    '(out=$(tldr --color always "$word" 2>/dev/null) && [[ -n "$out" ]] && echo "$out") || (whatis "$word" 2>/dev/null) || (man "$word" 2>/dev/null | col -bx | head -n 35) || ($word --help 2>&1 | head -n 35)'
+
 # Preview directory contents with eza when completing cd / z
 zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath'
 zstyle ':fzf-tab:complete:z:*' fzf-preview 'eza -1 --color=always $realpath'
-# Preview file/dir content only — not for flags/options completions
+
+# Preview file/dir content
 zstyle ':fzf-tab:complete:*:argument-rest' fzf-preview 'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; fi'
-# Custom popup styling for fzf-tab
-zstyle ':fzf-tab:*' fzf-flags '--color=bg+:#313244,bg:#1e1e2e,fg:#cdd6f4,hl:#f38ba8,prompt:#cba6f7'
+
+# Preview process info when completing kill / pkill / killall
+zstyle ':fzf-tab:complete:(kill|pkill|killall):*' fzf-preview 'ps -p $word -o pid,user,%cpu,%mem,command 2>/dev/null || true'
+
+# Preview systemd unit status when completing systemctl
+zstyle ':fzf-tab:complete:systemctl-*:*' fzf-preview 'SYSTEMD_COLORS=1 systemctl status $word 2>/dev/null'
+
+# Preview git show / log for git diff / checkout
+zstyle ':fzf-tab:complete:git-(log|diff|show):*' fzf-preview 'git show --color=always $word 2>/dev/null'
+zstyle ':fzf-tab:complete:git-checkout:*' fzf-preview 'git log --color=always -n 10 --oneline $word 2>/dev/null'
 
 # === Smart Auto-suggestions (Predictive Completion First, then History) ===
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#6c7086"
@@ -399,7 +417,6 @@ fi
 # Covers 1000+ CLI tools (git, docker, kubectl, ffmpeg, etc.)
 if command -v carapace >/dev/null 2>&1; then
     export CARAPACE_BRIDGES='zsh,fish,bash'
-    zstyle ':completion:*' format $'\e[2;37mCompleting %d\e[m'
     source <(carapace _carapace zsh)
 fi
 
