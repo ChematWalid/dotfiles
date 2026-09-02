@@ -111,8 +111,8 @@ zstyle ':completion:*:corrections' format '[%d (errors: %e)]'
 zstyle ':completion:*:messages' format '%d'
 zstyle ':completion:*:warnings' format 'No matches for: %d'
 
-# Clean up fzf-tab group display (suppress the static group header wall at the top)
-zstyle ':fzf-tab:*' show-group none
+# Clean up fzf-tab group display (suppress the static group header wall at the top while preserving real category names)
+zstyle ':fzf-tab:*' show-group quiet
 zstyle ':fzf-tab:*' single-group ''
 
 # Case-insensitive, partial-word, and substring completion
@@ -133,9 +133,9 @@ zstyle ':fzf-tab:*' fzf-pad 4
 zstyle ':fzf-tab:complete:-command-:*' fzf-preview \
     '[[ -n "$group" ]] && printf "\033[1;35mCategory:\033[0m %s\n\n" "$group"; (out=$(tldr --color always "$word" 2>/dev/null) && [[ -n "$out" ]] && echo "$out") || (whatis "$word" 2>/dev/null) || (man "$word" 2>/dev/null | col -bx | head -n 35) || ($word --help 2>&1 | head -n 35)'
 
-# Preview subcommands & options with dynamic category indicator
+# Preview subcommands & options with dynamic category indicator, clean description & tldr docs
 zstyle ':fzf-tab:complete:*:*' fzf-preview \
-    'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; elif [[ -n "$group" || -n "$desc" ]]; then [[ -n "$group" ]] && printf "\033[1;35mCategory:\033[0m %s\n\n" "$group"; [[ -n "$desc" ]] && printf "\033[1;36mDescription:\033[0m %s\n" "$desc"; fi'
+    'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; elif [[ -n "$group" || -n "$desc" ]]; then [[ -n "$group" ]] && printf "\033[1;35mCategory:\033[0m %s\n\n" "$group"; clean_desc="${desc#* -- }"; [[ -n "$clean_desc" ]] && printf "\033[1;36mSummary:\033[0m %s\n\n" "$clean_desc"; (cmd="${BUFFER%% *}"; tldr --color always "${cmd}-${word}" 2>/dev/null || tldr --color always "$word" 2>/dev/null) || true; fi'
 
 # Preview process info when completing kill / pkill / killall
 zstyle ':fzf-tab:complete:(kill|pkill|killall):*' fzf-preview 'ps -p $word -o pid,user,%cpu,%mem,command 2>/dev/null || true'
