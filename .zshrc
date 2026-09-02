@@ -111,8 +111,8 @@ zstyle ':completion:*:corrections' format '[%d (errors: %e)]'
 zstyle ':completion:*:messages' format '%d'
 zstyle ':completion:*:warnings' format 'No matches for: %d'
 
-# Clean up fzf-tab group display (hides ugly category tag walls)
-zstyle ':fzf-tab:*' show-group no
+# Clean up fzf-tab group display (suppress the static group header wall at the top)
+zstyle ':fzf-tab:*' show-group none
 zstyle ':fzf-tab:*' single-group ''
 
 # Case-insensitive, partial-word, and substring completion
@@ -129,16 +129,13 @@ zstyle ':completion:*' menu no
 zstyle ':fzf-tab:*' fzf-flags '--color=bg+:#313244,bg:#1e1e2e,fg:#cdd6f4,hl:#f38ba8,prompt:#cba6f7' '--preview-window=right:60%:wrap'
 zstyle ':fzf-tab:*' fzf-pad 4
 
-# Preview command documentation (tldr, whatis, man, or --help) when completing commands
+# Preview command documentation + dynamic category indicator for currently highlighted command
 zstyle ':fzf-tab:complete:-command-:*' fzf-preview \
-    '(out=$(tldr --color always "$word" 2>/dev/null) && [[ -n "$out" ]] && echo "$out") || (whatis "$word" 2>/dev/null) || (man "$word" 2>/dev/null | col -bx | head -n 35) || ($word --help 2>&1 | head -n 35)'
+    '[[ -n "$group" ]] && printf "\033[1;35mCategory:\033[0m %s\n\n" "$group"; (out=$(tldr --color always "$word" 2>/dev/null) && [[ -n "$out" ]] && echo "$out") || (whatis "$word" 2>/dev/null) || (man "$word" 2>/dev/null | col -bx | head -n 35) || ($word --help 2>&1 | head -n 35)'
 
-# Preview directory contents with eza when completing cd / z
-zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath'
-zstyle ':fzf-tab:complete:z:*' fzf-preview 'eza -1 --color=always $realpath'
-
-# Preview file/dir content
-zstyle ':fzf-tab:complete:*:argument-rest' fzf-preview 'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; fi'
+# Preview subcommands & options with dynamic category indicator
+zstyle ':fzf-tab:complete:*:*' fzf-preview \
+    'if [ -d "$realpath" ]; then eza -1 --color=always "$realpath"; elif [ -f "$realpath" ]; then bat --style=plain --color=always --line-range :100 "$realpath" 2>/dev/null || cat "$realpath"; elif [[ -n "$group" || -n "$desc" ]]; then [[ -n "$group" ]] && printf "\033[1;35mCategory:\033[0m %s\n\n" "$group"; [[ -n "$desc" ]] && printf "\033[1;36mDescription:\033[0m %s\n" "$desc"; fi'
 
 # Preview process info when completing kill / pkill / killall
 zstyle ':fzf-tab:complete:(kill|pkill|killall):*' fzf-preview 'ps -p $word -o pid,user,%cpu,%mem,command 2>/dev/null || true'
