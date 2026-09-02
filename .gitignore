@@ -9,3 +9,5 @@ copyq_tab_*
 copyq.lock
 *.bak
 *.bak.*
+*.backup*
+*.backup-*

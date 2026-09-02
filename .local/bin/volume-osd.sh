@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Volume OSD with Dunst notification bar
 
-STEP=5
+STEP=1
 NOTIFICATION_ID=2593
 
 case "$1" in

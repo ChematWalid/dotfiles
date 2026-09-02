@@ -12,8 +12,9 @@ ZSH_THEME=""
 CASE_SENSITIVE="false"
 HYPHEN_INSENSITIVE="true"
 
-# Update settings
+# Update settings & performance optimizations
 zstyle ':omz:update' mode reminder
+ZSH_DISABLE_COMPFIX="true"
 
 # === Developer Environment & HDD Cache Routing ===
 # SSD (sda) = executables, configs, fast access
