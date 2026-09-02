@@ -75,52 +75,52 @@ format = '[$all_status$ahead_behind ]($style)'
 [c]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol C ($version) ]($style)'
 
 [rust]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Rust ($version) ]($style)'
 
 [golang]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Go ($version) ]($style)'
 
 [nodejs]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Node.js ($version) ]($style)'
 
 [bun]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Bun ($version) ]($style)'
 
 [python]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Python ($version) ]($style)'
 
 [java]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Java ($version) ]($style)'
 
 [php]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol PHP ($version) ]($style)'
 
 [ruby]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol($version) ]($style)'
+format = '[ $symbol Ruby ($version) ]($style)'
 
 [docker_context]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol$context ]($style)'
+format = '[ $symbol Docker ($context) ]($style)'
 
 # ----------------- Time -----------------
 [time]
