@@ -917,3 +917,269 @@ fastfetch
 
 # Terminal Wordle game
 wordle
+
+% dev, mise, toolchains
+
+# List all installed toolchains and versions (mise)
+mise ls
+
+# Install and globally activate a runtime tool (e.g. bun, zig, rust)
+mise use -g <tool>@latest
+
+# Upgrade all mise managed toolchains
+mise upgrade
+
+# Check mise health and active paths
+mise doctor
+
+% dev, zig
+
+# Initialize a new Zig project
+zig init
+
+# Build and run a Zig project
+zig build run
+
+# Run a single Zig source file directly
+zig run <file.zig>
+
+# Compile a standalone optimized release binary
+zig build-exe -O ReleaseFast <file.zig>
+
+# Run Zig tests
+zig test <file.zig>
+
+% dev, bun, javascript, typescript
+
+# Initialize a new Bun project
+bun init
+
+# Run a script or TS/JS file with Bun
+bun run <file.ts>
+
+# Install all package dependencies with Bun
+bun install
+
+# Add a package to dependencies
+bun add <package>
+
+# Run Bun unit tests
+bun test
+
+# Bundle application for production
+bun build <entrypoint.ts> --outdir <./dist>
+
+% dev, rust, cargo
+
+# Create a new binary Rust project
+cargo new <project_name>
+
+# Build and run the project
+cargo run
+
+# Build optimized release binary
+cargo build --release
+
+# Run Rust project tests
+cargo test
+
+# Fast syntax and type checking without producing a binary
+cargo check
+
+# Add a dependency crate to Cargo.toml
+cargo add <crate_name>
+
+% dev, golang, go
+
+# Initialize a new Go module
+go mod init <module_path>
+
+# Run a Go file directly
+go run <file.go>
+
+# Build a Go binary
+go build -o <binary_name>
+
+# Run Go tests with coverage
+go test -v -cover ./...
+
+# Download and add a Go dependency
+go get <package_path>
+
+# Clean unused dependencies in go.mod / go.sum
+go mod tidy
+
+% dev, dotnet, csharp
+
+# Create a new console project (.NET)
+dotnet new console -o <project_name>
+
+# Create a new ASP.NET Core Web API project
+dotnet new webapi -o <project_name>
+
+# Build and run the current .NET project
+dotnet run
+
+# Build the .NET project
+dotnet build -c Release
+
+# Run .NET tests
+dotnet test
+
+# Add a NuGet package to project
+dotnet add package <package_name>
+
+% dev, gleam
+
+# Create a new Gleam project
+gleam new <project_name>
+
+# Run the Gleam project
+gleam run
+
+# Run Gleam tests
+gleam test
+
+# Add a Gleam dependency
+gleam add <package_name>
+
+# Format all Gleam code
+gleam format
+
+% dev, nim
+
+# Compile and run a Nim file immediately
+nim c -r <file.nim>
+
+# Compile an optimized release binary
+nim c -d:release --opt:speed <file.nim>
+
+# Initialize a new Nimble project
+nimble init
+
+# Build and run with Nimble package manager
+nimble build
+
+% dev, vlang, v
+
+# Initialize a new V project
+v init
+
+# Run a V source file
+v run <file.v>
+
+# Build an optimized production binary
+v -prod -o <binary_name> <file.v>
+
+# Format V code
+v fmt -w <file.v>
+
+% dev, crystal
+
+# Create a new Crystal application
+crystal init app <app_name>
+
+# Run a Crystal file directly
+crystal run <file.cr>
+
+# Build an optimized production binary
+crystal build --release <file.cr>
+
+# Run Crystal spec tests
+crystal spec
+
+% dev, elixir, erlang
+
+# Create a new Mix Elixir project
+mix new <project_name>
+
+# Run the project main entrypoint
+mix run
+
+# Start interactive Elixir shell with project context
+iex -S mix
+
+# Fetch and install dependencies
+mix deps.get
+
+# Run Mix tests
+mix test
+
+% dev, haskell, cabal, ghc
+
+# Compile a Haskell file to native binary
+ghc <file.hs> -o <binary_name>
+
+# Start interactive GHCi REPL
+ghci
+
+# Initialize a new Cabal project
+cabal init --interactive
+
+# Build and run with Cabal
+cabal run
+
+# Update Cabal package list
+cabal update
+
+% dev, julia
+
+# Execute a Julia expression from command line
+julia -e '<code_snippet>'
+
+# Start Julia REPL with current directory environment
+julia --project
+
+# Run a Julia script
+julia <script.jl>
+
+% devops, terraform, cloud
+
+# Initialize Terraform workspace and providers
+terraform init
+
+# Show proposed infrastructure changes
+terraform plan
+
+# Apply infrastructure changes
+terraform apply -auto-approve
+
+# Destroy managed infrastructure
+terraform destroy
+
+# Format all Terraform configuration files
+terraform fmt -recursive
+
+% devops, helm, kubernetes
+
+# Add a Helm chart repository
+helm repo add <repo_name> <repo_url>
+
+# Update Helm repositories
+helm repo update
+
+# Install a Helm release into Kubernetes cluster
+helm install <release_name> <repo_name>/<chart_name>
+
+# List all Helm releases across all namespaces
+helm list -A
+
+# Upgrade an existing Helm release
+helm upgrade <release_name> <repo_name>/<chart_name>
+
+% documents, typst, quarto
+
+# Initialize a new Typst document
+typst init <template> <project_name>
+
+# Compile a Typst document to PDF
+typst compile <document.typ> <output.pdf>
+
+# Watch Typst file and auto-recompile on changes
+typst watch <document.typ>
+
+# Render a Quarto document to HTML/PDF
+quarto render <document.qmd>
+
+# Live preview a Quarto document with hot-reloading
+quarto preview <document.qmd>
