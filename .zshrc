@@ -104,15 +104,16 @@ fpath=(~/.zsh/completions $fpath)
 # === Smart Completion & FZF-Tab Settings ===
 # Enable verbose mode and descriptions for flags/options
 zstyle ':completion:*' verbose yes
-zstyle ':completion:*:descriptions' format $'%{\e[1;35m%}[%d]%{\e[0m%}'
+zstyle ':completion:*:descriptions' format '[%d]'
 zstyle ':completion:*:options' description 'yes'
 zstyle ':completion:*:options' auto-description '%d'
-zstyle ':completion:*:corrections' format $'%{\e[1;31m%}[%d (errors: %e)]%{\e[0m%}'
-zstyle ':completion:*:messages' format $'%{\e[1;34m%}%d%{\e[0m%}'
-zstyle ':completion:*:warnings' format $'%{\e[1;33m%}No matches for: %d%{\e[0m%}'
+zstyle ':completion:*:corrections' format '[%d (errors: %e)]'
+zstyle ':completion:*:messages' format '%d'
+zstyle ':completion:*:warnings' format 'No matches for: %d'
 
-# Group matches by category (Commands, Options, Arguments, etc.)
-zstyle ':completion:*' group-name ''
+# Clean up fzf-tab group display (hides ugly category tag walls)
+zstyle ':fzf-tab:*' show-group no
+zstyle ':fzf-tab:*' single-group ''
 
 # Case-insensitive, partial-word, and substring completion
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
