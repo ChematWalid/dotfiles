@@ -1,9 +1,4 @@
-# Pastel Powerline (Typecraft Capsule) Starship Prompt
 "$schema" = 'https://starship.rs/config-schema.json'
-
-scan_timeout = 300
-command_timeout = 1000
-add_newline = false
 
 format = """
 [](#3B4252)\
@@ -15,15 +10,58 @@ $directory\
 $git_branch\
 $git_status\
 [](fg:#A6E3A1 bg:#89B4FA)\
-$c\
-$rust\
-$golang\
-$nodejs\
+$buf\
 $bun\
-$python\
+$c\
+$cmake\
+$cobol\
+$conda\
+$cpp\
+$crystal\
+$daml\
+$dart\
+$deno\
+$dotnet\
+$elixir\
+$elm\
+$erlang\
+$fennel\
+$fortran\
+$gleam\
+$golang\
+$gradle\
+$haskell\
+$haxe\
+$helm\
 $java\
+$julia\
+$kotlin\
+$lua\
+$maven\
+$meson\
+$mojo\
+$nim\
+$nodejs\
+$ocaml\
+$odin\
+$opa\
+$perl\
 $php\
+$purescript\
+$python\
+$quarto\
+$raku\
+$red\
+$rlang\
 $ruby\
+$rust\
+$scala\
+$solidity\
+$swift\
+$terraform\
+$typst\
+$vlang\
+$zig\
 $docker_context\
 [](fg:#89B4FA bg:#E8AEB7)\
 $time\
@@ -31,7 +69,8 @@ $time\
 $line_break\
 $character"""
 
-# ----------------- OS & Username -----------------
+add_newline = false
+
 [os]
 disabled = false
 style = "bg:#3B4252 fg:#ECEFF4"
@@ -53,7 +92,6 @@ style_root = "bg:#3B4252 fg:#BF616A"
 format = '[$user]($style)'
 disabled = false
 
-# ----------------- Directory -----------------
 [directory]
 style = "bg:#F4A261 fg:#1E1E2E"
 format = "[ $path ]($style)"
@@ -61,7 +99,6 @@ truncation_length = 3
 truncation_symbol = "…/"
 truncate_to_repo = true
 
-# ----------------- Git -----------------
 [git_branch]
 symbol = ""
 style = "bg:#A6E3A1 fg:#1E1E2E"
@@ -72,50 +109,265 @@ style = "bg:#A6E3A1 fg:#1E1E2E"
 format = '[$all_status$ahead_behind ]($style)'
 
 # ----------------- Languages & Runtimes -----------------
-[c]
-symbol = " "
+[buf]
+symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol C ($version) ]($style)'
-
-[rust]
-symbol = " "
-style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol Rust ($version) ]($style)'
-
-[golang]
-symbol = " "
-style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol Go ($version) ]($style)'
-
-[nodejs]
-symbol = " "
-style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol Node.js ($version) ]($style)'
+format = '[ $symbol Buf ($version) ]($style)'
 
 [bun]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
 format = '[ $symbol Bun ($version) ]($style)'
 
-[python]
-symbol = " "
+[c]
+symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
-format = '[ $symbol Python ($version) ]($style)'
+format = '[ $symbol C ($version) ]($style)'
+
+[cmake]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol CMake ($version) ]($style)'
+
+[cobol]
+symbol = "⚙ "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol COBOL ($version) ]($style)'
+
+[conda]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Conda ($environment) ]($style)'
+
+[cpp]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol C++ ($version) ]($style)'
+
+[crystal]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Crystal ($version) ]($style)'
+
+[daml]
+symbol = "λ "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol DAML ($version) ]($style)'
+
+[dart]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Dart ($version) ]($style)'
+
+[deno]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Deno ($version) ]($style)'
+
+[dotnet]
+symbol = "󰌛 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol .NET ($version) ]($style)'
+
+[elixir]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Elixir ($version) ]($style)'
+
+[elm]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Elm ($version) ]($style)'
+
+[erlang]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Erlang ($version) ]($style)'
+
+[fennel]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Fennel ($version) ]($style)'
+
+[fortran]
+symbol = "󱈚 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Fortran ($version) ]($style)'
+
+[gleam]
+symbol = "󰟅 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Gleam ($version) ]($style)'
+
+[golang]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Go ($version) ]($style)'
+
+[gradle]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Gradle ($version) ]($style)'
+
+[haskell]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Haskell ($version) ]($style)'
+
+[haxe]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Haxe ($version) ]($style)'
+
+[helm]
+symbol = "⎈ "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Helm ($version) ]($style)'
 
 [java]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
 format = '[ $symbol Java ($version) ]($style)'
 
+[julia]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Julia ($version) ]($style)'
+
+[kotlin]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Kotlin ($version) ]($style)'
+
+[lua]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Lua ($version) ]($style)'
+
+[maven]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Maven ($version) ]($style)'
+
+[meson]
+symbol = "󰔷 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Meson ($version) ]($style)'
+
+[mojo]
+symbol = "🔥 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Mojo ($version) ]($style)'
+
+[nim]
+symbol = "󰆥 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Nim ($version) ]($style)'
+
+[nodejs]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Node.js ($version) ]($style)'
+
+[ocaml]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol OCaml ($version) ]($style)'
+
+[odin]
+symbol = "󰟅 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Odin ($version) ]($style)'
+
+[opa]
+symbol = "󱘎 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol OPA ($version) ]($style)'
+
+[perl]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Perl ($version) ]($style)'
+
 [php]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
 format = '[ $symbol PHP ($version) ]($style)'
 
+[purescript]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol PureScript ($version) ]($style)'
+
+[python]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Python ($version) ]($style)'
+
+[quarto]
+symbol = "󰟅 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Quarto ($version) ]($style)'
+
+[raku]
+symbol = "🦋 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Raku ($version) ]($style)'
+
+[red]
+symbol = "🔺 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Red ($version) ]($style)'
+
+[rlang]
+symbol = "󰟔 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol R ($version) ]($style)'
+
 [ruby]
 symbol = " "
 style = "bg:#89B4FA fg:#1E1E2E"
 format = '[ $symbol Ruby ($version) ]($style)'
+
+[rust]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Rust ($version) ]($style)'
+
+[scala]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Scala ($version) ]($style)'
+
+[solidity]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Solidity ($version) ]($style)'
+
+[swift]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Swift ($version) ]($style)'
+
+[terraform]
+symbol = "󱁢 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Terraform ($version) ]($style)'
+
+[typst]
+symbol = "𝐭 "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Typst ($version) ]($style)'
+
+[vlang]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol V ($version) ]($style)'
+
+[zig]
+symbol = " "
+style = "bg:#89B4FA fg:#1E1E2E"
+format = '[ $symbol Zig ($version) ]($style)'
 
 [docker_context]
 symbol = " "
