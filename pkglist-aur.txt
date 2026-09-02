@@ -1,36 +1,45 @@
-antigravity 2.8.1-1
-antigravity-cli 1.1.13_6057583128215552-1
-ascii-image-converter 1.13.1-1
-ascii-image-converter-debug 1.13.1-1
-bibata-cursor-theme-bin 2.0.7-1
-bitwarden-cli-bin 2026.8.0-1
-boxes 2.3.1-1
-boxes-debug 2.3.1-1
-carapace-bin 1.7.3-1
-carapace-bin-debug 1.7.3-1
-catppuccin-cursors-mocha 2.0.0-1
-catppuccin-gtk-theme-mocha 1.0.3-1
-cbonsai 1.4.2-1
-cbonsai-debug 1.4.2-1
-dasel-bin 3.11.2-1
-dasel-bin-debug 3.11.2-1
-downgrade 12.0.2-1
-fselect 0.10.0-1
-fselect-debug 0.10.0-1
-google-chrome 151.0.7922.169-1
-i3lock-color 2.13.c.5-3
-i3lock-color-debug 2.13.c.5-3
-papirus-folders-catppuccin-git r30.f83671d1-2
-pipes.sh 1.3.0-1
-postman-bin 12.25.1-1
-projectlibre 1.9.8-1
-rustdesk 1.4.9-0
-sddm-theme-catppuccin-git 1.1.1.r6.g2869909-1
-spotify 1:1.2.96.518-1
-spring-boot-cli 3.2.0-1
-tdrop 0.5.0-1
-timg 1.6.3-2
-timg-debug 1.6.3-2
-visual-studio-code-bin 1.134.0-1
-yay 13.0.1-1
-yay-debug 13.0.1-1
+antigravity
+antigravity-cli
+ascii-image-converter
+ascii-image-converter-debug
+betterdiscord-installer
+betterdiscord-installer-debug
+bibata-cursor-theme-bin
+bitwarden-cli-bin
+boxes
+boxes-debug
+carapace-bin
+carapace-bin-debug
+catppuccin-cursors-mocha
+catppuccin-gtk-theme-mocha
+cbonsai
+cbonsai-debug
+claude-desktop
+dasel-bin
+dasel-bin-debug
+downgrade
+ferdium
+fselect
+fselect-debug
+google-chrome
+i3lock-color
+i3lock-color-debug
+instagram-cli-debug
+ivpn
+ivpn-debug
+ivpn-ui
+ivpn-ui-debug
+papirus-folders-catppuccin-git
+pipes.sh
+postman-bin
+projectlibre
+rustdesk
+sddm-theme-catppuccin-git
+spotify
+spring-boot-cli
+tdrop
+timg
+timg-debug
+visual-studio-code-bin
+yay
+yay-debug

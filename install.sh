@@ -193,7 +193,7 @@ CONFIG_DIRS=(
   alacritty atuin bat BetterDiscord broot btop cava conky copyq
   delta direnv dunst eza fastfetch fish flameshot fselect fzf
   gh-dash gitui glow gtk-3.0 gtk-4.0 i3 khal kitty lazydocker
-  lazygit lf mpd mpv ncmpcpp nvim picom polybar qbittorrent
+  lazygit lf mise mpd mpv ncmpcpp nvim picom polybar qbittorrent
   qBittorrent rclone rofi spicetify starship superfile systemd
   tealdeer thefuck Thunar tmux tumbler xfce4 xsettingsd yazi zellij zsh-plugins
 )
@@ -233,6 +233,14 @@ fi
 if [[ -d "$DOTFILES_DIR/.local/share/navi" ]]; then
   mkdir -p "$HOME/.local/share/navi/cheats"
   cp -rn "$DOTFILES_DIR/.local/share/navi/cheats/." "$HOME/.local/share/navi/cheats/" 2>/dev/null || true
+  log "Navi interactive cheatsheets installed"
+fi
+
+# ── Custom Zsh completions ───────────────────────────────────────────────────
+if [[ -d "$DOTFILES_DIR/.zsh/completions" ]]; then
+  mkdir -p "$HOME/.zsh/completions"
+  cp -rn "$DOTFILES_DIR/.zsh/completions/." "$HOME/.zsh/completions/" 2>/dev/null || true
+  log "Custom Zsh completions installed"
 fi
 
 update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
@@ -300,6 +308,27 @@ fi
 if command -v fmtutil-user &>/dev/null; then
   fmtutil-user --all 2>/dev/null || true
   log "TeX Live formats generated"
+fi
+
+# HDD cache routing (if secondary drive is mounted)
+if [[ -d "/mnt/drive2" ]] && command -v hdd-route &>/dev/null; then
+  info "Applying HDD routing for developer caches and toolchains..."
+  hdd-route all 2>/dev/null || true
+  log "HDD routing configured"
+fi
+
+# Polyglot runtime restoration via mise
+if command -v mise &>/dev/null; then
+  info "Restoring polyglot runtimes via mise..."
+  export MISE_DATA_DIR="${HDD:-/mnt/drive2}/.mise"
+  export MISE_CACHE_DIR="${HDD:-/mnt/drive2}/.cache/mise"
+  mise install -y 2>/dev/null || true
+  log "Mise polyglot toolchains restored"
+fi
+
+# Pre-compile zsh completion dumps to bytecode
+if command -v zsh &>/dev/null; then
+  zsh -c 'for f in ~/.zcompdump*; do zcompile "$f" 2>/dev/null || true; done' 2>/dev/null || true
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
