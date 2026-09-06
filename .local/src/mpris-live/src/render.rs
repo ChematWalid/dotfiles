@@ -44,3 +44,51 @@ pub fn render_polybar(state: &MediaState, scroll_pos: usize, hovering: bool) -> 
          %{{F{COLOR_PINK}}}{ICON_NOTE}%{{F-}} %{{F{COLOR_TEXT}}}{display}%{{F-}}"
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_marquee_short_text() {
+        let text = "Short";
+        assert_eq!(get_marquee_slice(text, 0, false), "Short");
+        assert_eq!(get_marquee_slice(text, 0, true), "Short");
+    }
+
+    #[test]
+    fn test_marquee_truncation_without_hover() {
+        let long_text = "This is a very long media title that exceeds eighteen chars";
+        let sliced = get_marquee_slice(long_text, 0, false);
+        assert!(sliced.ends_with('…'));
+        assert_eq!(sliced.chars().count(), MAX_CHARS);
+    }
+
+    #[test]
+    fn test_marquee_hover_cyclic() {
+        let long_text = "This is a very long media title that exceeds eighteen chars";
+        let slice0 = get_marquee_slice(long_text, 0, true);
+        let slice1 = get_marquee_slice(long_text, 1, true);
+        assert_eq!(slice0.chars().count(), MAX_CHARS);
+        assert_eq!(slice1.chars().count(), MAX_CHARS);
+        assert_ne!(slice0, slice1);
+    }
+
+    #[test]
+    fn test_render_polybar_empty() {
+        let empty_state = MediaState::default();
+        assert_eq!(render_polybar(&empty_state, 0, false), "");
+    }
+
+    #[test]
+    fn test_render_polybar_playing() {
+        let state = MediaState {
+            player: "spotify".to_string(),
+            status: "Playing".to_string(),
+            full_text: "Artist - Song".to_string(),
+        };
+        let out = render_polybar(&state, 0, false);
+        assert!(out.contains("Artist - Song"));
+        assert!(out.contains("playerctl -p spotify"));
+    }
+}

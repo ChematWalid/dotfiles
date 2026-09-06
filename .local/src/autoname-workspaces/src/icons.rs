@@ -109,3 +109,40 @@ pub fn get_icon(cls: &str, inst: &str, name: &str) -> &'static str {
     }
     DEFAULT_ICON
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_icon_lookup_terminals() {
+        assert_eq!(get_icon("kitty", "kitty", "kitty"), "");
+        assert_eq!(get_icon("Alacritty", "alacritty", ""), "");
+    }
+
+    #[test]
+    fn test_icon_lookup_browsers() {
+        assert_eq!(get_icon("Google-chrome", "google-chrome", ""), "󰊯");
+        assert_eq!(get_icon("Brave-browser", "", ""), "󰊯");
+        assert_eq!(get_icon("firefox", "Navigator", "Mozilla Firefox"), "󰈹");
+    }
+
+    #[test]
+    fn test_icon_lookup_editors() {
+        assert_eq!(get_icon("Code", "code", "Visual Studio Code"), "󰨞");
+        assert_eq!(get_icon("antigravity", "antigravity", "Antigravity"), "󰘦");
+    }
+
+    #[test]
+    fn test_ignored_classes() {
+        assert!(is_ignored("polybar", "polybar", "bar"));
+        assert!(is_ignored("conky", "conky", "conky"));
+        assert!(is_ignored("dunst", "", ""));
+        assert!(!is_ignored("kitty", "kitty", "terminal"));
+    }
+
+    #[test]
+    fn test_fallback_icon() {
+        assert_eq!(get_icon("non_existent_app_12345", "", ""), DEFAULT_ICON);
+    }
+}
