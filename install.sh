@@ -266,6 +266,16 @@ for script in "$DOTFILES_DIR/.local/bin"/*; do
   link "$script" "$HOME/.local/bin/$(basename "$script")"
 done
 
+# ── ~/.local/lib libraries & helpers ──────────────────────────────────────────
+if [[ -f "$DOTFILES_DIR/.local/lib/scratchpad_override.c" ]]; then
+  mkdir -p "$HOME/.local/lib"
+  cp "$DOTFILES_DIR/.local/lib/scratchpad_override.c" "$HOME/.local/lib/"
+  if command -v gcc &>/dev/null; then
+    gcc -shared -fPIC -O2 "$HOME/.local/lib/scratchpad_override.c" -o "$HOME/.local/lib/libscratchpad_override.so" -ldl -lX11 2>/dev/null || true
+    log "Scratchpad fullscreen-override library compiled"
+  fi
+fi
+
 # ── ~/.local/share files ──────────────────────────────────────────────────────
 mkdir -p "$HOME/.local/share/applications"
 for desktop in "$DOTFILES_DIR/.local/share/applications"/*.desktop; do
@@ -438,7 +448,7 @@ log "/etc configs applied"
 step "12 — Systemd user services"
 # ══════════════════════════════════════════════════════════════════════════════
 systemctl --user daemon-reload 2>/dev/null || true
-for svc in copyq greenclip i3-autoname mpd syncthing wireplumber conky desktop-music-daemon wallpaper-rotate; do
+for svc in copyq greenclip i3-autoname mpd syncthing wireplumber conky desktop-music-daemon wallpaper-rotate sync-antigravity.timer; do
   if systemctl --user enable "$svc" 2>/dev/null; then
     log "Enabled: $svc"
   else

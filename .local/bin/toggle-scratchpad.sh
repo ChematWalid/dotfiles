@@ -1,22 +1,41 @@
 #!/usr/bin/env bash
+# Fast Floating Dropdown Terminal (Kitty)
+# Fullscreen-safe: floats cleanly over any app (including fullscreen video/games)
+# without dropping fullscreen or disrupting workspace tiling/splits.
+# Backed up original at: ~/.local/bin/toggle-scratchpad.sh.bak
 
-# If scratchpad terminal doesn't exist, spawn it
-if ! xdotool search --classname "scratchpad_term" 2>/dev/null | grep -q [0-9]; then
-    kitty --class scratchpad_term --title __scratchpad_term__ &
-    for i in {1..20}; do
-        if xdotool search --classname "scratchpad_term" 2>/dev/null | grep -q [0-9]; then
+LIB_OVERRIDE="${HOME}/.local/lib/libscratchpad_override.so"
+CLASS_NAME="scratchpad_term"
+TITLE="__scratchpad_term__"
+
+# Find existing scratchpad window ID
+SCRATCH_ID=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1)
+
+# Check if the process and window are actually valid
+if [ -n "$SCRATCH_ID" ] && ! xwininfo -id "$SCRATCH_ID" >/dev/null 2>&1; then
+    SCRATCH_ID=""
+fi
+
+if [ -z "$SCRATCH_ID" ]; then
+    # Spawn a new instance with override-redirect preload
+    LD_PRELOAD="$LIB_OVERRIDE" kitty --class "$CLASS_NAME" --title "$TITLE" &
+    
+    # Wait briefly for window to be mapped and ready
+    for i in {1..30}; do
+        SCRATCH_ID=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1)
+        if [ -n "$SCRATCH_ID" ]; then
             break
         fi
-        sleep 0.05
+        sleep 0.02
     done
+    exit 0
 fi
 
-# Toggle scratchpad visibility and ensure centered position
-FOCUSED_ID=$(xdotool getactivewindow 2>/dev/null)
-SCRATCH_ID=$(xdotool search --classname "scratchpad_term" 2>/dev/null | tail -1)
-
-if [ -n "$SCRATCH_ID" ] && [ "$FOCUSED_ID" = "$SCRATCH_ID" ]; then
-    i3-msg '[instance="scratchpad_term"] move to scratchpad'
+# 1-press toggle: if visible, hide immediately; if hidden, show and focus
+if xwininfo -id "$SCRATCH_ID" 2>/dev/null | grep -q "IsViewable"; then
+    xdotool windowunmap "$SCRATCH_ID" 2>/dev/null
 else
-    i3-msg '[instance="scratchpad_term"] scratchpad show, floating enable, resize set 900 550, move position center, focus'
+    xdotool windowmap "$SCRATCH_ID" 2>/dev/null
+    xdotool windowfocus "$SCRATCH_ID" 2>/dev/null
 fi
+

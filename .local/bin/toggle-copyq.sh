@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
+# Fast Rofi Clipboard Picker with Image Previews (Catppuccin Mocha themed)
+# Full CopyQ backend preserves rich MIME types, images, and files
+# Original script backed up at: ~/.local/bin/toggle-copyq.sh.bak
 
-if [ "$(copyq eval 'visible()')" = "true" ]; then
-    copyq hide
-else
-    copyq show
-    # Force i3 to bring CopyQ to the current active workspace, center it, and focus it
-    i3-msg '[class="[cC]opy[qQ]"] move to workspace current, focus, move position center' >/dev/null 2>&1
-fi
+exec "${HOME}/.local/bin/rofi-clipboard.py" "$@"
+

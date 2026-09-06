@@ -46,6 +46,7 @@ bindsym $mod+F9 exec --no-startup-id playerctl next 2>/dev/null
 # Drag floating windows
 floating_modifier $mod
 tiling_drag modifier titlebar
+popup_during_fullscreen all
 
 # --- Core Keybindings ---
 # Terminal
@@ -256,3 +257,9 @@ bindsym Mod4+grave exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
 bindsym Mod4+Shift+n exec --no-startup-id ~/.local/bin/rofi-notification-center.sh
 bindsym Mod4+Control+n exec --no-startup-id dunstctl history-pop
 bindsym Mod4+Control+space exec --no-startup-id dunstctl close-all
+
+# ── Window Information Notification (Alt+Shift+I / Super+I / Super+Shift+I) ─
+bindsym $mod+Shift+i exec --no-startup-id ~/.local/bin/window-info.sh
+bindsym Mod4+i exec --no-startup-id ~/.local/bin/window-info.sh
+bindsym Mod4+Shift+i exec --no-startup-id ~/.local/bin/window-info.sh
+

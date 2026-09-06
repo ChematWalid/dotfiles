@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CONFIG="$HOME/.config/polybar/config.ini"
-ALL_MODULES=("date" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
+ALL_MODULES=("date" "prayer" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
 
 CURRENT_LINE=$(grep "^modules-right" "$CONFIG")
 CURRENT_MODULES=${CURRENT_LINE#*=}

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Thunar Vault Lock/Unlock Helper using gocryptfs + Zenity
+
+TARGET="${1:-${HOME}/E/Secret}"
+
+# Resolve symlinks and full path
+TARGET="$(realpath "$TARGET")"
+
+# If user clicked a file inside the vault, find the mount root
+while [ "$TARGET" != "/" ] && ! mountpoint -q "$TARGET" && [ ! -d "$(dirname "$TARGET")/.$(basename "$TARGET")_encrypted" ] && [ ! -f "$TARGET/gocryptfs.conf" ]; do
+    PARENT="$(dirname "$TARGET")"
+    if [ "$PARENT" = "$TARGET" ]; then
+        break
+    fi
+    TARGET="$PARENT"
+done
+
+# Determine encrypted backing directory
+if [ -f "$TARGET/gocryptfs.conf" ]; then
+    ENC_DIR="$TARGET"
+    MOUNT_DIR="${TARGET%_encrypted}"
+elif [ -d "$(dirname "$TARGET")/.$(basename "$TARGET")_encrypted" ]; then
+    ENC_DIR="$(dirname "$TARGET")/.$(basename "$TARGET")_encrypted"
+    MOUNT_DIR="$TARGET"
+else
+    # Default for Secret folder
+    ENC_DIR="${HOME}/E/.Secret_encrypted"
+    MOUNT_DIR="${HOME}/E/Secret"
+fi
+
+# Check if currently unlocked / mounted
+if mountpoint -q "$MOUNT_DIR"; then
+    # Try unmounting
+    if fusermount3 -u "$MOUNT_DIR" 2>/dev/null || fusermount -u "$MOUNT_DIR" 2>/dev/null; then
+        notify-send "🔒 Vault Locked" "Folder $(basename "$MOUNT_DIR") is now locked." -i security-high
+    else
+        zenity --error --title="Lock Failed" --text="Could not lock $(basename "$MOUNT_DIR"). Make sure no files in it are open in other programs."
+    fi
+    exit 0
+fi
+
+# Not mounted -> Prompt for password to Unlock
+PASSWORD=$(zenity --password --title="Unlock $(basename "$MOUNT_DIR")")
+[ $? -ne 0 ] && exit 0 # User cancelled
+
+if [ -z "$PASSWORD" ]; then
+    zenity --warning --title="Unlock Cancelled" --text="No password entered."
+    exit 1
+fi
+
+mkdir -p "$MOUNT_DIR"
+GOCRYPTFS_BIN="$(command -v gocryptfs 2>/dev/null || echo "${HOME}/.local/bin/gocryptfs")"
+if echo "$PASSWORD" | "$GOCRYPTFS_BIN" -quiet "$ENC_DIR" "$MOUNT_DIR"; then
+    notify-send "🔓 Vault Unlocked" "Folder $(basename "$MOUNT_DIR") is now open." -i security-low
+    thunar "$MOUNT_DIR" &
+else
+    zenity --error --title="Unlock Failed" --text="Incorrect password or failed to unlock $(basename "$MOUNT_DIR")."
+fi

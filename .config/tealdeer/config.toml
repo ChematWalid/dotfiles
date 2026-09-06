@@ -1,5 +1,6 @@
 [directories]
 custom_pages_dir = "/home/walid/.local/share/tealdeer/pages"
 
-[updates]
-auto_update = true
+[display]
+compact = false
+use_pager = false

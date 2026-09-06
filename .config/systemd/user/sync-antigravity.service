@@ -1,0 +1,10 @@
+[Unit]
+Description=Antigravity Bidirectional Conversation Synchronizer
+After=default.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/walid/.local/bin/sync-antigravity
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Antigravity Bidirectional Conversation Synchronizer Timer
+After=default.target
+
+[Timer]
+OnBootSec=1m
+OnUnitActiveSec=1m
+Unit=sync-antigravity.service
+
+[Install]
+WantedBy=timers.target

@@ -6,10 +6,27 @@
 	<submenu></submenu>
 	<unique-id>1787163256659104-1</unique-id>
 	<command>exo-open --working-directory %f --launch TerminalEmulator</command>
-	<description>Example for a custom action</description>
+	<description>Open a terminal window in the current directory</description>
 	<range></range>
 	<patterns>*</patterns>
 	<startup-notify/>
 	<directories/>
+</action>
+<action>
+	<icon>dialog-password</icon>
+	<name>Lock / Unlock Vault</name>
+	<submenu></submenu>
+	<unique-id>1787163256659104-3</unique-id>
+	<command>/home/walid/.local/bin/thunar-vault-toggle %f</command>
+	<description>Lock or Unlock encrypted folder vault</description>
+	<range></range>
+	<patterns>*</patterns>
+	<startup-notify/>
+	<directories/>
+	<audio-files/>
+	<image-files/>
+	<other-files/>
+	<text-files/>
+	<video-files/>
 </action>
 </actions>
