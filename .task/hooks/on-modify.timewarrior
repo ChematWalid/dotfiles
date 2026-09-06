@@ -1,110 +1,105 @@
-#!/usr/bin/env python3
+#!/usr/bin/env bash
+# Taskwarrior on-modify hook for Timewarrior synchronization
+# Rewritten from Python to pure Bash + jq for zero Python runtime dependency and instant execution.
+set -euo pipefail
+IFS=$'\n\t'
 
-###############################################################################
-#
-# Copyright 2016 - 2021, 2023, Gothenburg Bit Factory
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
-# https://opensource.org/license/mit
-#
-###############################################################################
+# Read old and new task JSON from stdin
+IFS= read -r old_line || exit 0
+IFS= read -r new_line || exit 0
 
-import json
-import subprocess
-import sys
+# Taskwarrior protocol requires outputting the new task JSON
+printf '%s\n' "$new_line"
 
-# Hook should extract all the following for use as Timewarrior tags:
-#   UUID
-#   Project
-#   Tags
-#   Description
-#   UDAs
+# If timew is not installed or inputs are empty, exit cleanly
+if ! command -v timew >/dev/null 2>&1 || [ -z "$old_line" ] || [ -z "$new_line" ]; then
+    exit 0
+fi
 
-try:
-    input_stream = sys.stdin.buffer
-except AttributeError:
-    input_stream = sys.stdin
+# Parse actions and tags with jq
+parsed=$(
+  jq -n -c --argjson old "$old_line" --argjson new "$new_line" '
+    def tags(t):
+      [
+        t.description,
+        (t.project // empty),
+        (if t.tags then (if (t.tags | type) == "string" then (t.tags | split(",")) else t.tags end)[] else empty end)
+      ] | map(select(length > 0));
 
+    def annotation(t):
+      t.annotations[0].description // "\u0027\u0027";
 
-def extract_tags_from(json_obj):
-    # Extract attributes for use as tags.
-    tags = [json_obj['description']]
+    ($old.start != null) as $old_started |
+    ($new.start != null) as $new_started |
+    ($new.end != null) as $new_ended |
 
-    if 'project' in json_obj:
-        tags.append(json_obj['project'])
+    if $new_started and ($old_started | not) then
+      { action: "start", tags: tags($new) }
+    elif $old_started and (($new_started | not) or $new_ended) then
+      { action: "stop", tags: tags($new) }
+    elif $old_started and $new_started then
+      (tags($old)) as $old_t |
+      (tags($new)) as $new_t |
+      (annotation($old)) as $old_a |
+      (annotation($new)) as $new_a |
+      {
+        action: "modify",
+        tags_changed: ($old_t != $new_t),
+        old_tags: $old_t,
+        new_tags: $new_t,
+        ann_changed: ($old_a != $new_a),
+        new_ann: $new_a
+      }
+    else
+      { action: "none" }
+    end
+  ' 2>/dev/null || true
+)
 
-    if 'tags' in json_obj:
-        if type(json_obj['tags']) is str:
-            # Usage of tasklib (e.g. in taskpirate) converts the tag list into a string
-            # If this is the case, convert it back into a list first
-            # See https://github.com/tbabej/taskpirate/issues/11
-            tags.extend(json_obj['tags'].split(','))
-        else:
-            tags.extend(json_obj['tags'])
+if [ -z "$parsed" ]; then
+    exit 0
+fi
 
-    return tags
+action=$(jq -r '.action' <<< "$parsed")
 
+case "$action" in
+    start)
+        readarray -d '' tags < <(jq -j -r '.tags[] | . + "\u0000"' <<< "$parsed")
+        if [ ${#tags[@]} -gt 0 ]; then
+            timew start "${tags[@]}" :yes >/dev/null 2>&1 || true
+        else
+            timew start :yes >/dev/null 2>&1 || true
+        fi
+        ;;
+    stop)
+        readarray -d '' tags < <(jq -j -r '.tags[] | . + "\u0000"' <<< "$parsed")
+        if [ ${#tags[@]} -gt 0 ]; then
+            timew stop "${tags[@]}" :yes >/dev/null 2>&1 || true
+        else
+            timew stop :yes >/dev/null 2>&1 || true
+        fi
+        ;;
+    modify)
+        tags_changed=$(jq -r '.tags_changed' <<< "$parsed")
+        if [ "$tags_changed" = "true" ]; then
+            readarray -d '' old_tags < <(jq -j -r '.old_tags[] | . + "\u0000"' <<< "$parsed")
+            readarray -d '' new_tags < <(jq -j -r '.new_tags[] | . + "\u0000"' <<< "$parsed")
+            if [ ${#old_tags[@]} -gt 0 ]; then
+                timew untag @1 "${old_tags[@]}" :yes >/dev/null 2>&1 || true
+            fi
+            if [ ${#new_tags[@]} -gt 0 ]; then
+                timew tag @1 "${new_tags[@]}" :yes >/dev/null 2>&1 || true
+            fi
+        fi
 
-def extract_annotation_from(json_obj):
+        ann_changed=$(jq -r '.ann_changed' <<< "$parsed")
+        if [ "$ann_changed" = "true" ]; then
+            new_ann=$(jq -r '.new_ann' <<< "$parsed")
+            timew annotate @1 "$new_ann" >/dev/null 2>&1 || true
+        fi
+        ;;
+    *)
+        ;;
+esac
 
-    if 'annotations' not in json_obj:
-        return '\'\''
-
-    return json_obj['annotations'][0]['description']
-
-
-def main(old, new):
-
-    start_or_stop = ''
-
-    # Started task.
-    if 'start' in new and 'start' not in old:
-        start_or_stop = 'start'
-
-    # Stopped task.
-    elif ('start' not in new or 'end' in new) and 'start' in old:
-        start_or_stop = 'stop'
-
-    if start_or_stop:
-        tags = extract_tags_from(new)
-
-        subprocess.call(['timew', start_or_stop] + tags + [':yes'])
-
-    # Modifications to task other than start/stop
-    elif 'start' in new and 'start' in old:
-        old_tags = extract_tags_from(old)
-        new_tags = extract_tags_from(new)
-
-        if old_tags != new_tags:
-            subprocess.call(['timew', 'untag', '@1'] + old_tags + [':yes'])
-            subprocess.call(['timew', 'tag', '@1'] + new_tags + [':yes'])
-
-        old_annotation = extract_annotation_from(old)
-        new_annotation = extract_annotation_from(new)
-
-        if old_annotation != new_annotation:
-            subprocess.call(['timew', 'annotate', '@1', new_annotation])
-
-
-if __name__ == "__main__":
-    old = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
-    new = json.loads(input_stream.readline().decode("utf-8", errors="replace"))
-    print(json.dumps(new))
-    main(old, new)
+exit 0
