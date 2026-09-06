@@ -13,6 +13,6 @@ query=$(
 )
 
 if [[ -n "$query" ]]; then
-    encoded_query=$(python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" "$query" 2>/dev/null || echo "$query" | tr ' ' '+')
+    encoded_query=$(jq -rn --arg x "$query" '$x|@uri' 2>/dev/null || echo "$query" | tr ' ' '+')
     google-chrome-stable "https://www.google.com/search?q=${encoded_query}" >/dev/null 2>&1 &
 fi
