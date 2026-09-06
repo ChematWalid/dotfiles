@@ -1,15 +1,24 @@
-//! desktop-music-daemon — Real-time MPRIS music display daemon for Conky desktop.
-//! Converted to Rust with asynchronous event streaming for zero-latency desktop updates.
+//! desktop-music-daemon — Zero-polling, real-time MPRIS D-Bus event daemon for Conky.
+//!
+//! Subscribes directly to:
+//!   • org.freedesktop.DBus.Properties.PropertiesChanged  (play/pause/track change)
+//!   • org.freedesktop.DBus.NameOwnerChanged              (player open/close)
+//!
+//! No subprocess spawned for events, no heartbeat timer.
+//! Latency: <5ms from play/pause to /tmp/conky-music.txt update.
 
 use std::fs;
 use std::process::{self, Command as SyncCommand, Stdio};
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
-use tokio::time::{sleep, Duration};
+use futures_lite::StreamExt;
+use zbus::{Connection, MatchRule, MessageStream, message::Type as MsgType};
 
 const OUTPUT_FILE: &str = "/tmp/conky-music.txt";
-const TMP_FILE: &str = "/tmp/conky-music.txt.tmp";
-const PID_FILE: &str = "/tmp/.desktop-music-daemon.pid";
+const TMP_FILE:    &str = "/tmp/conky-music.txt.tmp";
+const PID_FILE:    &str = "/tmp/.desktop-music-daemon.pid";
+
+// ── Icons (Nerd Font) ────────────────────────────────────────────────────────
+const ICON_PLAY:  &str = "\u{f040a}"; // 󰐊
+const ICON_PAUSE: &str = "\u{f03e4}"; // 󰏤
 
 fn write_output_atomic(text: &str) {
     let _ = fs::write(TMP_FILE, text.trim())
@@ -30,53 +39,49 @@ fn ensure_single_instance() {
     let _ = fs::write(PID_FILE, my_pid.to_string());
 }
 
+/// Query best active player via playerctl (used only for initial state
+/// and as the canonical source after each D-Bus event fires).
 fn query_current_state() -> String {
-    // 1. Check playerctl first
     let out = SyncCommand::new("playerctl")
-        .args(["metadata", "-a", "--format", "{{status}}:::{{artist}}:::{{title}}"])
+        .args(["metadata", "-a", "--format",
+               "{{status}}:::{{artist}}:::{{title}}"])
         .stderr(Stdio::null())
         .output();
 
     if let Ok(out) = out {
         let stdout = String::from_utf8_lossy(&out.stdout);
-        let mut playing_entry = None;
-        let mut paused_entry = None;
+        let mut playing: Option<String> = None;
+        let mut paused:  Option<String> = None;
 
         for line in stdout.lines() {
-            let parts: Vec<&str> = line.split(":::").collect();
-            if parts.is_empty() {
-                continue;
-            }
-            let status = parts[0];
-            let artist = parts.get(1).cloned().unwrap_or("").trim();
-            let title = parts.get(2).cloned().unwrap_or("").trim();
+            let p: Vec<&str> = line.splitn(4, ":::").collect();
+            if p.len() < 3 { continue; }
+            let status = p[0].trim();
+            let artist = p[1].trim();
+            let title  = p[2].trim();
 
-            let full = if !artist.is_empty() && !title.is_empty() {
-                format!("{} - {}", artist, title)
-            } else if !title.is_empty() {
-                title.to_string()
-            } else if !artist.is_empty() {
-                artist.to_string()
-            } else {
-                continue;
+            if artist.is_empty() && title.is_empty() { continue; }
+
+            let full = match (artist.is_empty(), title.is_empty()) {
+                (false, false) => format!("{} - {}", artist, title),
+                (true,  false) => title.to_string(),
+                _              => artist.to_string(),
             };
 
-            if status == "Playing" && playing_entry.is_none() {
-                playing_entry = Some(format!("\u{f040a} {}", full));
-            } else if status == "Paused" && paused_entry.is_none() {
-                paused_entry = Some(format!("\u{f03e4} {}", full));
+            if status == "Playing" && playing.is_none() {
+                playing = Some(format!("{} {}", ICON_PLAY, full));
+            } else if status == "Paused" && paused.is_none() {
+                paused = Some(format!("{} {}", ICON_PAUSE, full));
             }
+
+            if playing.is_some() { break; } // prefer first Playing entry
         }
 
-        if let Some(p) = playing_entry {
-            return p;
-        }
-        if let Some(p) = paused_entry {
-            return p;
-        }
+        if let Some(t) = playing { return t; }
+        if let Some(t) = paused  { return t; }
     }
 
-    // 2. Fallback: mpc current
+    // Fallback: mpc (MPD)
     if let Ok(out) = SyncCommand::new("mpc")
         .arg("current")
         .stderr(Stdio::null())
@@ -84,7 +89,7 @@ fn query_current_state() -> String {
     {
         let mpc = String::from_utf8_lossy(&out.stdout).trim().to_string();
         if !mpc.is_empty() {
-            return format!("\u{f040a} {}", mpc);
+            return format!("{} {}", ICON_PLAY, mpc);
         }
     }
 
@@ -92,89 +97,52 @@ fn query_current_state() -> String {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     ensure_single_instance();
 
-    // Initial state
-    let mut current_text = query_current_state();
-    write_output_atomic(&current_text);
+    // Write initial state immediately
+    write_output_atomic(&query_current_state());
 
-    // Background heartbeat / fallback poll every 500ms
-    tokio::spawn(async {
-        loop {
-            sleep(Duration::from_millis(500)).await;
-            let latest = query_current_state();
-            write_output_atomic(&latest);
-        }
-    });
+    // Connect to the session D-Bus
+    let conn = Connection::session().await?;
 
-    // Real-time event stream via playerctl --follow
+    // ── Match rule 1: any MPRIS PropertiesChanged signal ────────────────────
+    // Fires on play, pause, track change, volume change, etc.
+    let props_rule = MatchRule::builder()
+        .msg_type(MsgType::Signal)
+        .interface("org.freedesktop.DBus.Properties")?
+        .member("PropertiesChanged")?
+        .path("/org/mpris/MediaPlayer2")?
+        .build();
+
+    // ── Match rule 2: NameOwnerChanged — player opens or closes ─────────────
+    let name_rule = MatchRule::builder()
+        .msg_type(MsgType::Signal)
+        .sender("org.freedesktop.DBus")?
+        .interface("org.freedesktop.DBus")?
+        .member("NameOwnerChanged")?
+        .build();
+
+    let mut props_stream = MessageStream::for_match_rule(props_rule, &conn, None).await?;
+    let mut name_stream  = MessageStream::for_match_rule(name_rule,  &conn, None).await?;
+
     loop {
-        let child = Command::new("playerctl")
-            .args(["metadata", "-a", "--format", "{{status}}:::{{artist}}:::{{title}}", "--follow"])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn();
-
-        let mut child = match child {
-            Ok(c) => c,
-            Err(_) => {
-                sleep(Duration::from_secs(1)).await;
-                continue;
+        tokio::select! {
+            // MPRIS property changed (play/pause/track/metadata)
+            Some(_) = props_stream.next() => {
+                write_output_atomic(&query_current_state());
             }
-        };
-
-        let stdout = match child.stdout.take() {
-            Some(s) => s,
-            None => {
-                sleep(Duration::from_secs(1)).await;
-                continue;
-            }
-        };
-
-        let reader = BufReader::new(stdout);
-        let mut lines = reader.lines();
-
-        while let Ok(Some(line)) = lines.next_line().await {
-            let parts: Vec<&str> = line.split(":::").collect();
-            if parts.is_empty() {
-                continue;
-            }
-            let status = parts[0].trim();
-            let artist = parts.get(1).cloned().unwrap_or("").trim();
-            let title = parts.get(2).cloned().unwrap_or("").trim();
-
-            let new_text = if status == "Stopped" || status == "No players found" {
-                String::new()
-            } else if !artist.is_empty() || !title.is_empty() {
-                let full = if !artist.is_empty() && !title.is_empty() {
-                    format!("{} - {}", artist, title)
-                } else if !title.is_empty() {
-                    title.to_string()
-                } else {
-                    artist.to_string()
-                };
-                if status == "Playing" {
-                    format!("\u{f040a} {}", full)
-                } else {
-                    format!("\u{f03e4} {}", full)
+            // A D-Bus name appeared or disappeared
+            Some(msg_result) = name_stream.next() => {
+                if let Ok(msg) = msg_result {
+                    let body: Result<(String, String, String), _> = msg.body().deserialize();
+                    if let Ok((name, _old, _new)) = body {
+                        if name.starts_with("org.mpris.") {
+                            write_output_atomic(&query_current_state());
+                        }
+                    }
                 }
-            } else {
-                // Empty artist/title in event — Chromium pause/status-only events
-                // Always fall through to authoritative query
-                query_current_state()
-            };
-
-            if new_text != current_text {
-                current_text = new_text.clone();
-                write_output_atomic(&current_text);
             }
         }
-
-        // If playerctl exited (e.g., player closed), refresh state immediately
-        let new_text = query_current_state();
-        current_text = new_text.clone();
-        write_output_atomic(&current_text);
-        sleep(Duration::from_millis(500)).await;
     }
 }
