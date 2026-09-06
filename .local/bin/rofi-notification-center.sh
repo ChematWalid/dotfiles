@@ -1,110 +1,110 @@
-#!/usr/bin/env python3
-"""
-Interactive Notification Center for Dunst & Rofi (Catppuccin Mocha themed)
-Displays notification history in Rofi, allowing the user to view, restore,
-focus applications, and clear history.
-"""
+#!/usr/bin/env bash
+# ── rofi-notification-center.sh ───────────────────────────────────────────────
+# Interactive Notification Center for Dunst & Rofi (Catppuccin Mocha themed)
+# Production-grade, zero-dependency Bash implementation using dunstctl + jq + rofi.
 
-import json
-import subprocess
-import sys
-import os
+set -euo pipefail
+IFS=$'\n\t'
 
-def get_history():
-    try:
-        out = subprocess.check_output(["dunstctl", "history"], stderr=subprocess.DEVNULL)
-        data = json.loads(out.decode("utf-8"))
-        items = []
-        raw_list = data.get("data", [[]])[0] if data.get("data") else []
-        for entry in raw_list:
-            item = {}
-            for k, v in entry.items():
-                item[k] = v.get("data")
-            items.append(item)
-        return items
-    except Exception:
-        return []
+readonly CONFIG_RASI="${HOME}/.config/rofi/config.rasi"
+readonly FOCUS_SCRIPT="${HOME}/.config/dunst/focus-app.sh"
 
-def main():
-    history = get_history()
-    
-    if not history:
-        subprocess.run([
-            "rofi", "-e", "No notification history found.",
-            "-theme", os.path.expanduser("~/.config/rofi/config.rasi")
-        ])
-        return
+show_empty() {
+    rofi -e "No notification history found." \
+         -theme "$CONFIG_RASI" 2>/dev/null || true
+    exit 0
+}
 
-    menu_lines = []
-    metadata = []
+main() {
+    local raw_history
+    raw_history=$(dunstctl history 2>/dev/null || echo '{"data":[[]]}')
 
-    menu_lines.append("󰎟  Redisplay Latest Notification")
-    metadata.append({"action": "pop_latest"})
-
-    menu_lines.append("󰎟  Clear All Notification History")
-    metadata.append({"action": "clear_all"})
-
-    for item in history:
-        nid = item.get("id", 0)
-        app = item.get("appname", "System")
-        summary = item.get("summary", "")
-        body = item.get("body", "").replace("\n", " ").strip()
-        if len(body) > 60:
-            body = body[:57] + "..."
-        
-        line = f"󰂚 [{app}] {summary}"
-        if body and body != summary:
-            line += f" — {body}"
-        
-        menu_lines.append(line)
-        metadata.append({
-            "action": "open",
-            "id": nid,
-            "appname": app,
-            "summary": summary
-        })
-
-    rofi_input = "\n".join(menu_lines)
-
-    rofi_proc = subprocess.Popen(
-        [
-            "rofi", "-dmenu", "-i",
-            "-p", "󰂚 Notifications",
-            "-format", "i",
-            "-theme", os.path.expanduser("~/.config/rofi/config.rasi")
-        ],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True
+    # Parse notifications into tab-separated lines: ID \t APP \t SUMMARY \t BODY
+    local parsed_items=()
+    mapfile -t parsed_items < <(
+        echo "$raw_history" | jq -r '
+            .data[0] // [] |
+            .[] |
+            "\(.id.data)\t\(.appname.data // "System")\t\(.summary.data // "")\t\((.body.data // "") | gsub("\n"; " ") | if length > 60 then .[0:57] + "..." else . end)"
+        '
     )
 
-    stdout, _ = rofi_proc.communicate(input=rofi_input)
-    selected_idx_str = stdout.strip()
+    if [[ ${#parsed_items[@]} -eq 0 ]]; then
+        show_empty
+    fi
 
-    if not selected_idx_str or not selected_idx_str.isdigit():
-        return
+    # Build Rofi display entries and corresponding action metadata arrays
+    local rofi_lines=()
+    local actions=()
+    local nids=()
+    local appnames=()
 
-    idx = int(selected_idx_str)
-    if idx < 0 or idx >= len(metadata):
-        return
+    # Fixed top actions
+    rofi_lines+=("󰎟  Redisplay Latest Notification")
+    actions+=("pop_latest")
+    nids+=("0")
+    appnames+=("")
 
-    choice = metadata[idx]
-    action = choice.get("action")
+    rofi_lines+=("󰎟  Clear All Notification History")
+    actions+=("clear_all")
+    nids+=("0")
+    appnames+=("")
 
-    if action == "pop_latest":
-        subprocess.run(["dunstctl", "history-pop"])
-    elif action == "clear_all":
-        subprocess.run(["dunstctl", "history-clear"])
-    elif action == "open":
-        nid = choice.get("id")
-        app = choice.get("appname")
-        if nid:
-            subprocess.run(["dunstctl", "history-pop", str(nid)])
-        if app:
-            focus_script = os.path.expanduser("~/.config/dunst/focus-app.sh")
-            if os.path.exists(focus_script):
-                subprocess.run([focus_script, app])
+    for item in "${parsed_items[@]}"; do
+        [[ -z "$item" ]] && continue
+        local id app summary body
+        IFS=$'\t' read -r id app summary body <<< "$item"
 
-if __name__ == "__main__":
-    main()
+        local line="󰂚 [${app}] ${summary}"
+        if [[ -n "$body" && "$body" != "$summary" ]]; then
+            line+=" — ${body}"
+        fi
+
+        rofi_lines+=("$line")
+        actions+=("open")
+        nids+=("$id")
+        appnames+=("$app")
+    done
+
+    # Run Rofi in dmenu mode
+    local selected_idx
+    selected_idx=$(
+        printf '%s\n' "${rofi_lines[@]}" | \
+        rofi -dmenu -i \
+             -p "󰂚 Notifications" \
+             -format "i" \
+             -theme "$CONFIG_RASI" 2>/dev/null || true
+    )
+
+    # If cancelled or invalid, exit gracefully
+    if [[ -z "$selected_idx" || ! "$selected_idx" =~ ^[0-9]+$ ]]; then
+        exit 0
+    fi
+
+    local idx=$((selected_idx))
+    if [[ $idx -lt 0 || $idx -ge ${#actions[@]} ]]; then
+        exit 0
+    fi
+
+    local action="${actions[$idx]}"
+    case "$action" in
+        pop_latest)
+            dunstctl history-pop >/dev/null 2>&1 || true
+            ;;
+        clear_all)
+            dunstctl history-clear >/dev/null 2>&1 || true
+            ;;
+        open)
+            local nid="${nids[$idx]}"
+            local app="${appnames[$idx]}"
+            if [[ -n "$nid" && "$nid" != "0" ]]; then
+                dunstctl history-pop "$nid" >/dev/null 2>&1 || true
+            fi
+            if [[ -n "$app" && -x "$FOCUS_SCRIPT" ]]; then
+                "$FOCUS_SCRIPT" "$app" >/dev/null 2>&1 || true
+            fi
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,37 +1,50 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# ── toggle-modules.sh ─────────────────────────────────────────────────────────
+# Interactive Rofi module toggler for Polybar with automatic relaunch.
 
-CONFIG="$HOME/.config/polybar/config.ini"
-ALL_MODULES=("date" "prayer" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
+set -euo pipefail
 
-CURRENT_LINE=$(grep "^modules-right" "$CONFIG")
-CURRENT_MODULES=${CURRENT_LINE#*=}
+readonly CONFIG="${HOME}/.config/polybar/config.ini"
+readonly ALL_MODULES=("date" "prayer" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
 
-OPTIONS=""
+current_line=$(grep "^modules-right" "$CONFIG" || true)
+current_modules="${current_line#*=}"
+
+options=""
 for mod in "${ALL_MODULES[@]}"; do
-    if [[ " $CURRENT_MODULES " =~ " $mod " ]]; then
-        OPTIONS+="[x] $mod\n"
+    if [[ " ${current_modules} " =~ " ${mod} " ]]; then
+        options+="[x] ${mod}\n"
     else
-        OPTIONS+="[ ] $mod\n"
+        options+="[ ] ${mod}\n"
     fi
 done
 
-CHOICE=$(echo -e "$OPTIONS" | rofi -dmenu -i -p "󰒓  Toggle Module" -theme ~/.config/rofi/config.rasi -theme-str 'window {width: 320px; height: 420px;} listview {lines: 12;}' 2> /tmp/rofi_err.log)
+choice=$(
+    printf "%b" "$options" | \
+    rofi -dmenu -i \
+         -p "󰒓  Toggle Module" \
+         -theme "${HOME}/.config/rofi/config.rasi" \
+         -theme-str 'window {width: 320px; height: 420px;} listview {lines: 12;}' 2>/dev/null || true
+)
 
-if [ -n "$CHOICE" ]; then
-    SELECTED_MOD=$(echo "$CHOICE" | sed 's/\[x\] //g' | sed 's/\[ \] //g')
-    
-    if [[ " $CURRENT_MODULES " =~ " $SELECTED_MOD " ]]; then
-        NEW_MODULES=$(echo " $CURRENT_MODULES " | sed "s/ $SELECTED_MOD / /g" | xargs)
+if [[ -n "$choice" ]]; then
+    selected_mod="${choice//\[x\] /}"
+    selected_mod="${selected_mod//\[ \] /}"
+    selected_mod=$(echo "$selected_mod" | xargs)
+
+    if [[ " ${current_modules} " =~ " ${selected_mod} " ]]; then
+        new_modules=$(echo " ${current_modules} " | sed "s/ ${selected_mod} / /g" | xargs)
     else
-        NEW_MODULES=""
+        new_modules=""
         for mod in "${ALL_MODULES[@]}"; do
-            if [[ " $CURRENT_MODULES " =~ " $mod " ]] || [ "$mod" == "$SELECTED_MOD" ]; then
-                NEW_MODULES+="$mod "
+            if [[ " ${current_modules} " =~ " ${mod} " ]] || [[ "$mod" == "$selected_mod" ]]; then
+                new_modules+="${mod} "
             fi
         done
-        NEW_MODULES=$(echo "$NEW_MODULES" | xargs)
+        new_modules=$(echo "$new_modules" | xargs)
     fi
 
-    sed -i "s/^modules-right.*/modules-right = $NEW_MODULES/g" "$CONFIG"
-    ~/.config/polybar/launch.sh
+    sed -i.bak "s/^modules-right.*/modules-right = ${new_modules}/g" "$CONFIG"
+    rm -f "${CONFIG}.bak"
+    "${HOME}/.config/polybar/launch.sh"
 fi

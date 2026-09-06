@@ -1,41 +1,35 @@
 #!/usr/bin/env bash
-# Fast Floating Dropdown Terminal (Kitty)
-# Fullscreen-safe: floats cleanly over any app (including fullscreen video/games)
-# without dropping fullscreen or disrupting workspace tiling/splits.
-# Backed up original at: ~/.local/bin/toggle-scratchpad.sh.bak
+# ── toggle-scratchpad.sh ──────────────────────────────────────────────────────
+# Fast Floating Dropdown Terminal (Kitty) with override-redirect preload.
 
-LIB_OVERRIDE="${HOME}/.local/lib/libscratchpad_override.so"
-CLASS_NAME="scratchpad_term"
-TITLE="__scratchpad_term__"
+set -euo pipefail
 
-# Find existing scratchpad window ID
-SCRATCH_ID=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1)
+readonly LIB_OVERRIDE="${HOME}/.local/lib/libscratchpad_override.so"
+readonly CLASS_NAME="scratchpad_term"
+readonly TITLE="__scratchpad_term__"
 
-# Check if the process and window are actually valid
-if [ -n "$SCRATCH_ID" ] && ! xwininfo -id "$SCRATCH_ID" >/dev/null 2>&1; then
-    SCRATCH_ID=""
+scratch_id=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1 || true)
+
+if [[ -n "$scratch_id" ]] && ! xwininfo -id "$scratch_id" >/dev/null 2>&1; then
+    scratch_id=""
 fi
 
-if [ -z "$SCRATCH_ID" ]; then
-    # Spawn a new instance with override-redirect preload
-    LD_PRELOAD="$LIB_OVERRIDE" kitty --class "$CLASS_NAME" --title "$TITLE" &
-    
-    # Wait briefly for window to be mapped and ready
-    for i in {1..30}; do
-        SCRATCH_ID=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1)
-        if [ -n "$SCRATCH_ID" ]; then
-            break
-        fi
+if [[ -z "$scratch_id" ]]; then
+    LD_PRELOAD="$LIB_OVERRIDE" kitty --class "$CLASS_NAME" --title "$TITLE" >/dev/null 2>&1 &
+
+    # Wait briefly for window to be mapped (max 600ms)
+    for _ in {1..30}; do
+        scratch_id=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1 || true)
+        [[ -n "$scratch_id" ]] && break
         sleep 0.02
     done
     exit 0
 fi
 
-# 1-press toggle: if visible, hide immediately; if hidden, show and focus
-if xwininfo -id "$SCRATCH_ID" 2>/dev/null | grep -q "IsViewable"; then
-    xdotool windowunmap "$SCRATCH_ID" 2>/dev/null
+# 1-press toggle: if visible, hide; if hidden, show and focus
+if xwininfo -id "$scratch_id" 2>/dev/null | grep -q "IsViewable"; then
+    xdotool windowunmap "$scratch_id" 2>/dev/null || true
 else
-    xdotool windowmap "$SCRATCH_ID" 2>/dev/null
-    xdotool windowfocus "$SCRATCH_ID" 2>/dev/null
+    xdotool windowmap "$scratch_id" 2>/dev/null || true
+    xdotool windowfocus "$scratch_id" 2>/dev/null || true
 fi
-

@@ -1,44 +1,55 @@
 #!/usr/bin/env bash
-# Volume OSD with Dunst notification bar
+# ── volume-osd.sh ─────────────────────────────────────────────────────────────
+# Volume control OSD with Dunst notification bar and synchronous audio feedback.
 
-STEP=1
-NOTIFICATION_ID=2593
+set -euo pipefail
 
-case "$1" in
+readonly STEP=1
+readonly NOTIFICATION_ID=2593
+
+action="${1:-}"
+
+case "$action" in
     up)
-        pamixer -u
-        pamixer --allow-boost -i "$STEP"
+        pamixer -u >/dev/null 2>&1 || true
+        pamixer --allow-boost -i "$STEP" >/dev/null 2>&1 || true
         ;;
     down)
-        pamixer -u
-        pamixer -d "$STEP"
+        pamixer -u >/dev/null 2>&1 || true
+        pamixer -d "$STEP" >/dev/null 2>&1 || true
         ;;
     mute)
-        pamixer -t
+        pamixer -t >/dev/null 2>&1 || true
         ;;
     mic-mute)
-        pamixer --default-source -t
+        pamixer --default-source -t >/dev/null 2>&1 || true
         ;;
 esac
 
-MUTED=$(pamixer --get-mute 2>/dev/null || echo "false")
-VOL=$(pamixer --get-volume 2>/dev/null || echo "50")
+muted=$(pamixer --get-mute 2>/dev/null || echo "false")
+vol=$(pamixer --get-volume 2>/dev/null || echo "50")
 
-if [ "$MUTED" = "true" ] || [ "$VOL" -eq 0 ]; then
-    ICON="audio-volume-muted"
-    TEXT="Muted"
-    VOL=0
+if [[ "$muted" == "true" ]] || [[ "$vol" -eq 0 ]]; then
+    icon="audio-volume-muted"
+    text="Muted"
+    vol=0
 else
-    if [ "$VOL" -ge 70 ]; then
-        ICON="audio-volume-high"
-    elif [ "$VOL" -ge 30 ]; then
-        ICON="audio-volume-medium"
+    if [[ "$vol" -ge 70 ]]; then
+        icon="audio-volume-high"
+    elif [[ "$vol" -ge 30 ]]; then
+        icon="audio-volume-medium"
     else
-        ICON="audio-volume-low"
+        icon="audio-volume-low"
     fi
-    TEXT="${VOL}%"
+    text="${vol}%"
 fi
 
 if command -v dunstify >/dev/null 2>&1; then
-    dunstify -a "Volume" -r "$NOTIFICATION_ID" -u low -i "$ICON" -h int:value:"$VOL" "Volume: $TEXT" -t 1200
+    dunstify -a "Volume" \
+             -r "$NOTIFICATION_ID" \
+             -u low \
+             -i "$icon" \
+             -h int:value:"$vol" \
+             "Volume: ${text}" \
+             -t 1200 2>/dev/null || true
 fi

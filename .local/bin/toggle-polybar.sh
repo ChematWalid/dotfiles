@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Toggle Polybar visibility on demand (Alt + F)
-if pgrep -u $UID -x polybar >/dev/null; then
-    polybar-msg cmd toggle
+# ── toggle-polybar.sh ─────────────────────────────────────────────────────────
+# Toggles Polybar visibility on demand (Alt + F).
+
+set -euo pipefail
+
+if pgrep -u "$UID" -x polybar >/dev/null 2>&1; then
+    polybar-msg cmd toggle >/dev/null 2>&1 || true
 else
-    ~/.config/polybar/launch.sh
+    "${HOME}/.config/polybar/launch.sh"
     sleep 0.2
-    polybar-msg cmd show
+    polybar-msg cmd show >/dev/null 2>&1 || true
 fi

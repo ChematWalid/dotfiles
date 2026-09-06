@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-if pgrep -f "polybar.*tray" >/dev/null; then
-    pkill -f "polybar.*tray"
+# ── toggle-tray.sh ────────────────────────────────────────────────────────────
+# Toggles the Polybar system tray bar on and off.
+
+set -euo pipefail
+
+if pgrep -f "polybar.*tray" >/dev/null 2>&1; then
+    pkill -f "polybar.*tray" 2>/dev/null || true
 else
-    polybar tray 2>&1 >/tmp/polybar-tray.log &
+    nohup polybar tray > /tmp/polybar-tray.log 2>&1 &
 fi

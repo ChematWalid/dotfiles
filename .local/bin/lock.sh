@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
-# ── Catppuccin Mocha Aesthetic Lockscreen with i3lock-color ──
+# ── lock.sh ───────────────────────────────────────────────────────────────────
+# Catppuccin Mocha Aesthetic Lockscreen with i3lock-color.
 
-BG_IMAGE="$HOME/Downloads/catppuccin-wall-dark.jpg"
-LOCK_BG="$HOME/.cache/lockscreen_blur.png"
+set -euo pipefail
 
-# Generate high quality blurred wallpaper if missing
-if [ ! -f "$LOCK_BG" ] && [ -f "$BG_IMAGE" ]; then
+readonly BG_IMAGE="${HOME}/Downloads/catppuccin-wall-dark.jpg"
+readonly LOCK_BG="${HOME}/.cache/lockscreen_blur.png"
+
+# Generate high-quality blurred wallpaper if missing
+if [[ ! -f "$LOCK_BG" && -f "$BG_IMAGE" ]]; then
     magick "$BG_IMAGE" -filter Gaussian -resize 25% -define filter:sigma=2.5 -resize 400% -fill "#11111b" -colorize 30% "$LOCK_BG" 2>/dev/null || true
 fi
 
-# ── Catppuccin Mocha Color Palette (Hex + Alpha) ──
-BASE="1e1e2ecc"       # Translucent Base
-SURFACE="313244cc"    # Translucent Surface0
-TEXT="cdd6f4ff"       # Full opacity Text
-MAUVE="cba6f7ff"      # Mauve
-BLUE="89b4faff"       # Blue
-GREEN="a6e3a1ff"      # Green
-RED="f38ba8ff"        # Red
-YELLOW="f9e2afff"     # Peach/Yellow
-CLEAR="00000000"      # Fully Transparent
+# Catppuccin Mocha Palette (Hex + Alpha)
+readonly BASE="1e1e2ecc"
+readonly SURFACE="313244cc"
+readonly TEXT="cdd6f4ff"
+readonly MAUVE="cba6f7ff"
+readonly BLUE="89b4faff"
+readonly GREEN="a6e3a1ff"
+readonly RED="f38ba8ff"
+readonly CLEAR="00000000"
 
 i3lock \
   --nofork \
@@ -63,5 +65,4 @@ i3lock \
   --layout-font="JetBrainsMono Nerd Font"
 
 # Re-apply keyboard rate and mouse settings after unlocking
-~/.local/bin/apply-input-settings.sh &
-
+"${HOME}/.local/bin/apply-input-settings.sh" --no-spawn &

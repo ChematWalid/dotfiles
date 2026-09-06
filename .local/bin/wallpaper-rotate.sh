@@ -1,55 +1,61 @@
 #!/usr/bin/env bash
-# wallpaper-rotate.sh — Rotate wallpapers every 30 min
-# Respects ~/.config/wallpaper-dir (searches 3 folders deep)
-# Managed by systemd wallpaper-rotate.service
+# ── wallpaper-rotate.sh ───────────────────────────────────────────────────────
+# Rotate wallpapers automatically every 30 minutes.
+# Managed by systemd wallpaper-rotate.service.
 
-CONFIG_FILE="$HOME/.config/wallpaper-dir"
-DEFAULT_DIR="$HOME/Pictures/walls-catppuccin-mocha"
-LOCK_FILE="/tmp/.wallpaper-current"
-INTERVAL=1800  # 30 min
+set -euo pipefail
+
+readonly CONFIG_FILE="${HOME}/.config/wallpaper-dir"
+readonly DEFAULT_DIR="${HOME}/Pictures/walls-catppuccin-mocha"
+readonly LOCK_FILE="/tmp/.wallpaper-current"
+readonly INTERVAL=1800 # 30 min
 
 get_wall_dir() {
     local dir="$DEFAULT_DIR"
-    if [ -f "$CONFIG_FILE" ]; then
+    if [[ -f "$CONFIG_FILE" ]]; then
         local cfg
-        cfg=$(cat "$CONFIG_FILE" 2>/dev/null | tr -d '\n')
-        [ -d "$cfg" ] && dir="$cfg"
+        cfg=$(tr -d '\n' < "$CONFIG_FILE" 2>/dev/null || true)
+        [[ -d "$cfg" ]] && dir="$cfg"
     fi
     echo "$dir"
 }
 
-WALLPAPER_DIR=$(get_wall_dir)
+pick_and_apply_wallpaper() {
+    local wallpaper_dir
+    wallpaper_dir=$(get_wall_dir)
+    local current
+    current=$(cat "$LOCK_FILE" 2>/dev/null || true)
 
-# On startup, restore last active wallpaper or pick initial
-CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
-if [ -n "$CURRENT" ] && [ -f "$CURRENT" ]; then
-    feh --bg-fill "$CURRENT"
-else
-    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 3 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort)
-    if [ ${#WALLS[@]} -gt 0 ]; then
-        WALL=$(printf '%s\n' "${WALLS[@]}" | shuf -n 1)
-        echo "$WALL" > "$LOCK_FILE"
-        feh --bg-fill "$WALL"
+    local walls=()
+    mapfile -t walls < <(
+        find -L "$wallpaper_dir" -maxdepth 3 -type f \
+             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort
+    )
+    local count=${#walls[@]}
+
+    if [[ "$count" -gt 0 ]]; then
+        local wall
+        if [[ "$count" -gt 1 ]]; then
+            wall=$(printf '%s\n' "${walls[@]}" | grep -Fxv "$current" | shuf -n 1 || true)
+            [[ -z "$wall" ]] && wall="${walls[0]}"
+        else
+            wall="${walls[0]}"
+        fi
+        echo "$wall" > "$LOCK_FILE"
+        feh --bg-fill "$wall"
     fi
+}
+
+# Initial restoration or random pick on service start
+current_wall=$(cat "$LOCK_FILE" 2>/dev/null || true)
+if [[ -n "$current_wall" && -f "$current_wall" ]]; then
+    feh --bg-fill "$current_wall"
+else
+    pick_and_apply_wallpaper
 fi
 
-# Rotate every 30 minutes
+# Main rotation loop
 while true; do
     sleep "$INTERVAL"
-
-    WALLPAPER_DIR=$(get_wall_dir)
-    CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
-    mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 3 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort)
-    COUNT=${#WALLS[@]}
-
-    if [ "$COUNT" -gt 0 ]; then
-        if [ "$COUNT" -gt 1 ]; then
-            WALL=$(printf '%s\n' "${WALLS[@]}" | grep -Fxv "$CURRENT" | shuf -n 1)
-            [ -z "$WALL" ] && WALL="${WALLS[0]}"
-        else
-            WALL="${WALLS[0]}"
-        fi
-        echo "$WALL" > "$LOCK_FILE"
-        feh --bg-fill "$WALL"
-    fi
+    pick_and_apply_wallpaper
 done

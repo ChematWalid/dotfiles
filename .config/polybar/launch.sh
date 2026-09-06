@@ -1,15 +1,31 @@
 #!/usr/bin/env bash
-killall -9 polybar 2>/dev/null
-pkill -9 -f "mpris-live.py" 2>/dev/null
-pkill -9 -f "datetime-tail.sh" 2>/dev/null
-pkill -9 -f "network-tail.sh" 2>/dev/null
-killall -9 playerctl 2>/dev/null
-while pgrep -u $UID -x polybar >/dev/null; do sleep 0.1; done
+# ── launch.sh ─────────────────────────────────────────────────────────────────
+# Clean, reliable Polybar restart launcher with IPC initialization guard.
 
-DISPLAY="${DISPLAY:-:0}" nohup polybar main -c ~/.config/polybar/config.ini > /tmp/polybar.log 2>&1 &
+set -euo pipefail
+
+# Terminate existing Polybar and child module instances gracefully
+killall polybar 2>/dev/null || true
+pkill -x "mpris-live" 2>/dev/null || true
+pkill -f "datetime-tail.sh" 2>/dev/null || true
+pkill -f "network-tail.sh" 2>/dev/null || true
+
+# Wait until all polybar processes have shut down (max 1s)
+for _ in {1..10}; do
+    if ! pgrep -u "$UID" -x polybar >/dev/null; then
+        break
+    fi
+    sleep 0.1
+done
+
+# Force kill any lingering processes if still alive
+killall -9 polybar 2>/dev/null || true
+
+# Launch main polybar
+DISPLAY="${DISPLAY:-:0}" nohup polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 &
 
 # Wait for IPC socket to initialize and hide Polybar by default
-for i in {1..20}; do
+for _ in {1..20}; do
     if polybar-msg cmd hide 2>/dev/null; then
         break
     fi

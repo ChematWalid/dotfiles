@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
+# ── datetime-tail.sh ──────────────────────────────────────────────────────────
+# Continuous date & time display for Polybar with 3 toggleable format modes.
 
-STATE_FILE="/tmp/polybar-datetime-state"
+set -euo pipefail
+
+readonly STATE_FILE="/tmp/polybar-datetime-state"
 
 update() {
-    STATE=$(cat "$STATE_FILE" 2>/dev/null || echo "0")
-    case "$STATE" in
+    local state
+    state=$(cat "$STATE_FILE" 2>/dev/null || echo "0")
+    case "$state" in
         1) # Time only with seconds
             echo "%{F#cba6f7}󰥔%{F-} $(date '+%H:%M:%S')"
             ;;
@@ -22,5 +27,5 @@ trap "update" USR1
 while true; do
     update
     sleep 1 &
-    wait $!
+    wait "$!" 2>/dev/null || true
 done

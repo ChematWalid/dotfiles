@@ -1,38 +1,46 @@
 #!/usr/bin/env bash
-# wallpaper-next.sh — Pick a new random wallpaper immediately
-# Respects ~/.config/wallpaper-dir (searches 3 folders deep)
-# Resets the 30-min rotation timer seamlessly
+# ── wallpaper-next.sh ─────────────────────────────────────────────────────────
+# Pick a new random wallpaper immediately and reset rotation timer.
 
-CONFIG_FILE="$HOME/.config/wallpaper-dir"
-DEFAULT_DIR="$HOME/Pictures/walls-catppuccin-mocha"
-LOCK_FILE="/tmp/.wallpaper-current"
+set -euo pipefail
 
-WALLPAPER_DIR="$DEFAULT_DIR"
-if [ -f "$CONFIG_FILE" ]; then
-    DIR_FROM_CFG=$(cat "$CONFIG_FILE" 2>/dev/null | tr -d '\n')
-    [ -d "$DIR_FROM_CFG" ] && WALLPAPER_DIR="$DIR_FROM_CFG"
-fi
+readonly CONFIG_FILE="${HOME}/.config/wallpaper-dir"
+readonly DEFAULT_DIR="${HOME}/Pictures/walls-catppuccin-mocha"
+readonly LOCK_FILE="/tmp/.wallpaper-current"
 
-CURRENT=$(cat "$LOCK_FILE" 2>/dev/null)
+get_wall_dir() {
+    local dir="$DEFAULT_DIR"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        local cfg
+        cfg=$(tr -d '\n' < "$CONFIG_FILE" 2>/dev/null || true)
+        [[ -d "$cfg" ]] && dir="$cfg"
+    fi
+    echo "$dir"
+}
 
-# Search up to 3 folders deep for images
-mapfile -t WALLS < <(find -L "$WALLPAPER_DIR" -maxdepth 3 -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort)
-COUNT=${#WALLS[@]}
+wallpaper_dir=$(get_wall_dir)
+current=$(cat "$LOCK_FILE" 2>/dev/null || true)
 
-if [ "$COUNT" -eq 0 ]; then
-    echo "No wallpapers found in $WALLPAPER_DIR"
+mapfile -t walls < <(
+    find -L "$wallpaper_dir" -maxdepth 3 -type f \
+         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort
+)
+count=${#walls[@]}
+
+if [[ "$count" -eq 0 ]]; then
+    echo "No wallpapers found in $wallpaper_dir" >&2
     exit 1
 fi
 
-if [ "$COUNT" -gt 1 ]; then
-    WALL=$(printf '%s\n' "${WALLS[@]}" | grep -Fxv "$CURRENT" | shuf -n 1)
-    [ -z "$WALL" ] && WALL="${WALLS[0]}"
+if [[ "$count" -gt 1 ]]; then
+    wall=$(printf '%s\n' "${walls[@]}" | grep -Fxv "$current" | shuf -n 1 || true)
+    [[ -z "$wall" ]] && wall="${walls[0]}"
 else
-    WALL="${WALLS[0]}"
+    wall="${walls[0]}"
 fi
 
-echo "$WALL" > "$LOCK_FILE"
-feh --bg-fill "$WALL"
+echo "$wall" > "$LOCK_FILE"
+feh --bg-fill "$wall"
 
-# Reset rotation timer
+# Reset systemd rotation timer
 systemctl --user restart wallpaper-rotate.service 2>/dev/null || true
