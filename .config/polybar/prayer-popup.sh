@@ -1,48 +1,46 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Fetch today's prayer times
 JSON_ALL=$(muslimtify show --json 2>/dev/null)
 JSON_NEXT=$(muslimtify show --next --json 2>/dev/null)
 
-python3 -c '
-import sys, json, re, subprocess
+# Strip trailing commas before closing braces (muslimtify may emit invalid JSON)
+CLEAN_ALL=$(echo "$JSON_ALL"   | sed 's/,\s*}/}/g')
+CLEAN_NEXT=$(echo "$JSON_NEXT" | sed 's/,\s*}/}/g')
 
-try:
-    all_raw = sys.argv[1]
-    next_raw = sys.argv[2]
-    
-    all_data = json.loads(re.sub(r",\s*}", "}", all_raw))
-    prayers = all_data.get("prayers", {})
-    
-    next_data = json.loads(re.sub(r",\s*}", "}", next_raw))
-    
-    f_time = prayers.get("fajr", {}).get("time", "--:--")
-    d_time = prayers.get("dhuhr", {}).get("time", "--:--")
-    a_time = prayers.get("asr", {}).get("time", "--:--")
-    m_time = prayers.get("maghrib", {}).get("time", "--:--")
-    i_time = prayers.get("isha", {}).get("time", "--:--")
-    
-    next_p = next_data.get("prayer", "").capitalize()
-    next_r = next_data.get("remaining", "")
-    
-    body = (
-        f"🌅 Fajr:       {f_time}\n"
-        f"☀️ Dhuhr:     {d_time}\n"
-        f"🌤️ Asr:       {a_time}\n"
-        f"🌇 Maghrib:   {m_time}\n"
-        f"🌙 Isha:      {i_time}\n\n"
-        f"⏳ Next: {next_p} in {next_r}"
-    )
-    
-    subprocess.run([
-        "notify-send",
-        "-a", "Muslimtify",
-        "-i", "muslimtify",
-        "-u", "normal",
-        "-t", "8000",
-        "🕌 Today'\''s Prayer Times",
-        body
-    ])
-except Exception as e:
-    subprocess.run(["notify-send", "-a", "Muslimtify", "🕌 Prayer Times", "Could not fetch prayer times"])
-' "$JSON_ALL" "$JSON_NEXT"
+if [ -z "$JSON_ALL" ] || [ -z "$JSON_NEXT" ]; then
+    notify-send -a "Muslimtify" "🕌 Prayer Times" "Could not fetch prayer times"
+    exit 0
+fi
+
+# Parse individual prayer times
+f_time=$(echo "$CLEAN_ALL" | jq -r '.prayers.fajr.time    // "--:--"')
+d_time=$(echo "$CLEAN_ALL" | jq -r '.prayers.dhuhr.time   // "--:--"')
+a_time=$(echo "$CLEAN_ALL" | jq -r '.prayers.asr.time     // "--:--"')
+m_time=$(echo "$CLEAN_ALL" | jq -r '.prayers.maghrib.time // "--:--"')
+i_time=$(echo "$CLEAN_ALL" | jq -r '.prayers.isha.time    // "--:--"')
+
+# Parse next-prayer fields
+next_raw=$(echo "$CLEAN_NEXT" | jq -r '.prayer   // ""')
+next_r=$(echo   "$CLEAN_NEXT" | jq -r '.remaining // ""')
+
+# Capitalize prayer name (matches Python's str.capitalize())
+next_p=$(echo "$next_raw" | sed 's/./\u&/')
+
+# Build notification body (same layout as the Python version)
+body="🌅 Fajr:       ${f_time}
+☀️ Dhuhr:     ${d_time}
+🌤️ Asr:       ${a_time}
+🌇 Maghrib:   ${m_time}
+🌙 Isha:      ${i_time}
+
+⏳ Next: ${next_p} in ${next_r}"
+
+notify-send \
+    -a "Muslimtify" \
+    -i "muslimtify" \
+    -u "normal" \
+    -t "8000" \
+    "🕌 Today's Prayer Times" \
+    "$body"

@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec /usr/bin/python3 ~/.config/polybar/mpris-live.py
+exec "${HOME}/.config/polybar/mpris-live"

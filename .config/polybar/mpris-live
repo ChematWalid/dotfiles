@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+# mpris-live — Polybar MPRIS module with marquee scrolling
+# Converted from mpris-live.py (Python/threading) to pure Bash (tmp-file IPC)
+set -euo pipefail
+
+# ── Constants ────────────────────────────────────────────────────────────────
+readonly MAX_CHARS=18
+readonly SCROLL_INTERVAL=0.18
+readonly SEPARATOR='   •   '
+readonly PID_FILE='/tmp/.polybar-mpris-live.pid'
+
+# Shared state via tmp files (replaces Python threading.Lock + dict)
+readonly TMP_PLAYER='/tmp/.mpris-player'
+readonly TMP_STATUS='/tmp/.mpris-status'
+readonly TMP_TEXT='/tmp/.mpris-text'
+readonly TMP_SCROLLPOS='/tmp/.mpris-scrollpos'
+
+# ── Single-instance guard ────────────────────────────────────────────────────
+ensure_single_instance() {
+    if [[ -f "$PID_FILE" ]]; then
+        old_pid=$(cat "$PID_FILE" 2>/dev/null || true)
+        if [[ -n "$old_pid" && "$old_pid" != "$$" ]]; then
+            kill -9 "$old_pid" 2>/dev/null || true
+        fi
+    fi
+    echo "$$" > "$PID_FILE"
+}
+
+# Kill background listener and clean up on exit
+cleanup() {
+    [[ -n "${LISTENER_PID:-}" ]] && kill "$LISTENER_PID" 2>/dev/null || true
+    rm -f "$PID_FILE" "$TMP_PLAYER" "$TMP_STATUS" "$TMP_TEXT" "$TMP_SCROLLPOS"
+}
+trap cleanup EXIT INT TERM
+
+# ── Player state query ────────────────────────────────────────────────────────
+# Re-queries playerctl for the best active player (Playing > Paused).
+# Writes results to tmp files; returns 1 if nothing is playing/paused.
+update_player_state() {
+    local raw
+    raw=$(playerctl status -a -f '{{playerName}}:::{{status}}' 2>/dev/null || true)
+    [[ -z "$raw" ]] && return 1
+
+    local active_player='' status=''
+
+    # Prefer Playing, fall back to Paused
+    while IFS=':::' read -r p s; do
+        if [[ "$s" == 'Playing' ]]; then
+            active_player="$p"; status="$s"; break
+        fi
+    done <<< "$raw"
+
+    if [[ -z "$active_player" ]]; then
+        while IFS=':::' read -r p s; do
+            if [[ "$s" == 'Paused' ]]; then
+                active_player="$p"; status="$s"; break
+            fi
+        done <<< "$raw"
+    fi
+
+    [[ -z "$active_player" ]] && return 1
+
+    local artist title full_text
+    artist=$(playerctl -p "$active_player" metadata --format '{{artist}}' 2>/dev/null || true)
+    title=$(playerctl  -p "$active_player" metadata --format '{{title}}'  2>/dev/null || true)
+
+    if [[ -n "$artist" && -n "$title" ]]; then
+        full_text="${artist} - ${title}"
+    elif [[ -n "$title" ]]; then
+        full_text="$title"
+    elif [[ -n "$artist" ]]; then
+        full_text="$artist"
+    else
+        full_text='Media'
+    fi
+
+    # Persist state to tmp files
+    echo -n "$active_player" > "$TMP_PLAYER"
+    echo -n "$status"        > "$TMP_STATUS"
+    echo -n "$full_text"     > "$TMP_TEXT"
+}
+
+# Clear all state tmp files (nothing is playing)
+clear_state() {
+    echo -n '' > "$TMP_PLAYER"
+    echo -n '' > "$TMP_STATUS"
+    echo -n '' > "$TMP_TEXT"
+    echo -n '0' > "$TMP_SCROLLPOS"
+}
+
+# ── Background listener ───────────────────────────────────────────────────────
+# Runs `playerctl --follow` and triggers a state refresh on every change line.
+# Runs as a background subshell; writes to the same tmp files.
+start_dbus_listener() {
+    (
+        # Inner retry loop — restart playerctl if it dies
+        while true; do
+            while IFS= read -r line; do
+                [[ -z "$line" ]] && continue
+                local prev_text
+                prev_text=$(cat "$TMP_TEXT" 2>/dev/null || true)
+
+                if ! update_player_state; then
+                    clear_state
+                else
+                    # Reset scroll when the track changes
+                    local new_text
+                    new_text=$(cat "$TMP_TEXT" 2>/dev/null || true)
+                    if [[ "$new_text" != "$prev_text" ]]; then
+                        echo -n '0' > "$TMP_SCROLLPOS"
+                    fi
+                fi
+            done < <(playerctl metadata -a \
+                        --format '{{playerName}}:::{{status}}:::{{artist}}:::{{title}}' \
+                        --follow 2>/dev/null)
+            sleep 0.5
+        done
+    ) &
+    LISTENER_PID=$!
+}
+
+# ── Hover detection ───────────────────────────────────────────────────────────
+# Returns 0 (true) if mouse is over the polybar bottom strip.
+is_mouse_hovering() {
+    local loc x y
+    loc=$(xdotool getmouselocation 2>/dev/null || true)
+    [[ -z "$loc" ]] && return 1
+
+    x=$(echo "$loc" | grep -oP 'x:\K[0-9]+' || echo -1)
+    y=$(echo "$loc" | grep -oP 'y:\K[0-9]+' || echo -1)
+
+    (( y >= 720 && x >= 400 && x <= 920 ))
+}
+
+# ── Marquee / truncation ──────────────────────────────────────────────────────
+# Outputs MAX_CHARS characters from $text at scroll $offset (unicode-safe via cut -c).
+get_marquee_slice() {
+    local text="$1"
+    local offset="$2"
+    local hovering="$3"      # 'true' | 'false'
+
+    local char_count
+    char_count=$(echo -n "$text" | wc -m)
+
+    if (( char_count <= MAX_CHARS )); then
+        echo -n "$text"
+        return
+    fi
+
+    if [[ "$hovering" != 'true' ]]; then
+        # Static truncation with ellipsis
+        echo "$text" | cut -c1-$((MAX_CHARS - 1)) | tr -d '\n'
+        echo -n '…'
+        return
+    fi
+
+    # Marquee: build stream = text + SEPARATOR, doubled for wrapping
+    local stream="${text}${SEPARATOR}"
+    local stream_len
+    stream_len=$(echo -n "$stream" | wc -m)
+
+    local idx=$(( offset % stream_len ))
+    local doubled="${stream}${stream}"
+
+    # cut -c is 1-indexed
+    echo "$doubled" | cut -c$(( idx + 1 ))-$(( idx + MAX_CHARS )) | tr -d '\n'
+}
+
+# ── Polybar renderer ──────────────────────────────────────────────────────────
+render() {
+    local active_player="$1"
+    local status="$2"
+    local full_text="$3"
+    local scroll_pos="$4"
+    local hovering="$5"
+
+    # Nothing to display
+    if [[ -z "$active_player" || -z "$status" || "$status" == 'Stopped' || -z "$full_text" ]]; then
+        echo -n ''
+        return
+    fi
+
+    # Play/pause icon with status colour
+    local play_icon
+    if [[ "$status" == 'Playing' ]]; then
+        play_icon='%{F#a6e3a1}%{F-}'
+    else
+        play_icon='%{F#f9e2af}%{F-}'
+    fi
+
+    local display_text
+    display_text=$(get_marquee_slice "$full_text" "$scroll_pos" "$hovering")
+
+    # Polybar action buttons
+    local prev="%{F#89b4fa}%{A1:playerctl -p ${active_player} previous 2>/dev/null:}%{A}%{F-}"
+    local play="%{A1:playerctl -p ${active_player} play-pause 2>/dev/null:}${play_icon}%{A}"
+    local next="%{F#89b4fa}%{A1:playerctl -p ${active_player} next 2>/dev/null:}%{A}%{F-}"
+    local note='%{F#f5c2e7}%{F-}'
+
+    printf '%s' "%{T4}${prev}  ${play}  ${next}%{T-}   ${note} %{F#cdd6f4}${display_text}%{F-}"
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+main() {
+    ensure_single_instance
+
+    # Initialise tmp files
+    echo -n '0' > "$TMP_SCROLLPOS"
+    update_player_state || clear_state
+
+    start_dbus_listener
+
+    local last_rendered=''
+
+    while true; do
+        # Detect hover
+        local hovering='false'
+        is_mouse_hovering && hovering='true' || true
+
+        # Read current state from tmp files
+        local ap st ft pos
+        ap=$(cat "$TMP_PLAYER"    2>/dev/null || true)
+        st=$(cat "$TMP_STATUS"    2>/dev/null || true)
+        ft=$(cat "$TMP_TEXT"      2>/dev/null || true)
+        pos=$(cat "$TMP_SCROLLPOS" 2>/dev/null || echo 0)
+        [[ -z "$pos" ]] && pos=0
+
+        # Render and only print when output changes
+        local rendered
+        rendered=$(render "$ap" "$st" "$ft" "$pos" "$hovering")
+
+        if [[ "$rendered" != "$last_rendered" ]]; then
+            echo "$rendered"
+            last_rendered="$rendered"
+        fi
+
+        # Advance or reset scroll position
+        local ft_len
+        ft_len=$(echo -n "$ft" | wc -m)
+
+        if [[ "$hovering" == 'true' && -n "$ft" && "$ft_len" -gt "$MAX_CHARS" ]]; then
+            local stream_len sep_len
+            sep_len=$(echo -n "$SEPARATOR" | wc -m)
+            stream_len=$(( ft_len + sep_len ))
+            pos=$(( (pos + 1) % stream_len ))
+            echo -n "$pos" > "$TMP_SCROLLPOS"
+        elif [[ "$hovering" != 'true' ]]; then
+            echo -n '0' > "$TMP_SCROLLPOS"
+        fi
+
+        sleep "$SCROLL_INTERVAL"
+    done
+}
+
+main
