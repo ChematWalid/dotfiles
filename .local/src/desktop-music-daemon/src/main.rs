@@ -1,128 +1,15 @@
-//! desktop-music-daemon — Real-time MPRIS music display daemon for desktop.
-//! Converted from Python to Rust for sub-millisecond latency and minimal memory.
+//! desktop-music-daemon — Real-time MPRIS music display daemon for Conky desktop.
+//! Converted to Rust with asynchronous event streaming for zero-latency desktop updates.
 
-use anyhow::{Context, Result};
-use futures_lite::stream::StreamExt;
-use std::collections::HashMap;
 use std::fs;
-use std::ops::Deref;
-use std::process::{self, Command};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use tokio::time::{Duration, interval};
-use zbus::fdo::{DBusProxy, PropertiesProxy};
-use zbus::zvariant::{OwnedValue, Value};
-use zbus::{Connection, Message};
+use std::process::{self, Command as SyncCommand, Stdio};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
+use tokio::time::{sleep, Duration};
 
 const OUTPUT_FILE: &str = "/tmp/conky-music.txt";
 const TMP_FILE: &str = "/tmp/conky-music.txt.tmp";
 const PID_FILE: &str = "/tmp/.desktop-music-daemon.pid";
-const MPRIS_PREFIX: &str = "org.mpris.MediaPlayer2.";
-const MPRIS_PATH: &str = "/org/mpris/MediaPlayer2";
-const MPRIS_PLAYER_IFACE: &str = "org.mpris.MediaPlayer2.Player";
-
-#[derive(Debug, Clone, Default)]
-struct PlayerInfo {
-    status: String, // "Playing" | "Paused" | "Stopped"
-    artist: String,
-    title: String,
-}
-
-struct State {
-    players: HashMap<String, PlayerInfo>,
-    current_text: String,
-}
-
-impl State {
-    fn new() -> Self {
-        State {
-            players: HashMap::new(),
-            current_text: String::new(),
-        }
-    }
-
-    fn update_output(&mut self) {
-        let text = self.compute_text();
-        if text == self.current_text {
-            return;
-        }
-        self.current_text = text.clone();
-        write_output_atomic(&text);
-    }
-
-    fn compute_text(&self) -> String {
-        // Prefer Playing player
-        let active = self
-            .players
-            .values()
-            .find(|p| p.status == "Playing" && (!p.title.is_empty() || !p.artist.is_empty()))
-            .or_else(|| {
-                // Fallback to Paused player
-                self.players
-                    .values()
-                    .find(|p| p.status == "Paused" && (!p.title.is_empty() || !p.artist.is_empty()))
-            });
-
-        if let Some(p) = active {
-            let icon = if p.status == "Playing" {
-                "󰐊 "
-            } else {
-                "󰏤 "
-            };
-            if !p.artist.is_empty() && !p.title.is_empty() {
-                return format!("{}{} - {}", icon, p.artist, p.title);
-            } else {
-                return format!("{}{}", icon, if p.title.is_empty() { &p.artist } else { &p.title });
-            }
-        }
-
-        // Fallback: check mpc current
-        if let Ok(out) = Command::new("mpc")
-            .arg("current")
-            .stderr(process::Stdio::null())
-            .output()
-        {
-            let mpc = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if !mpc.is_empty() {
-                return format!("󰐊 {}", mpc);
-            }
-        }
-
-        String::new()
-    }
-}
-
-fn extract_meta(v: &OwnedValue) -> (String, String) {
-    let mut artist = String::new();
-    let mut title = String::new();
-
-    if let Value::Dict(dict) = v.deref() {
-        for (k, val) in dict.iter() {
-            if let Value::Str(key_str) = k {
-                match key_str.as_str() {
-                    "xesam:artist" => {
-                        match val {
-                            Value::Array(arr) => {
-                                if let Some(Value::Str(s)) = arr.iter().next() {
-                                    artist = s.as_str().to_string();
-                                }
-                            }
-                            Value::Str(s) => artist = s.as_str().to_string(),
-                            _ => {}
-                        }
-                    }
-                    "xesam:title" => {
-                        if let Value::Str(s) = val {
-                            title = s.as_str().to_string();
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-    (artist, title)
-}
 
 fn write_output_atomic(text: &str) {
     let _ = fs::write(TMP_FILE, text.trim())
@@ -134,7 +21,7 @@ fn ensure_single_instance() {
     if let Ok(contents) = fs::read_to_string(PID_FILE) {
         if let Ok(old_pid) = contents.trim().parse::<u32>() {
             if old_pid != my_pid {
-                let _ = Command::new("kill")
+                let _ = SyncCommand::new("kill")
                     .args(["-9", &old_pid.to_string()])
                     .output();
             }
@@ -143,195 +30,151 @@ fn ensure_single_instance() {
     let _ = fs::write(PID_FILE, my_pid.to_string());
 }
 
-async fn read_player_props(conn: &Connection, bus_name: &str) -> Option<PlayerInfo> {
-    let proxy = PropertiesProxy::builder(conn)
-        .destination(bus_name.to_string()).ok()?
-        .path(MPRIS_PATH).ok()?
-        .build()
-        .await
-        .ok()?;
+fn query_current_state() -> String {
+    // 1. Check playerctl first
+    let out = SyncCommand::new("playerctl")
+        .args(["metadata", "-a", "--format", "{{status}}:::{{artist}}:::{{title}}"])
+        .stderr(Stdio::null())
+        .output();
 
-    let iface = MPRIS_PLAYER_IFACE.try_into().ok()?;
-    let props: HashMap<String, OwnedValue> = proxy.get_all(iface).await.ok()?;
+    if let Ok(out) = out {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let mut playing_entry = None;
+        let mut paused_entry = None;
 
-    let status = props
-        .get("PlaybackStatus")
-        .and_then(|v| {
-            if let Value::Str(s) = v.deref() {
-                Some(s.as_str().to_string())
-            } else {
-                None
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split(":::").collect();
+            if parts.is_empty() {
+                continue;
             }
-        })
-        .unwrap_or_else(|| "Stopped".to_string());
+            let status = parts[0];
+            let artist = parts.get(1).cloned().unwrap_or("").trim();
+            let title = parts.get(2).cloned().unwrap_or("").trim();
 
-    let (artist, title) = props
-        .get("Metadata")
-        .map(extract_meta)
-        .unwrap_or_default();
+            let full = if !artist.is_empty() && !title.is_empty() {
+                format!("{} - {}", artist, title)
+            } else if !title.is_empty() {
+                title.to_string()
+            } else if !artist.is_empty() {
+                artist.to_string()
+            } else {
+                continue;
+            };
 
-    Some(PlayerInfo { status, artist, title })
-}
+            if status == "Playing" && playing_entry.is_none() {
+                playing_entry = Some(format!("\u{f040a} {}", full));
+            } else if status == "Paused" && paused_entry.is_none() {
+                paused_entry = Some(format!("\u{f03e4} {}", full));
+            }
+        }
 
-async fn list_mpris_players(conn: &Connection) -> Result<Vec<String>> {
-    let dbus_proxy = DBusProxy::new(conn).await?;
-    let names = dbus_proxy.list_names().await?;
-    Ok(names
-        .into_iter()
-        .filter(|n| n.starts_with(MPRIS_PREFIX))
-        .map(|n| n.to_string())
-        .collect())
+        if let Some(p) = playing_entry {
+            return p;
+        }
+        if let Some(p) = paused_entry {
+            return p;
+        }
+    }
+
+    // 2. Fallback: mpc current
+    if let Ok(out) = SyncCommand::new("mpc")
+        .arg("current")
+        .stderr(Stdio::null())
+        .output()
+    {
+        let mpc = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if !mpc.is_empty() {
+            return format!("\u{f040a} {}", mpc);
+        }
+    }
+
+    String::new()
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     ensure_single_instance();
 
-    let conn = Connection::session().await.context("connect to session bus")?;
-    let state = Arc::new(Mutex::new(State::new()));
+    // Initial state
+    let mut current_text = query_current_state();
+    write_output_atomic(&current_text);
 
-    // Initial scan
-    {
-        let mut st = state.lock().await;
-        for name in list_mpris_players(&conn).await.unwrap_or_default() {
-            if let Some(info) = read_player_props(&conn, &name).await {
-                st.players.insert(name, info);
-            }
-        }
-        st.update_output();
-    }
-
-    // Subscribe to PropertiesChanged on MPRIS path
-    let props_rule = zbus::MatchRule::builder()
-        .msg_type(zbus::message::Type::Signal)
-        .interface("org.freedesktop.DBus.Properties")?
-        .member("PropertiesChanged")?
-        .path(MPRIS_PATH)?
-        .build();
-
-    let mut props_stream = zbus::MessageStream::for_match_rule(props_rule, &conn, None)
-        .await
-        .context("subscribe PropertiesChanged")?;
-
-    // Subscribe to NameOwnerChanged
-    let noc_rule = zbus::MatchRule::builder()
-        .msg_type(zbus::message::Type::Signal)
-        .interface("org.freedesktop.DBus")?
-        .member("NameOwnerChanged")?
-        .build();
-
-    let mut noc_stream = zbus::MessageStream::for_match_rule(noc_rule, &conn, None)
-        .await
-        .context("subscribe NameOwnerChanged")?;
-
-    // Periodic sync every 2 seconds
-    let conn_periodic = conn.clone();
-    let state_periodic = Arc::clone(&state);
-    tokio::spawn(async move {
-        let mut ticker = interval(Duration::from_secs(2));
+    // Background heartbeat / fallback poll every 500ms
+    tokio::spawn(async {
         loop {
-            ticker.tick().await;
-            let names = list_mpris_players(&conn_periodic).await.unwrap_or_default();
-            let mut st = state_periodic.lock().await;
-            st.players.retain(|k, _| names.contains(k));
-            for name in &names {
-                if let Some(info) = read_player_props(&conn_periodic, name).await {
-                    st.players.insert(name.clone(), info);
-                }
-            }
-            st.update_output();
+            sleep(Duration::from_millis(500)).await;
+            let latest = query_current_state();
+            write_output_atomic(&latest);
         }
     });
 
-    // Event loop
+    // Real-time event stream via playerctl --follow
     loop {
-        tokio::select! {
-            Some(Ok(msg)) = props_stream.next() => {
-                handle_properties_changed(&conn, Arc::clone(&state), msg).await;
+        let child = Command::new("playerctl")
+            .args(["metadata", "-a", "--format", "{{status}}:::{{artist}}:::{{title}}", "--follow"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn();
+
+        let mut child = match child {
+            Ok(c) => c,
+            Err(_) => {
+                sleep(Duration::from_secs(1)).await;
+                continue;
             }
-            Some(Ok(msg)) = noc_stream.next() => {
-                handle_name_owner_changed(&conn, Arc::clone(&state), msg).await;
+        };
+
+        let stdout = match child.stdout.take() {
+            Some(s) => s,
+            None => {
+                sleep(Duration::from_secs(1)).await;
+                continue;
             }
-            else => break,
-        }
-    }
+        };
 
-    Ok(())
-}
+        let reader = BufReader::new(stdout);
+        let mut lines = reader.lines();
 
-async fn handle_properties_changed(
-    conn: &Connection,
-    state: Arc<Mutex<State>>,
-    msg: Message,
-) {
-    let Ok((iface, changed, _)) = msg.body().deserialize::<(String, HashMap<String, OwnedValue>, Vec<String>)>() else {
-        return;
-    };
-    if iface != MPRIS_PLAYER_IFACE {
-        return;
-    }
+        while let Ok(Some(line)) = lines.next_line().await {
+            let parts: Vec<&str> = line.split(":::").collect();
+            if parts.is_empty() {
+                continue;
+            }
+            let status = parts[0].trim();
+            let artist = parts.get(1).cloned().unwrap_or("").trim();
+            let title = parts.get(2).cloned().unwrap_or("").trim();
 
-    let sender = msg.header().sender().map(|s| s.to_string()).unwrap_or_default();
-    let bus_name = {
-        let names = list_mpris_players(conn).await.unwrap_or_default();
-        let dbus_proxy = DBusProxy::new(conn).await.ok();
-        let mut found = sender.clone();
-        if let Some(proxy) = dbus_proxy {
-            for name in &names {
-                if let Ok(owner_target) = name.as_str().try_into() {
-                    if let Ok(owner) = proxy.get_name_owner(owner_target).await {
-                        if owner.as_str() == sender {
-                            found = name.clone();
-                            break;
-                        }
-                    }
+            let new_text = if status == "Stopped" || status == "No players found" {
+                String::new()
+            } else if !artist.is_empty() || !title.is_empty() {
+                let full = if !artist.is_empty() && !title.is_empty() {
+                    format!("{} - {}", artist, title)
+                } else if !title.is_empty() {
+                    title.to_string()
+                } else {
+                    artist.to_string()
+                };
+                if status == "Playing" {
+                    format!("\u{f040a} {}", full)
+                } else {
+                    format!("\u{f03e4} {}", full)
                 }
+            } else {
+                // Empty artist/title in event — Chromium pause/status-only events
+                // Always fall through to authoritative query
+                query_current_state()
+            };
+
+            if new_text != current_text {
+                current_text = new_text.clone();
+                write_output_atomic(&current_text);
             }
         }
-        found
-    };
 
-    let mut st = state.lock().await;
-    let entry = st.players.entry(bus_name).or_default();
-
-    if let Some(v) = changed.get("PlaybackStatus") {
-        if let Value::Str(s) = v.deref() {
-            entry.status = s.as_str().to_string();
-        }
-    }
-
-    if let Some(meta_val) = changed.get("Metadata") {
-        let (artist, title) = extract_meta(meta_val);
-        entry.artist = artist;
-        entry.title = title;
-    }
-
-    st.update_output();
-}
-
-async fn handle_name_owner_changed(
-    conn: &Connection,
-    state: Arc<Mutex<State>>,
-    msg: Message,
-) {
-    let Ok((name, old_owner, new_owner)) = msg.body().deserialize::<(String, String, String)>() else {
-        return;
-    };
-    if !name.starts_with(MPRIS_PREFIX) {
-        return;
-    }
-
-    let mut st = state.lock().await;
-    if new_owner.is_empty() {
-        st.players.remove(&name);
-        st.players.remove(&old_owner);
-        st.update_output();
-    } else {
-        drop(st);
-        if let Some(info) = read_player_props(conn, &name).await {
-            let mut st2 = state.lock().await;
-            st2.players.insert(name, info);
-            st2.update_output();
-        }
+        // If playerctl exited (e.g., player closed), refresh state immediately
+        let new_text = query_current_state();
+        current_text = new_text.clone();
+        write_output_atomic(&current_text);
+        sleep(Duration::from_millis(500)).await;
     }
 }
