@@ -276,6 +276,25 @@ if [[ -f "$DOTFILES_DIR/.local/lib/scratchpad_override.c" ]]; then
   fi
 fi
 
+# ── ~/.local/src Rust desktop tools ───────────────────────────────────────────
+if [[ -d "$DOTFILES_DIR/.local/src" ]]; then
+  mkdir -p "$HOME/.local/src"
+  cp -rn "$DOTFILES_DIR/.local/src/." "$HOME/.local/src/" 2>/dev/null || true
+  if command -v cargo &>/dev/null; then
+    for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard sync-antigravity; do
+      if [[ -d "$HOME/.local/src/$pkg" ]]; then
+        info "Compiling $pkg (Rust)..."
+        cargo build --release --manifest-path "$HOME/.local/src/$pkg/Cargo.toml" 2>/dev/null || true
+        if [[ -f "$HOME/.local/src/$pkg/target/release/$pkg" ]]; then
+          cp "$HOME/.local/src/$pkg/target/release/$pkg" "$HOME/.local/bin/$pkg"
+          chmod +x "$HOME/.local/bin/$pkg"
+          log "Compiled and installed $pkg"
+        fi
+      fi
+    done
+  fi
+fi
+
 # ── ~/.local/share files ──────────────────────────────────────────────────────
 mkdir -p "$HOME/.local/share/applications"
 for desktop in "$DOTFILES_DIR/.local/share/applications"/*.desktop; do

@@ -11,3 +11,4 @@ copyq.lock
 *.bak.*
 *.backup*
 *.backup-*
+target/

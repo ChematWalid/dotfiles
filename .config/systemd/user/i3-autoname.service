@@ -4,7 +4,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /home/walid/.config/i3/autoname_workspaces.py
+ExecStart=/home/walid/.local/bin/autoname-workspaces
 Restart=always
 RestartSec=2
 Environment=DISPLAY=:0
