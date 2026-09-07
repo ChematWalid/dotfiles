@@ -66,10 +66,14 @@ bindsym $mod+Tab exec --no-startup-id rofi -show window -theme ~/.config/rofi/co
 
 # ── Screenshot Utilities (Unstoppable Flameshot Safe Runner) ──
 bindsym Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh gui
+bindsym Mod4+Shift+s exec --no-startup-id ~/.local/bin/flameshot-safe.sh gui
+bindcode Mod4+Shift+39 exec --no-startup-id ~/.local/bin/flameshot-safe.sh gui
 bindsym $mod+Shift+s exec --no-startup-id ~/.local/bin/flameshot-safe.sh gui
+bindcode Mod1+Shift+39 exec --no-startup-id ~/.local/bin/flameshot-safe.sh gui
 bindsym Shift+Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh full
 bindsym Control+Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh delay 3
 bindsym Mod4+Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh screen
+bindsym $mod+Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh screen
 
 
 # Quick App Launchers
