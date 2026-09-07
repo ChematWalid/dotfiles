@@ -60,9 +60,9 @@ bindsym $mod+q kill
 bindsym Mod1+F4 kill
 
 # Application Launcher (Rofi)
-bindsym $mod+d exec --no-startup-id env QT_QPA_PLATFORMTHEME=qt6ct QT_STYLE_OVERRIDE=kvantum QT_USE_PORTAL=1 GTK_THEME=catppuccin-mocha-mauve-standard+default rofi -show drun -theme ~/.config/rofi/config.rasi
-bindsym $mod+space exec --no-startup-id env QT_QPA_PLATFORMTHEME=qt6ct QT_STYLE_OVERRIDE=kvantum QT_USE_PORTAL=1 GTK_THEME=catppuccin-mocha-mauve-standard+default rofi -show drun -theme ~/.config/rofi/config.rasi
-bindsym $mod+Tab exec --no-startup-id env QT_QPA_PLATFORMTHEME=qt6ct QT_STYLE_OVERRIDE=kvantum QT_USE_PORTAL=1 GTK_THEME=catppuccin-mocha-mauve-standard+default rofi -show window -theme ~/.config/rofi/config.rasi
+bindsym $mod+d exec --no-startup-id env QT_QPA_PLATFORMTHEME=xdgdesktopportal QT_STYLE_OVERRIDE=kvantum QT_USE_PORTAL=1 GTK_THEME=catppuccin-mocha-mauve-standard+default rofi -show drun -theme ~/.config/rofi/config.rasi
+bindsym $mod+space exec --no-startup-id env QT_QPA_PLATFORMTHEME=xdgdesktopportal QT_STYLE_OVERRIDE=kvantum QT_USE_PORTAL=1 GTK_THEME=catppuccin-mocha-mauve-standard+default rofi -show drun -theme ~/.config/rofi/config.rasi
+bindsym $mod+Tab exec --no-startup-id env QT_QPA_PLATFORMTHEME=xdgdesktopportal QT_STYLE_OVERRIDE=kvantum QT_USE_PORTAL=1 GTK_THEME=catppuccin-mocha-mauve-standard+default rofi -show window -theme ~/.config/rofi/config.rasi
 
 # ── Screenshot Utilities (Unstoppable Flameshot Safe Runner) ──
 bindsym Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh gui
