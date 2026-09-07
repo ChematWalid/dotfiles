@@ -43,7 +43,6 @@ pick_and_apply_wallpaper() {
         fi
         echo "$wall" > "$LOCK_FILE"
         feh --bg-fill "$wall"
-        pkill -SIGUSR1 conky 2>/dev/null || true
     fi
 }
 

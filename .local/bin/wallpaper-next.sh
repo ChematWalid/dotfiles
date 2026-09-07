@@ -41,7 +41,6 @@ fi
 
 echo "$wall" > "$LOCK_FILE"
 feh --bg-fill "$wall"
-pkill -SIGUSR1 conky 2>/dev/null || true
 
 # Reset systemd rotation timer
 systemctl --user restart wallpaper-rotate.service 2>/dev/null || true
