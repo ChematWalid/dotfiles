@@ -1,0 +1,61 @@
+@import url("/usr/share/themes/catppuccin-mocha-mauve-standard+default/gtk-4.0/gtk.css");
+
+/* ── Catppuccin Mocha Scrollbar (Inverted Hover Fix) ────────────────────────── */
+/* Unhovered state: sleek, minimal 5px indicator */
+scrollbar trough {
+    background-color: transparent;
+    border: none;
+}
+
+scrollbar slider {
+    background-clip: padding-box;
+    border: none;
+    border-radius: 9999px;
+    background-color: rgba(205, 214, 244, 0.25);
+    transition: min-width 150ms cubic-bezier(0.4, 0, 0.2, 1),
+                min-height 150ms cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+                margin 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+scrollbar.vertical slider,
+scrollbar.overlay-indicator:not(.dragging):not(.hovering).vertical slider {
+    min-width: 5px;
+    min-height: 24px;
+    margin: 2px;
+    border: none;
+    background-color: rgba(205, 214, 244, 0.25);
+}
+
+scrollbar.horizontal slider,
+scrollbar.overlay-indicator:not(.dragging):not(.hovering).horizontal slider {
+    min-height: 5px;
+    min-width: 24px;
+    margin: 2px;
+    border: none;
+    background-color: rgba(205, 214, 244, 0.25);
+}
+
+/* Hovered / Dragging state: expands to 10px easy-to-grab Catppuccin Mauve bar */
+scrollbar.vertical slider:hover,
+scrollbar.overlay-indicator.hovering.vertical slider,
+scrollbar.overlay-indicator.dragging.vertical slider {
+    min-width: 10px;
+    margin: 1px;
+    border: none;
+    background-color: #cba6f7;
+}
+
+scrollbar.horizontal slider:hover,
+scrollbar.overlay-indicator.hovering.horizontal slider,
+scrollbar.overlay-indicator.dragging.horizontal slider {
+    min-height: 10px;
+    margin: 1px;
+    border: none;
+    background-color: #cba6f7;
+}
+
+scrollbar.overlay-indicator.dragging,
+scrollbar.overlay-indicator.hovering {
+    background-color: rgba(24, 24, 37, 0.6);
+}

@@ -1,0 +1,6 @@
+include catppuccin-mocha
+
+# Options
+set selection-clipboard clipboard
+set smooth-scroll true
+set font "JetBrainsMono Nerd Font 11"

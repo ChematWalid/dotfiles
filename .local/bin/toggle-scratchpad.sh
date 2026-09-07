@@ -1,9 +1,29 @@
 #!/usr/bin/env bash
 # ── toggle-scratchpad.sh ──────────────────────────────────────────────────────
 # Fast Floating Dropdown Terminal (Kitty) with override-redirect preload.
-# Guarantees top-level Z-stack placement on top of all windows and clean toggle.
+# Features:
+#  - Top-level Z-stack placement (always above all normal windows)
+#  - Atomic non-blocking flock + 250ms timestamp debounce (prevents repeat bounces)
+#  - Clean 1-press toggle (visible -> hide, hidden -> map + raise + focus)
 
 set -euo pipefail
+
+# Atomic non-blocking lock to eliminate concurrent process races
+readonly LOCK_FILE="/tmp/.scratchpad-toggle.lock"
+exec 200>"$LOCK_FILE"
+flock -n 200 || exit 0
+
+# Cooldown check (250ms debounce matching X11 key-repeat threshold)
+readonly STAMP_FILE="/tmp/.scratchpad-toggle.stamp"
+now=$(date +%s%3N 2>/dev/null || date +%s)
+if [[ -f "$STAMP_FILE" ]]; then
+    last=$(cat "$STAMP_FILE" 2>/dev/null || echo 0)
+    diff=$((now - last))
+    if (( diff < 250 )); then
+        exit 0
+    fi
+fi
+echo "$now" > "$STAMP_FILE"
 
 readonly LIB_OVERRIDE="${HOME}/.local/lib/libscratchpad_override.so"
 readonly CLASS_NAME="scratchpad_term"
@@ -31,15 +51,12 @@ if [[ -z "$scratch_id" ]]; then
     exit 0
 fi
 
-# Check if visible and if it currently holds input focus
+# Clean toggle: if visible on screen -> hide; if hidden -> show and focus
 is_viewable=$(xwininfo -id "$scratch_id" 2>/dev/null | grep -c "IsViewable" || true)
-current_focus=$(xdotool getwindowfocus 2>/dev/null || true)
 
-if [[ "$is_viewable" -gt 0 ]] && [[ "$current_focus" == "$scratch_id" ]]; then
-    # Already visible AND currently focused -> hide
+if [[ "$is_viewable" -gt 0 ]]; then
     xdotool windowunmap "$scratch_id" 2>/dev/null || true
 else
-    # Either hidden OR buried under another window -> map, raise to top, and focus
     xdotool windowmap "$scratch_id" 2>/dev/null || true
     xdotool windowraise "$scratch_id" 2>/dev/null || true
     xdotool windowfocus "$scratch_id" 2>/dev/null || true

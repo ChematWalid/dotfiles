@@ -1,0 +1,76 @@
+{
+    "workbench.sideBar.location": "right",
+    "security.workspace.trust.untrustedFiles": "open",
+    "explorer.confirmDelete": false,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "redhat.telemetry.enabled": true,
+    "chat.instructionsFilesLocations": {
+        ".github/instructions": true,
+        ".claude/rules": true,
+        "~/.copilot/instructions": true,
+        "~/.claude/rules": true,
+        "C:\\Users\\ASUS\\AppData\\Local\\Temp\\postman-collections-post-response.instructions.md": true,
+        "C:\\Users\\ASUS\\AppData\\Local\\Temp\\postman-collections-pre-request.instructions.md": true,
+        "C:\\Users\\ASUS\\AppData\\Local\\Temp\\postman-folder-post-response.instructions.md": true,
+        "C:\\Users\\ASUS\\AppData\\Local\\Temp\\postman-folder-pre-request.instructions.md": true,
+        "C:\\Users\\ASUS\\AppData\\Local\\Temp\\postman-http-request-post-response.instructions.md": true,
+        "C:\\Users\\ASUS\\AppData\\Local\\Temp\\postman-http-request-pre-request.instructions.md": true,
+        "/tmp/postman-collections-post-response.instructions.md": true,
+        "/tmp/postman-collections-pre-request.instructions.md": true,
+        "/tmp/postman-folder-post-response.instructions.md": true,
+        "/tmp/postman-folder-pre-request.instructions.md": true,
+        "/tmp/postman-http-request-post-response.instructions.md": true,
+        "/tmp/postman-http-request-pre-request.instructions.md": true,
+    },
+    "postman.mcp.notifications.postmanMCP": false,
+    "explorer.confirmDragAndDrop": false,
+    "editor.fontFamily": "'Fira Code',Consolas, 'Courier New', monospace",
+    "editor.fontLigatures": true,
+    "workbench.iconTheme": "catppuccin-mocha",
+    "workbench.settings.applyToAllProfiles": [],
+    "settingsSync.ignoredExtensions": [],
+    "settingsSync.ignoredSettings": [],
+    "editor.minimap.renderCharacters": false,
+    "editor.minimap.enabled": false,
+    "workbench.colorTheme": "Catppuccin Mocha",
+    "makefile.configureOnOpen": true,
+    "chat.sessionSync.enabled": true,
+
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+
+    "prettier.singleQuote": true,
+    "prettier.semi": true,
+    "prettier.tabWidth": 4,
+    "prettier.trailingComma": "es5",
+    "editor.cursorBlinking": "smooth",
+    "editor.cursorSmoothCaretAnimation": "on",
+    "editor.smoothScrolling": true,
+    "terminal.integrated.smoothScrolling": true,
+    "workbench.list.smoothScrolling": true,
+    "workbench.colorCustomizations": {
+        "[Catppuccin Mocha]": {
+            "editorCursor.foreground": "#cba6f7"
+        }
+    },
+    "vscode_custom_css.imports": [
+        "file:///mnt/drive2/.vscode/extensions/yesitsfebreeze.smearcursor-1.3.0/_smearcursor.js"
+    ],
+    "containers.containerClient": "com.microsoft.visualstudio.containers.docker",
+    "containers.orchestratorClient": "com.microsoft.visualstudio.orchestrators.dockercompose",
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "/usr/lib/jvm/java-21-openjdk"
+        },
+        {
+            "name": "JavaSE-26",
+            "path": "/usr/lib/jvm/java-26-openjdk",
+            "default": true
+        }
+    ],
+    "jdk.telemetry.enabled": false,
+    "sonarlint.automaticAnalysis": true,
+    "sonarlint.focusOnNewCode": false,
+    "workbench.secondarySideBar.defaultVisibility": "hidden"
+}
