@@ -1,6 +1,7 @@
 export XCURSOR_THEME=Bibata-Modern-Classic
 export XCURSOR_SIZE=24
 export CHROME_FLAGS="--force-device-scale-factor=1 --enable-smooth-scrolling"
+export BROWSER=google-chrome-stable
 
 # Qt Theming & Portal Integration
 export QT_QPA_PLATFORMTHEME=qt6ct
