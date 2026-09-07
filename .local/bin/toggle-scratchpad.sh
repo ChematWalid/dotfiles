@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # ── toggle-scratchpad.sh ──────────────────────────────────────────────────────
 # Fast Floating Dropdown Terminal (Kitty) with override-redirect preload.
+# Guarantees top-level Z-stack placement on top of all windows and clean toggle.
 
 set -euo pipefail
 
@@ -20,16 +21,26 @@ if [[ -z "$scratch_id" ]]; then
     # Wait briefly for window to be mapped (max 600ms)
     for _ in {1..30}; do
         scratch_id=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1 || true)
-        [[ -n "$scratch_id" ]] && break
+        if [[ -n "$scratch_id" ]] && xwininfo -id "$scratch_id" >/dev/null 2>&1; then
+            xdotool windowraise "$scratch_id" 2>/dev/null || true
+            xdotool windowfocus "$scratch_id" 2>/dev/null || true
+            break
+        fi
         sleep 0.02
     done
     exit 0
 fi
 
-# 1-press toggle: if visible, hide; if hidden, show and focus
-if xwininfo -id "$scratch_id" 2>/dev/null | grep -q "IsViewable"; then
+# Check if visible and if it currently holds input focus
+is_viewable=$(xwininfo -id "$scratch_id" 2>/dev/null | grep -c "IsViewable" || true)
+current_focus=$(xdotool getwindowfocus 2>/dev/null || true)
+
+if [[ "$is_viewable" -gt 0 ]] && [[ "$current_focus" == "$scratch_id" ]]; then
+    # Already visible AND currently focused -> hide
     xdotool windowunmap "$scratch_id" 2>/dev/null || true
 else
+    # Either hidden OR buried under another window -> map, raise to top, and focus
     xdotool windowmap "$scratch_id" 2>/dev/null || true
+    xdotool windowraise "$scratch_id" 2>/dev/null || true
     xdotool windowfocus "$scratch_id" 2>/dev/null || true
 fi
