@@ -3,9 +3,10 @@ export XCURSOR_SIZE=24
 export CHROME_FLAGS="--force-device-scale-factor=1 --enable-smooth-scrolling"
 export BROWSER=google-chrome-stable
 
-# Qt Theming & Portal Integration
-export QT_QPA_PLATFORMTHEME=qt6ct
-export QT_STYLE_OVERRIDE=kvantum
+# GTK & Qt Theming (Unified Catppuccin Mocha Mauve & Native GTK3 File Chooser)
+export GTK_THEME=catppuccin-mocha-mauve-standard+default
+export QT_QPA_PLATFORMTHEME=gtk3
+unset QT_STYLE_OVERRIDE
 
 # Apply keyboard rate (250 50) and mouse settings on display manager login
 ~/.local/bin/apply-input-settings.sh &
