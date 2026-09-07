@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ── steam ─────────────────────────────────────────────────────────────────────
+# Steam launcher with current-workspace focus management.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+exec "${HOME}/.local/bin/smart-open.sh" "^Steam$" /usr/bin/steam "$@"

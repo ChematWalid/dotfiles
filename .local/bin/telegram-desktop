@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ── telegram-desktop ──────────────────────────────────────────────────────────
+# Redirects telegram-desktop calls to AyuGram with current-workspace focus.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+exec "${HOME}/.local/bin/ayugram" "$@"

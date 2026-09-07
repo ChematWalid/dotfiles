@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ── spotify ───────────────────────────────────────────────────────────────────
+# Spotify launcher with current-workspace focus management.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+exec "${HOME}/.local/bin/smart-open.sh" "^Spotify$" /usr/bin/spotify "$@"

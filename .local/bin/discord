@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# ── discord ───────────────────────────────────────────────────────────────────
+# Discord launcher with current-workspace focus management.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+exec "${HOME}/.local/bin/smart-open.sh" "^(discord|vesktop|webcord)$" /usr/bin/discord "$@"

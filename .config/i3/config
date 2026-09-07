@@ -50,8 +50,8 @@ popup_during_fullscreen all
 
 # --- Core Keybindings ---
 # Terminal
-bindsym $mod+Return exec kitty
-bindsym $super+Return exec alacritty
+bindsym $mod+Return exec --no-startup-id kitty
+bindsym $super+Return exec --no-startup-id alacritty
 
 # Kill focused window
 bindsym $mod+Shift+q kill
@@ -74,11 +74,11 @@ bindsym Mod4+Print exec --no-startup-id ~/.local/bin/flameshot-safe.sh screen
 
 
 # Quick App Launchers
-bindsym $mod+b exec google-chrome-stable
-bindsym $mod+Shift+b exec firefox
-bindsym $mod+e exec thunar
-bindsym $mod+t exec telegram-desktop
-bindsym $mod+c exec code
+bindsym $mod+b exec --no-startup-id google-chrome-stable
+bindsym $mod+Shift+b exec --no-startup-id firefox
+bindsym $mod+e exec --no-startup-id thunar
+bindsym $mod+t exec --no-startup-id ~/.local/bin/ayugram
+bindsym $mod+c exec --no-startup-id code
 
 # Change focus (Vim keys with Alt, Arrow keys with Super)
 bindsym $mod+h focus left
@@ -196,7 +196,7 @@ bindsym Mod4+F6 exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 bindsym $mod+F5 exec --no-startup-id ~/.local/bin/brightness-osd.sh down
 bindsym $mod+F6 exec --no-startup-id ~/.local/bin/brightness-osd.sh up
 exec --no-startup-id xsettingsd -c ~/.config/xsettingsd/xsettingsd.conf
-focus_on_window_activation urgent
+focus_on_window_activation focus
 
 # ── Lock Screen (Win+L & Alt+Ctrl+L) ───────────────
 bindsym Mod4+l exec --no-startup-id ~/.local/bin/lock.sh
