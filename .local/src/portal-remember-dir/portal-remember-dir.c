@@ -105,7 +105,6 @@ static int is_default_generic_path(const char *path) {
     // Is it home?
     if (strcmp(path, home) == 0) return 1;
 
-    // Is it home with trailing slash?
     size_t homelen = strlen(home);
     if (strncmp(path, home, homelen) == 0 && (path[homelen] == '\0' || strcmp(path + homelen, "/") == 0)) {
         return 1;
@@ -135,6 +134,103 @@ static int is_default_generic_path(const char *path) {
     }
 
     return 0;
+}
+
+/* ── Location Entry Handlers (Thunar Style) ── */
+
+static void on_location_entry_icon_press(GtkEntry *entry, GtkEntryIconPosition icon_pos, GdkEvent *event, gpointer user_data) {
+    GtkFileChooser *chooser = GTK_FILE_CHOOSER(user_data);
+    if (icon_pos == GTK_ENTRY_ICON_PRIMARY) {
+        const char *home = getenv("HOME");
+        if (home) {
+            gtk_file_chooser_set_current_folder(chooser, home);
+        }
+    }
+}
+
+static void on_location_entry_activate(GtkEntry *entry, gpointer user_data) {
+    GtkFileChooser *chooser = GTK_FILE_CHOOSER(user_data);
+    const char *raw_path = gtk_entry_get_text(entry);
+    if (!raw_path || raw_path[0] == '\0') return;
+
+    char resolved[1024];
+    if (raw_path[0] == '~') {
+        const char *home = getenv("HOME");
+        if (!home) home = "/home/walid";
+        snprintf(resolved, sizeof(resolved), "%s%s", home, raw_path + 1);
+    } else {
+        snprintf(resolved, sizeof(resolved), "%s", raw_path);
+    }
+
+    size_t len = strlen(resolved);
+    if (len > 1 && resolved[len - 1] == '/') {
+        resolved[len - 1] = '\0';
+    }
+
+    if (g_file_test(resolved, G_FILE_TEST_IS_DIR)) {
+        gtk_file_chooser_set_current_folder(chooser, resolved);
+    }
+}
+
+static void on_current_folder_changed(GtkFileChooser *chooser, gpointer user_data) {
+    GtkEntry *entry = GTK_ENTRY(user_data);
+    char *folder = gtk_file_chooser_get_current_folder(chooser);
+    if (folder) {
+        gtk_entry_set_text(entry, folder);
+        g_free(folder);
+    }
+}
+
+static void attach_typable_location_bar(GtkWidget *widget, GtkFileChooser *chooser) {
+    if (!widget) return;
+    const char *name = gtk_widget_get_name(widget);
+    if (name && strcmp(name, "pathbarbox") == 0) {
+        if (g_object_get_data(G_OBJECT(widget), "typable_bar_installed")) {
+            return;
+        }
+        g_object_set_data(G_OBJECT(widget), "typable_bar_installed", GINT_TO_POINTER(1));
+
+        // Hide existing breadcrumb bar
+        GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+        for (GList *l = children; l != NULL; l = l->next) {
+            gtk_widget_hide(GTK_WIDGET(l->data));
+        }
+        g_list_free(children);
+
+        // Create Thunar-style location entry
+        GtkWidget *entry = gtk_entry_new();
+        gtk_entry_set_icon_from_icon_name(GTK_ENTRY(entry), GTK_ENTRY_ICON_PRIMARY, "go-home-symbolic");
+        gtk_entry_set_icon_activatable(GTK_ENTRY(entry), GTK_ENTRY_ICON_PRIMARY, TRUE);
+        gtk_entry_set_icon_tooltip_text(GTK_ENTRY(entry), GTK_ENTRY_ICON_PRIMARY, "Home");
+
+        gtk_widget_set_hexpand(entry, TRUE);
+        gtk_widget_set_margin_start(entry, 4);
+        gtk_widget_set_margin_end(entry, 4);
+        gtk_widget_set_margin_top(entry, 2);
+        gtk_widget_set_margin_bottom(entry, 2);
+
+        char *curr = gtk_file_chooser_get_current_folder(chooser);
+        if (curr) {
+            gtk_entry_set_text(GTK_ENTRY(entry), curr);
+            g_free(curr);
+        }
+
+        g_signal_connect(entry, "activate", G_CALLBACK(on_location_entry_activate), chooser);
+        g_signal_connect(entry, "icon-press", G_CALLBACK(on_location_entry_icon_press), chooser);
+        g_signal_connect(chooser, "current-folder-changed", G_CALLBACK(on_current_folder_changed), entry);
+
+        gtk_box_pack_start(GTK_BOX(widget), entry, TRUE, TRUE, 0);
+        gtk_widget_show(entry);
+        return;
+    }
+
+    if (GTK_IS_CONTAINER(widget)) {
+        GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+        for (GList *l = children; l != NULL; l = l->next) {
+            attach_typable_location_bar(GTK_WIDGET(l->data), chooser);
+        }
+        g_list_free(children);
+    }
 }
 
 // Function pointer typedefs
@@ -197,6 +293,8 @@ void gtk_widget_show(GtkWidget *widget) {
             }
         }
         if (current) g_free(current);
+
+        attach_typable_location_bar(widget, chooser);
     }
 
     if (orig_widget_show) {
