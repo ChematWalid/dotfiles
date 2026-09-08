@@ -1,63 +1,96 @@
 #!/usr/bin/env bash
 # ── toggle-scratchpad.sh ──────────────────────────────────────────────────────
-# Fast Floating Dropdown Terminal (Kitty) with override-redirect preload.
+# Fast, rock-solid Dropdown Scratchpad Terminal for i3wm.
+#
 # Features:
-#  - Top-level Z-stack placement (always above all normal windows)
-#  - Atomic non-blocking flock + 250ms timestamp debounce (prevents repeat bounces)
-#  - Clean 1-press toggle (visible -> hide, hidden -> map + raise + focus)
+#  - Clean 1-press toggle (visible on current workspace -> hide; otherwise -> show)
+#  - Never gets stuck regardless of focus state
+#  - Debounced (200ms) to prevent key-repeat bounce
+#  - Non-leaking atomic flock (closes fd in background children)
+#  - Fullscreen restoration (restores fullscreen when scratchpad is hidden)
+#  - Centered 900x550 floating geometry
+# ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
-# Atomic non-blocking lock to eliminate concurrent process races
+# 1. Non-blocking concurrency lock (never leak fd to child processes)
 readonly LOCK_FILE="/tmp/.scratchpad-toggle.lock"
 exec 200>"$LOCK_FILE"
-flock -n 200 || exit 0
+if ! flock -n 200; then
+    exit 0
+fi
+trap 'exec 200>&-' EXIT
 
-# Cooldown check (250ms debounce matching X11 key-repeat threshold)
+# 2. Key-repeat debounce (200ms threshold matching X11 key repeat)
 readonly STAMP_FILE="/tmp/.scratchpad-toggle.stamp"
 now=$(date +%s%3N 2>/dev/null || date +%s)
 if [[ -f "$STAMP_FILE" ]]; then
     last=$(cat "$STAMP_FILE" 2>/dev/null || echo 0)
     diff=$((now - last))
-    if (( diff < 250 )); then
+    if (( diff < 200 )); then
         exit 0
     fi
 fi
 echo "$now" > "$STAMP_FILE"
 
-readonly LIB_OVERRIDE="${HOME}/.local/lib/libscratchpad_override.so"
 readonly CLASS_NAME="scratchpad_term"
 readonly TITLE="__scratchpad_term__"
+readonly FS_STATE_FILE="/tmp/.scratchpad-fs.state"
 
-scratch_id=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1 || true)
+# 3. Query i3 tree state in a single fast call (~8ms)
+tree_info=$(i3-msg -t get_tree 2>/dev/null || echo "{}")
 
-if [[ -n "$scratch_id" ]] && ! xwininfo -id "$scratch_id" >/dev/null 2>&1; then
-    scratch_id=""
-fi
+current_ws=$(i3-msg -t get_workspaces 2>/dev/null | jq -r '.[] | select(.focused == true) | .name' || echo "")
 
-if [[ -z "$scratch_id" ]]; then
-    LD_PRELOAD="$LIB_OVERRIDE" kitty --class "$CLASS_NAME" --title "$TITLE" >/dev/null 2>&1 &
+scratch_ws=$(echo "$tree_info" | jq -r '
+  [.. | select(.type? == "workspace") | select(.. | .window_properties?.instance? == "'"$CLASS_NAME"'")] | .[0]?.name // ""
+' 2>/dev/null || echo "")
 
-    # Wait briefly for window to be mapped (max 600ms)
-    for _ in {1..30}; do
-        scratch_id=$(xdotool search --classname "$CLASS_NAME" 2>/dev/null | tail -1 || true)
-        if [[ -n "$scratch_id" ]] && xwininfo -id "$scratch_id" >/dev/null 2>&1; then
-            xdotool windowraise "$scratch_id" 2>/dev/null || true
-            xdotool windowfocus "$scratch_id" 2>/dev/null || true
+fullscreen_id=$(echo "$tree_info" | jq -r '
+  [.. | select(.focused? == true and .fullscreen_mode? == 1)] | .[0]?.id // 0
+' 2>/dev/null || echo "0")
+
+# 4. Handle scratchpad state
+if [[ -z "$scratch_ws" ]]; then
+    # Window does not exist yet -> remember fullscreen if active, spawn and show
+    if [[ "$fullscreen_id" -ne 0 ]]; then
+        echo "$fullscreen_id" > "$FS_STATE_FILE"
+    fi
+
+    # Spawn kitty via i3 so it is properly managed and detached
+    i3-msg "exec --no-startup-id kitty --class $CLASS_NAME --title $TITLE" >/dev/null 2>&1
+
+    # Wait briefly for kitty to register in i3 tree (max 500ms)
+    for _ in {1..25}; do
+        if i3-msg -t get_tree 2>/dev/null | grep -q "\"instance\":\"$CLASS_NAME\""; then
             break
         fi
         sleep 0.02
     done
+
+    i3-msg '[instance="'"$CLASS_NAME"'"] scratchpad show, floating enable, resize set 900 550, move position center, focus' >/dev/null 2>&1 || true
     exit 0
 fi
 
-# Clean toggle: if visible on screen -> hide; if hidden -> show and focus
-is_viewable=$(xwininfo -id "$scratch_id" 2>/dev/null | grep -c "IsViewable" || true)
+if [[ -n "$current_ws" && "$scratch_ws" == "$current_ws" ]]; then
+    # Scratchpad is currently visible on the current workspace -> HIDE IT
+    i3-msg '[instance="'"$CLASS_NAME"'"] move to scratchpad' >/dev/null 2>&1 || true
 
-if [[ "$is_viewable" -gt 0 ]]; then
-    xdotool windowunmap "$scratch_id" 2>/dev/null || true
+    # Restore fullscreen if a window was fullscreen before scratchpad opened
+    if [[ -f "$FS_STATE_FILE" ]]; then
+        fs_id=$(cat "$FS_STATE_FILE" 2>/dev/null || echo "0")
+        rm -f "$FS_STATE_FILE"
+        if [[ -n "$fs_id" && "$fs_id" != "0" ]]; then
+            i3-msg "[id=\"$fs_id\"] fullscreen enable" >/dev/null 2>&1 || true
+        fi
+    fi
 else
-    xdotool windowmap "$scratch_id" 2>/dev/null || true
-    xdotool windowraise "$scratch_id" 2>/dev/null || true
-    xdotool windowfocus "$scratch_id" 2>/dev/null || true
+    # Scratchpad is hidden in __i3_scratch (or on another workspace) -> SHOW IT HERE
+    if [[ "$fullscreen_id" -ne 0 ]]; then
+        echo "$fullscreen_id" > "$FS_STATE_FILE"
+    else
+        rm -f "$FS_STATE_FILE"
+    fi
+
+    i3-msg '[instance="'"$CLASS_NAME"'"] scratchpad show, floating enable, resize set 900 550, move position center, focus' >/dev/null 2>&1 || true
 fi
