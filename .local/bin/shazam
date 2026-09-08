@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+# ── shazam ───────────────────────────────────────────────────────────────────
+# Modern Music Identifier for Linux (CLI + GUI)
+# Uses SongRec & Shazam API with automatic system audio loopback/monitor routing.
+#
+# Usage:
+#   shazam            Recognize currently playing music from system audio
+#   shazam -g, --gui  Open the GTK GUI
+#   shazam -c, --listen Continuous listening mode in terminal
+#   shazam -f <file>  Recognize an audio/video file
+#   shazam -j, --json Print raw JSON output
+#   shazam -q, --quiet Run silently (notification & clipboard only)
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+# Catppuccin Mocha Colors
+readonly C_RESET="\033[0m"
+readonly C_BOLD="\033[1m"
+readonly C_MAUVE="\033[38;2;203;166;247m"
+readonly C_BLUE="\033[38;2;137;180;250m"
+readonly C_GREEN="\033[38;2;166;227;161m"
+readonly C_PEACH="\033[38;2;250;179;135m"
+readonly C_YELLOW="\033[38;2;249;226;175m"
+readonly C_TEXT="\033[38;2;205;214;244m"
+readonly C_SUBTEXT="\033[38;2;166;173;200m"
+
+readonly APP_ICON="${HOME}/.local/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg"
+readonly COVER_CACHE="/tmp/shazam_cover.jpg"
+
+show_help() {
+    cat << HELP
+${C_BOLD}${C_MAUVE}Shazam • Linux Music Identifier${C_RESET}
+Recognizes music playing through desktop audio (not microphone) using Shazam.
+
+${C_BOLD}USAGE:${C_RESET}
+  shazam [OPTIONS] [FILE]
+
+${C_BOLD}OPTIONS:${C_RESET}
+  ${C_GREEN}-g, --gui${C_RESET}         Open the SongRec GTK GUI
+  ${C_GREEN}-c, --listen${C_RESET}      Continuous listening mode (detects songs as they play)
+  ${C_GREEN}-f, --file <file>${C_RESET} Recognize an audio or video file instead of live audio
+  ${C_GREEN}-j, --json${C_RESET}        Print raw JSON response from Shazam
+  ${C_GREEN}-q, --quiet${C_RESET}       Quiet mode: desktop notification & clipboard only
+  ${C_GREEN}-d, --device <dev>${C_RESET} Specify custom audio device
+  ${C_GREEN}-h, --help${C_RESET}        Show this help message
+
+${C_BOLD}EXAMPLES:${C_RESET}
+  shazam                   # Identify what's currently playing on your speakers/headphones
+  shazam -g                # Launch the full graphical app
+  shazam -f sample.mp3     # Identify track from an audio file
+  shazam -c                # Keep listening continuously in the terminal
+
+HELP
+    exit 0
+}
+
+# Resolve active audio monitor device (desktop audio output)
+get_monitor_device() {
+    local default_sink
+    default_sink=$(pactl get-default-sink 2>/dev/null || true)
+    if [[ -n "$default_sink" ]]; then
+        echo "${default_sink}.monitor"
+        return
+    fi
+    # Fallback to listing devices from songrec
+    songrec recognize -l 2>/dev/null | grep -oE "alsa_output[a-zA-Z0-9._-]+monitor" | head -1 || echo ""
+}
+
+# Parse command line options
+MODE="recognize"
+TARGET_FILE=""
+CUSTOM_DEVICE=""
+OUTPUT_JSON=false
+QUIET=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -g|--gui)
+            MODE="gui"
+            shift
+            ;;
+        -c|--listen)
+            MODE="listen"
+            shift
+            ;;
+        -j|--json)
+            OUTPUT_JSON=true
+            shift
+            ;;
+        -q|--quiet)
+            QUIET=true
+            shift
+            ;;
+        -d|--device)
+            CUSTOM_DEVICE="$2"
+            shift 2
+            ;;
+        -f|--file)
+            TARGET_FILE="$2"
+            shift 2
+            ;;
+        -h|--help)
+            show_help
+            ;;
+        *)
+            if [[ -f "$1" ]]; then
+                TARGET_FILE="$1"
+                shift
+            else
+                echo -e "${C_PEACH}Unknown option or file not found: $1${C_RESET}" >&2
+                echo "Run 'shazam --help' for usage." >&2
+                exit 1
+            fi
+            ;;
+    esac
+done
+
+# 1. GUI Mode
+if [[ "$MODE" == "gui" ]]; then
+    if ! command -v songrec >/dev/null 2>&1; then
+        echo "Error: songrec not found on PATH." >&2
+        exit 1
+    fi
+    # Ensure monitor device is stored in preferences
+    monitor_dev="${CUSTOM_DEVICE:-$(get_monitor_device)}"
+    if [[ -n "$monitor_dev" ]]; then
+        mkdir -p "${HOME}/.config/SongRec" "${HOME}/.config/songrec"
+        cat << TOML > "${HOME}/.config/SongRec/preferences.toml"
+current_device_name = "${monitor_dev}"
+enable_notifications = true
+enable_systray = true
+enable_mpris_v2 = true
+no_duplicates = true
+TOML
+        cp "${HOME}/.config/SongRec/preferences.toml" "${HOME}/.config/songrec/preferences.toml" 2>/dev/null || true
+    fi
+    setsid songrec gui >/dev/null 2>&1 &
+    exit 0
+fi
+
+# 2. Continuous Listen Mode
+if [[ "$MODE" == "listen" ]]; then
+    device="${CUSTOM_DEVICE:-$(get_monitor_device)}"
+    if [[ -z "$device" ]]; then
+        echo -e "${C_PEACH}Error: Could not resolve default audio monitor device.${C_RESET}" >&2
+        exit 1
+    fi
+    echo -e "${C_BOLD}${C_MAUVE}🎵 Shazam Continuous Listener${C_RESET}"
+    echo -e "${C_SUBTEXT}Listening to:${C_RESET} ${C_BLUE}${device}${C_RESET}"
+    echo -e "${C_SUBTEXT}Press Ctrl+C to stop.${C_RESET}\n"
+    exec songrec listen -d "$device"
+fi
+
+# 3. File or Live Recognition Mode
+if [[ -n "$TARGET_FILE" ]]; then
+    if [[ ! -f "$TARGET_FILE" ]]; then
+        echo "Error: File not found: $TARGET_FILE" >&2
+        exit 1
+    fi
+    if ! $QUIET && ! $OUTPUT_JSON; then
+        echo -e "${C_SUBTEXT}🔍 Analyzing file:${C_RESET} ${C_BLUE}${TARGET_FILE}${C_RESET}..."
+    fi
+    raw_output=$(songrec audio-file-to-recognized-song "$TARGET_FILE" 2>/dev/null || true)
+    raw_json=$(songrec audio-file-to-fingerprint "$TARGET_FILE" 2>/dev/null | songrec fingerprint-to-recognized-song -j 2>/dev/null || true)
+else
+    device="${CUSTOM_DEVICE:-$(get_monitor_device)}"
+    if [[ -z "$device" ]]; then
+        echo -e "${C_PEACH}Error: No audio output sink found.${C_RESET}" >&2
+        exit 1
+    fi
+
+    if ! $QUIET && ! $OUTPUT_JSON; then
+        echo -e "${C_MAUVE}🎧 Listening to system audio (4s sample)...${C_RESET}"
+    fi
+
+    # Record and recognize directly from monitor device
+    raw_json=$(timeout 8 songrec recognize -d "$device" -i 4 -j 2>&1 | grep '^{' || true)
+fi
+
+# If JSON requested directly, dump and exit
+if $OUTPUT_JSON; then
+    if [[ -n "$raw_json" ]]; then
+        echo "$raw_json" | jq . 2>/dev/null || echo "$raw_json"
+    else
+        echo '{"error": "No song identified"}'
+    fi
+    exit 0
+fi
+
+# Parse track details
+title=$(echo "$raw_json" | jq -r '.track.title // ""' 2>/dev/null || echo "")
+artist=$(echo "$raw_json" | jq -r '.track.subtitle // ""' 2>/dev/null || echo "")
+
+if [[ -z "$title" || -z "$artist" || "$title" == "null" ]]; then
+    if ! $QUIET; then
+        echo -e "\n${C_PEACH}❌ No song identified.${C_RESET}"
+        echo -e "${C_SUBTEXT}Make sure audio is playing through your output device and try again.${C_RESET}"
+    fi
+    command -v dunstify >/dev/null 2>&1 && dunstify -a "Shazam" -u low -t 4000 -i "$APP_ICON" \
+        "🔍 Shazam" "No song identified from system audio."
+    exit 1
+fi
+
+album=$(echo "$raw_json" | jq -r '
+  [.track.sections[]? | select(.type=="SONG") | .metadata[]? | select(.title=="Album") | .text] | .[0] // "Single / Unknown Album"
+' 2>/dev/null || echo "Unknown Album")
+
+year=$(echo "$raw_json" | jq -r '
+  [.track.sections[]? | select(.type=="SONG") | .metadata[]? | select(.title=="Released") | .text] | .[0] // ""
+' 2>/dev/null || echo "")
+
+genre=$(echo "$raw_json" | jq -r '.track.genres.primary // "Music"' 2>/dev/null || echo "Music")
+cover_url=$(echo "$raw_json" | jq -r '.track.images.coverarthq // .track.images.coverart // ""' 2>/dev/null || echo "")
+shazam_url=$(echo "$raw_json" | jq -r '.track.url // .track.share.href // ""' 2>/dev/null || echo "")
+
+# Encode search URLs
+encoded_query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$artist $title'''))" 2>/dev/null || echo "")
+spotify_url="https://open.spotify.com/search/${encoded_query}"
+ytm_url="https://music.youtube.com/search?q=${encoded_query}"
+
+# Copy to clipboard
+track_string="${artist} - ${title}"
+if command -v xclip >/dev/null 2>&1; then
+    printf "%s" "$track_string" | xclip -selection clipboard 2>/dev/null || true
+fi
+if command -v copyq >/dev/null 2>&1; then
+    copyq add "$track_string" 2>/dev/null || true
+fi
+
+# Download album cover for notification (max 2s)
+notif_icon="$APP_ICON"
+if [[ -n "$cover_url" && "$cover_url" != "null" ]]; then
+    if timeout 2 curl -s -o "$COVER_CACHE" "$cover_url" 2>/dev/null; then
+        if [[ -s "$COVER_CACHE" ]]; then
+            notif_icon="$COVER_CACHE"
+        fi
+    fi
+fi
+
+# Send desktop notification
+if command -v dunstify >/dev/null 2>&1; then
+    album_info="$album"
+    [[ -n "$year" && "$year" != "null" ]] && album_info="$album ($year)"
+    dunstify -a "Shazam" -u normal -t 8000 -i "$notif_icon" \
+        "🎵 $title" "$artist\n$album_info\n📋 Copied to clipboard!"
+fi
+
+# Print beautiful terminal card
+if ! $QUIET; then
+    echo ""
+    echo -e "${C_MAUVE}╭─────────────────────────────────────────────────────────────╮${C_RESET}"
+    echo -e "${C_MAUVE}│${C_RESET} ${C_BOLD}${C_BLUE}🎵 Shazam • Track Identified${C_RESET}                                ${C_MAUVE}│${C_RESET}"
+    echo -e "${C_MAUVE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
+    printf "${C_MAUVE}│${C_RESET} ${C_BOLD}%-10s${C_RESET} ${C_GREEN}%-46s${C_RESET} ${C_MAUVE}│${C_RESET}\n" "Title:" "${title:0:46}"
+    printf "${C_MAUVE}│${C_RESET} ${C_BOLD}%-10s${C_RESET} ${C_YELLOW}%-46s${C_RESET} ${C_MAUVE}│${C_RESET}\n" "Artist:" "${artist:0:46}"
+    if [[ -n "$year" && "$year" != "null" ]]; then
+        printf "${C_MAUVE}│${C_RESET} ${C_BOLD}%-10s${C_RESET} %-46s ${C_MAUVE}│${C_RESET}\n" "Album:" "${album:0:39} ($year)"
+    else
+        printf "${C_MAUVE}│${C_RESET} ${C_BOLD}%-10s${C_RESET} %-46s ${C_MAUVE}│${C_RESET}\n" "Album:" "${album:0:46}"
+    fi
+    printf "${C_MAUVE}│${C_RESET} ${C_BOLD}%-10s${C_RESET} ${C_SUBTEXT}%-46s${C_RESET} ${C_MAUVE}│${C_RESET}\n" "Genre:" "${genre:0:46}"
+    echo -e "${C_MAUVE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
+    echo -e "${C_MAUVE}│${C_RESET} ${C_SUBTEXT}📋 Copied to clipboard:${C_RESET} ${C_BOLD}${track_string:0:34}${C_RESET}     ${C_MAUVE}│${C_RESET}"
+    echo -e "${C_MAUVE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
+    echo -e "${C_MAUVE}│${C_RESET} ${C_BOLD}🔗 Quick Links:${C_RESET}                                              ${C_MAUVE}│${C_RESET}"
+    echo -e "${C_MAUVE}│${C_RESET}  • ${C_BLUE}Spotify:${C_RESET}       ${spotify_url:0:43}... ${C_MAUVE}│${C_RESET}"
+    echo -e "${C_MAUVE}│${C_RESET}  • ${C_BLUE}YouTube Music:${C_RESET} ${ytm_url:0:43}... ${C_MAUVE}│${C_RESET}"
+    if [[ -n "$shazam_url" && "$shazam_url" != "null" ]]; then
+        echo -e "${C_MAUVE}│${C_RESET}  • ${C_BLUE}Shazam:${C_RESET}        ${shazam_url:0:43}... ${C_MAUVE}│${C_RESET}"
+    fi
+    echo -e "${C_MAUVE}╰─────────────────────────────────────────────────────────────╯${C_RESET}"
+    echo ""
+fi

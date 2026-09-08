@@ -230,6 +230,13 @@ for_window [instance="scratchpad_term"] floating enable, resize set 900 550, mov
 bindsym $mod+u exec --no-startup-id ~/.local/bin/toggle-scratchpad.sh
 bindsym Mod4+u exec --no-startup-id ~/.local/bin/toggle-scratchpad.sh
 
+# ── Shazam Music Recognition (Alt+Z & Win+Z) ───────
+for_window [class="(?i)(songrec|re\.fossplant\.songrec)"] floating enable, resize set 850 620, move position center
+bindsym $mod+z exec --no-startup-id ~/.local/bin/shazam -q
+bindsym Mod4+z exec --no-startup-id ~/.local/bin/shazam -q
+bindsym $mod+Shift+z exec --no-startup-id ~/.local/bin/shazam --gui
+bindsym Mod4+Shift+z exec --no-startup-id ~/.local/bin/shazam --gui
+
 # ── Rofi Calculator (Alt+= & Win+C) ───────────────
 bindsym $mod+equal exec --no-startup-id "rofi -show calc -modi calc -no-show-match -no-sort -theme ~/.config/rofi/config.rasi"
 bindsym Mod4+c exec --no-startup-id "rofi -show calc -modi calc -no-show-match -no-sort -theme ~/.config/rofi/config.rasi"

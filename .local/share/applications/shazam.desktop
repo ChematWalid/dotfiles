@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Shazam (SongRec)
+GenericName=Music Identifier
+Comment=Identify music playing through desktop audio or microphone
+Exec=shazam --gui
+Icon=re.fossplant.songrec
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;GTK;
+Keywords=shazam;songrec;music;song;recognize;identify;audio;
+StartupNotify=true
+StartupWMClass=songrec
