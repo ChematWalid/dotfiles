@@ -48,7 +48,7 @@ A fully themed **Catppuccin Mocha** desktop on Arch Linux, built around **i3wm**
 > Assumes a base Arch Linux install with network access and `git` available.
 
 ```bash
-git clone https://github.com/ACEECA1/dotfiles ~/dotfiles
+git clone https://github.com/ChematWalid/dotfiles ~/dotfiles
 cd ~/dotfiles && bash install.sh
 ```
 

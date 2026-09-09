@@ -309,4 +309,4 @@ Welcome to your complete reference manual! Every tool, custom script, keybinding
 
 ---
 
-*Generated for Walid • Arch Linux Catppuccin Edition • Tracked in [dotfiles](https://github.com/ACEECA1/dotfiles)*
+*Generated for Walid • Arch Linux Catppuccin Edition • Tracked in [dotfiles](https://github.com/ChematWalid/dotfiles)*
