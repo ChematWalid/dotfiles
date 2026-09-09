@@ -87,9 +87,9 @@ handbrake-cli
 htop
 httpie
 hyperfine
+i3-wm
 i3blocks
 i3status
-i3-wm
 imagemagick
 imv
 intel-media-driver
@@ -137,8 +137,8 @@ navi
 ncmpcpp
 neovim
 netscanner
-networkmanager
 network-manager-applet
+networkmanager
 nlohmann-json
 nmap
 nodejs
@@ -173,10 +173,10 @@ python-pip
 python-pipx
 python-uv
 qbittorrent
-qt5ct
 qt5-graphicaleffects
 qt5-quickcontrols2
 qt5-svg
+qt5ct
 qt6ct
 rbw
 rclone
@@ -194,6 +194,7 @@ sddm
 seahorse
 slop
 smartmontools
+songrec
 sox
 starship
 steam

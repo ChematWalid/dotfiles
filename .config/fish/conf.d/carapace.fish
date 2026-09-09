@@ -128,6 +128,8 @@ complete -e "ant"
 complete -c "ant" -f -a '(_carapace_completer "ant")'
 complete -e "antiword"
 complete -c "antiword" -f -a '(_carapace_completer "antiword")'
+complete -e "anyconv"
+complete -c "anyconv" -f -a '(_carapace_completer "anyconv")'
 complete -e "aodh"
 complete -c "aodh" -f -a '(_carapace_completer "aodh")'
 complete -e "aoss"
@@ -428,6 +430,14 @@ complete -e "calendar"
 complete -c "calendar" -f -a '(_carapace_completer "calendar")'
 complete -e "calibre"
 complete -c "calibre" -f -a '(_carapace_completer "calibre")'
+complete -e "calibre-debug"
+complete -c "calibre-debug" -f -a '(_carapace_completer "calibre-debug")'
+complete -e "calibre-server"
+complete -c "calibre-server" -f -a '(_carapace_completer "calibre-server")'
+complete -e "calibre-smtp"
+complete -c "calibre-smtp" -f -a '(_carapace_completer "calibre-smtp")'
+complete -e "calibredb"
+complete -c "calibredb" -f -a '(_carapace_completer "calibredb")'
 complete -e "cap"
 complete -c "cap" -f -a '(_carapace_completer "cap")'
 complete -e "cap-audit"
@@ -670,6 +680,8 @@ complete -e "conky"
 complete -c "conky" -f -a '(_carapace_completer "conky")'
 complete -e "consul"
 complete -c "consul" -f -a '(_carapace_completer "consul")'
+complete -e "conv"
+complete -c "conv" -f -a '(_carapace_completer "conv")'
 complete -e "convert"
 complete -c "convert" -f -a '(_carapace_completer "convert")'
 complete -e "copyfilerange"
@@ -744,6 +756,8 @@ complete -e "cut"
 complete -c "cut" -f -a '(_carapace_completer "cut")'
 complete -e "cvs"
 complete -c "cvs" -f -a '(_carapace_completer "cvs")'
+complete -e "cxl"
+complete -c "cxl" -f -a '(_carapace_completer "cxl")'
 complete -e "d2"
 complete -c "d2" -f -a '(_carapace_completer "d2")'
 complete -e "dad"
@@ -766,6 +780,8 @@ complete -e "dataspell"
 complete -c "dataspell" -f -a '(_carapace_completer "dataspell")'
 complete -e "date"
 complete -c "date" -f -a '(_carapace_completer "date")'
+complete -e "daxctl"
+complete -c "daxctl" -f -a '(_carapace_completer "daxctl")'
 complete -e "dbt"
 complete -c "dbt" -f -a '(_carapace_completer "dbt")'
 complete -e "dbus-launch"
@@ -964,6 +980,16 @@ complete -e "eatmydata"
 complete -c "eatmydata" -f -a '(_carapace_completer "eatmydata")'
 complete -e "ebook-convert"
 complete -c "ebook-convert" -f -a '(_carapace_completer "ebook-convert")'
+complete -e "ebook-device"
+complete -c "ebook-device" -f -a '(_carapace_completer "ebook-device")'
+complete -e "ebook-edit"
+complete -c "ebook-edit" -f -a '(_carapace_completer "ebook-edit")'
+complete -e "ebook-meta"
+complete -c "ebook-meta" -f -a '(_carapace_completer "ebook-meta")'
+complete -e "ebook-polish"
+complete -c "ebook-polish" -f -a '(_carapace_completer "ebook-polish")'
+complete -e "ebook-viewer"
+complete -c "ebook-viewer" -f -a '(_carapace_completer "ebook-viewer")'
 complete -e "ebtables"
 complete -c "ebtables" -f -a '(_carapace_completer "ebtables")'
 complete -e "ecasound"
@@ -1090,6 +1116,8 @@ complete -e "fdisk"
 complete -c "fdisk" -f -a '(_carapace_completer "fdisk")'
 complete -e "feh"
 complete -c "feh" -f -a '(_carapace_completer "feh")'
+complete -e "fetch-ebook-metadata"
+complete -c "fetch-ebook-metadata" -f -a '(_carapace_completer "fetch-ebook-metadata")'
 complete -e "fetchmail"
 complete -c "fetchmail" -f -a '(_carapace_completer "fetchmail")'
 complete -e "ffind"
@@ -2264,6 +2292,10 @@ complete -e "lprm"
 complete -c "lprm" -f -a '(_carapace_completer "lprm")'
 complete -e "lpstat"
 complete -c "lpstat" -f -a '(_carapace_completer "lpstat")'
+complete -e "lrf2lrs"
+complete -c "lrf2lrs" -f -a '(_carapace_completer "lrf2lrs")'
+complete -e "lrfviewer"
+complete -c "lrfviewer" -f -a '(_carapace_completer "lrfviewer")'
 complete -e "ls"
 complete -c "ls" -f -a '(_carapace_completer "ls")'
 complete -e "lsattr"
@@ -2394,6 +2426,8 @@ complete -e "mattrib"
 complete -c "mattrib" -f -a '(_carapace_completer "mattrib")'
 complete -e "maturin"
 complete -c "maturin" -f -a '(_carapace_completer "maturin")'
+complete -e "maxima"
+complete -c "maxima" -f -a '(_carapace_completer "maxima")'
 complete -e "mbimcli"
 complete -c "mbimcli" -f -a '(_carapace_completer "mbimcli")'
 complete -e "mc"
@@ -2690,6 +2724,8 @@ complete -e "ncdu"
 complete -c "ncdu" -f -a '(_carapace_completer "ncdu")'
 complete -e "ncftp"
 complete -c "ncftp" -f -a '(_carapace_completer "ncftp")'
+complete -e "ndctl"
+complete -c "ndctl" -f -a '(_carapace_completer "ndctl")'
 complete -e "nedit"
 complete -c "nedit" -f -a '(_carapace_completer "nedit")'
 complete -e "neo"
@@ -3412,6 +3448,8 @@ complete -e "rlogin"
 complete -c "rlogin" -f -a '(_carapace_completer "rlogin")'
 complete -e "rm"
 complete -c "rm" -f -a '(_carapace_completer "rm")'
+complete -e "rmaxima"
+complete -c "rmaxima" -f -a '(_carapace_completer "rmaxima")'
 complete -e "rmd160"
 complete -c "rmd160" -f -a '(_carapace_completer "rmd160")'
 complete -e "rmdir"
@@ -4082,6 +4120,8 @@ complete -e "tput"
 complete -c "tput" -f -a '(_carapace_completer "tput")'
 complete -e "tr"
 complete -c "tr" -f -a '(_carapace_completer "tr")'
+complete -e "tracefs_sql"
+complete -c "tracefs_sql" -f -a '(_carapace_completer "tracefs_sql")'
 complete -e "tracepath"
 complete -c "tracepath" -f -a '(_carapace_completer "tracepath")'
 complete -e "tracepath6"
@@ -4558,6 +4598,8 @@ complete -e "xlsatoms"
 complete -c "xlsatoms" -f -a '(_carapace_completer "xlsatoms")'
 complete -e "xlsclients"
 complete -c "xlsclients" -f -a '(_carapace_completer "xlsclients")'
+complete -e "xmaxima"
+complete -c "xmaxima" -f -a '(_carapace_completer "xmaxima")'
 complete -e "xml"
 complete -c "xml" -f -a '(_carapace_completer "xml")'
 complete -e "xmllint"

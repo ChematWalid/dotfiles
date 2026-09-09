@@ -33,6 +33,8 @@ Welcome to your complete reference manual! Every tool, custom script, keybinding
 | **`Win + P`** / `Alt + P` | Password Auto-Typer | Rofi Vaultwarden credentials picker |
 | **`Alt + V`** / `Win + V` | Clipboard Manager | CopyQ clipboard history floating window |
 | **`Alt + U`** / `Win + U` | Dropdown Scratchpad | Toggle floating quick-terminal from anywhere |
+| **`Alt + M`** / `Win + M` | Shazam Song Identifier | Identify playing music from system audio |
+| **`Alt + Shift + M`** / `Win + Shift + M` | SongRec GUI | Open full graphical Shazam / SongRec app |
 | **`Alt + =`** / `Win + C` | Calculator | Instant Rofi mathematical calculator |
 | **`Alt + Shift + W`** / `Win + W` | Web Search | Fast Google/GitHub search directly from Rofi |
 | **`Alt + Shift + T`** / `Win + Shift + T` | Toggle Autotiling | Switch between automatic aspect-ratio tiling and manual splits |
@@ -264,6 +266,11 @@ Welcome to your complete reference manual! Every tool, custom script, keybinding
 
 ## 10. 🎵 Media, Audio & Visuals
 
+- **`shazam` / `whatsong` (Music Recognition from System Audio)**:
+  - **`shazam`** (or `Alt + M` / `Win + M`): Instantly recognizes music currently playing on your speakers/headphones (via PipeWire loopback) with album cover art, Dunst notification, terminal card, and clipboard copy.
+  - **`shazam -g`** (or `Alt + Shift + M` / `Win + Shift + M`): Launches the full graphical SongRec GTK GUI with song recognition history, Shazam database search, and YouTube links.
+  - **`shazam -c`**: Continuous listening mode in terminal.
+  - **`shazam -f <file>`**: Identify music from any local audio or video file.
 - **Desktop Real-Time Music Widget (Conky)**:
   - Automatically displays the live track and artist right beneath the centered desktop clock in Catppuccin Green & White with zero lag via event-driven DBus!
 - **Polybar Live Music Pill**:

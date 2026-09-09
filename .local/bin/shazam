@@ -25,7 +25,13 @@ readonly C_YELLOW="\033[38;2;249;226;175m"
 readonly C_TEXT="\033[38;2;205;214;244m"
 readonly C_SUBTEXT="\033[38;2;166;173;200m"
 
-readonly APP_ICON="${HOME}/.local/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg"
+APP_ICON="audio-volume-high"
+if [[ -f "${HOME}/.local/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg" ]]; then
+    APP_ICON="${HOME}/.local/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg"
+elif [[ -f "/usr/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg" ]]; then
+    APP_ICON="/usr/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg"
+fi
+readonly APP_ICON
 readonly COVER_CACHE="/tmp/shazam_cover.jpg"
 
 show_help() {
