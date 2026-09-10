@@ -1,0 +1,355 @@
+% music, shazam, audio, recognition, whatsong, songrec
+# Identify playing music from system audio (desktop loopback)
+shazam
+
+# Open Shazam GTK GUI (SongRec)
+shazam -g
+
+# Continuous music recognition in terminal
+shazam -c
+
+# Recognize music from a local audio or video file
+shazam -f <media_file>
+
+# Recognize music and output raw JSON metadata
+shazam -j
+
+# Silent music identification (desktop notification & clipboard copy only)
+shazam -q
+
+# Listen and recognize track using SongRec CLI
+songrec listen
+
+# Generate Shazam fingerprint from an audio file
+songrec audio-file-to-fingerprint <media_file>
+
+% desktop, i3, shortcuts, scratchpad, polybar, tiling
+# Toggle floating dropdown scratchpad terminal (Alt+U / Win+U)
+toggle-scratchpad.sh
+
+# Toggle automatic window autotiling daemon (Alt+Shift+T / Win+Shift+T)
+toggle-autotiling.sh
+
+# Toggle Polybar visibility on/off (Alt+F)
+toggle-polybar.sh
+
+# Lock screen with aesthetic Gaussian blur (Win+L / Alt+Ctrl+L)
+lock.sh
+
+# Inspect focused X11 window class, title, and PID (copies class to clipboard)
+window-info.sh
+
+# Check if an active X11 pointer or keyboard grab exists
+x11-grab-probe
+
+# Run workspace auto-naming daemon (adds Nerd Font icons)
+autoname-workspaces
+
+# Switch keyboard layout between Belgian (AZERTY) and Arabic (Win+Space)
+switch-layout.sh
+
+# Focus existing application window or launch fresh on current workspace
+smart-open.sh "<class_regex>" <command>
+
+% clipboard, rofi, copyq
+# Launch Rofi clipboard history picker with image previews (Alt+V / Win+V)
+rofi-clipboard
+
+# Toggle CopyQ floating GUI
+toggle-copyq.sh
+
+% search, notifications, rofi, dunst
+# Instant Google web search prompt in Rofi (Alt+Shift+W / Win+W)
+rofi-websearch.sh
+
+# Open interactive Dunst notification history center
+rofi-notification-center.sh
+
+# Close all active Dunst desktop notifications
+dunstctl close-all
+
+# Redisplay the last dismissed notification
+dunstctl history-pop
+
+% screenshot, capture, flameshot, maim
+# Interactive screenshot selection with drawing and annotations
+flameshot-safe.sh gui
+
+# Capture full desktop immediately to Pictures/Screenshots and clipboard
+flameshot-safe.sh full
+
+# Capture current active monitor screen
+flameshot-safe.sh screen
+
+# Capture with countdown delay in seconds
+flameshot-safe.sh delay <seconds>
+
+% volume, brightness, hardware, osd
+# Volume Up (+1% with Dunst OSD)
+volume-osd.sh up
+
+# Volume Down (-1% with Dunst OSD)
+volume-osd.sh down
+
+# Toggle audio mute / unmute
+volume-osd.sh mute
+
+# Toggle microphone mute
+volume-osd.sh mic-mute
+
+# Brightness Up (+10% with Dunst OSD)
+brightness-osd.sh up
+
+# Brightness Down (-10% with Dunst OSD)
+brightness-osd.sh down
+
+% wallpaper, desktop, conky, background
+# Show current wallpaper directory and image count
+wallpaper-dir
+
+# Set new wallpaper directory and apply a random wallpaper immediately
+wallpaper-dir <directory>
+
+# Reset wallpaper directory to default Catppuccin Mocha collection
+wallpaper-dir reset
+
+# Switch to next random wallpaper immediately (Super+N)
+wallpaper-next.sh
+
+# Run one background wallpaper rotation pass manually
+wallpaper-rotate.sh
+
+# Check wallpaper rotation background service status
+systemctl --user status wallpaper-rotate.service
+
+% security, vault, encryption, gocryptfs
+# Toggle gocryptfs encrypted vault lock/unlock in Thunar or CLI
+thunar-vault-toggle <vault_folder>
+
+# Launch Portainer Docker container GUI (http://localhost:9000)
+docker-gui
+
+# Start self-hosted Vaultwarden container and open web vault
+vaultwarden
+
+# Unlock Bitwarden/Vaultwarden session and persist across all terminal tabs
+bw-unlock
+
+# Point Bitwarden CLI to local self-hosted Vaultwarden server
+bw-local
+
+% ai, antigravity, conversation
+# Start interactive Antigravity coding assistant in current directory
+agy
+
+# Resume most recent Antigravity conversation directly in terminal
+agy-last
+
+# Ask a quick one-off coding question without interactive mode
+agy-ask "<prompt>"
+
+# Run bidirectional Antigravity conversation sync (Rust binary)
+sync-antigravity
+
+% prayer, islamic, quran
+# Run background prayer notification daemon
+muslimtify daemon run
+
+# Display prayer schedule for today
+muslimtify today
+
+# Open Muslimtify prayer settings and calculation configuration
+muslimtify config
+
+# Read a specific Surah in Quran companion
+quran <surah_number>
+
+# Read a specific Ayah (surah:ayah)
+quran <surah_ayah>
+
+# Search Quran text
+quran search "<query>"
+
+% dev, tools, git, database
+# Automatically absorb working changes into their respective historical commits
+git-absorb --and-rebase
+
+# Preview commit absorption without modifying history (dry-run)
+git-absorb --dry-run
+
+# Launch interactive database TUI (Postgres, MariaDB/MySQL, SQLite)
+lazysql
+
+# Connect lazysql directly using a connection URL
+lazysql --url "<connection_url>"
+
+# Interactive search and replace TUI across codebase with live diffs
+serpl
+
+# Interactive terminal JSON viewer, navigator, and manipulator
+fx <json_file>
+
+# Background Rust compiler and continuous code checker
+bacon
+
+# Run background Rust tests with bacon
+bacon test
+
+$ seconds: echo -e "3\n5\n10"
+$ vault_folder: echo -e "${HOME}/E/Secret\n${HOME}/E/.Secret_encrypted"
+$ json_file: fd -e json
+$ media_file: fd -e mp3 -e wav -e flac -e m4a -e mp4 -e mkv
+$ directory: fd --type d --max-depth 2 . "$HOME/Pictures"
+
+% cheats, documentation, sync, tldr, navi
+# Run cheatsheet coverage audit and sync ~/.local/share with dotfiles
+sync-cheats
+
+# Automatically generate missing tldr pages and navi cheats for new tools
+sync-cheats --auto
+
+# Generate cheatsheet template for a specific tool
+sync-cheats --generate <tool_name>
+
+% downloads, managers, fdm, abdm, motrix, localsend
+# Launch AB Download Manager (fast Kotlin/Compose downloader)
+ab-download-manager
+
+# Launch Free Download Manager (with portal file chooser fix)
+fdm
+
+# Launch Motrix download manager (HTTP, BitTorrent, Magnet)
+motrix
+
+# Launch LocalSend local network file sharing app
+localsend
+
+% messaging, telegram, clients
+# Launch AyuGram Telegram client (ghost mode & anti-delete)
+ayugram
+
+# Launch 64Gram Telegram client
+64gram
+
+% input, hardware, mouse, keyboard
+# Apply mouse sensitivity and keyboard repeat rates immediately
+apply-input-settings.sh
+
+# Apply input settings without spawning background monitor daemon
+apply-input-settings.sh --no-spawn
+
+% custom, local, tools
+# Expected file path in TB_ASKPASS_LOG env variable
+askpass
+
+% custom, local, tools
+# NAME
+biber
+
+% custom, local, tools
+# Adding additional application library path for Cantor plugins loading "/usr/lib/qt6/plugins"
+cantor
+
+% custom, local, tools
+# claude-desktop utility on Arch Linux.
+claude-desktop
+
+% custom, local, tools
+# conky-music-daemon utility on Arch Linux.
+conky-music-daemon.sh
+
+% custom, local, tools
+# Multi-platform transparent client-side encryption of your files
+cryptomator.AppImage
+
+% custom, local, tools
+# desktop-music-daemon utility on Arch Linux.
+desktop-music-daemon
+
+% custom, local, tools
+# usage: dex [options] [DesktopEntryFile [DesktopEntryFile ...]]
+dex
+
+% custom, local, tools
+# All-in-one voice and text chat for gamers that's free, secure, and works on both your desktop and phone.
+discord
+
+% custom, local, tools
+# Run Fennel, a Lisp programming language for the Lua runtime.
+fennel
+
+% custom, local, tools
+# FDM is a powerful modern download accelerator and organizer
+freedownloadmanager
+
+% custom, local, tools
+# Dynamic mathematics software with interactive graphics, algebra and spreadsheet
+geogebra
+
+% custom, local, tools
+# Access the Internet
+google-chrome
+
+% custom, local, tools
+# input-watch-daemon utility on Arch Linux.
+input-watch-daemon.sh
+
+% custom, local, tools
+# IDE style command line auto complete
+inshellisense
+
+% custom, local, tools
+# Wrapper: software renderer + disable vblank throttling for nouveau
+jetbrains-toolbox
+
+% custom, local, tools
+# KDE Interactive Geometry
+kig
+
+% custom, local, tools
+# Mathematical function plotter by KDE
+kmplot
+
+% custom, local, tools
+# LabPlot is a FREE, open-source and cross-platform Data Visualization and Analysis software accessible to everyone.
+labplot
+
+% custom, local, tools
+# -*- Shell-script -*-
+maxima
+
+% custom, local, tools
+# meson utility on Arch Linux.
+meson
+
+% custom, local, tools
+# mpris-live utility on Arch Linux.
+mpris-live
+
+% custom, local, tools
+# -*- coding: utf-8 -*-
+pykig.py
+
+% custom, local, tools
+# /usr/bin/qbittorrent [options] [(<filename> | <url>)...]
+qbittorrent
+
+% custom, local, tools
+# -*- Shell-script -*-
+rmaxima
+
+% custom, local, tools
+# Shared utilities, Catppuccin Mocha colors, and safety primitives for shell scripts.
+scripts-common.sh
+
+% custom, local, tools
+# 🚀 Creating instant secure HTTPS Cloudflare Tunnel for port --help...
+share-port
+
+% custom, local, tools
+# telegram-desktop utility on Arch Linux.
+telegram-desktop
+
+% custom, local, tools
+# -*- mode: tcl; fill-column: 75; tab-width: 8 -*- \
+xmaxima

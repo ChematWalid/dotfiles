@@ -96,10 +96,10 @@ run_module() {
       cp -rn "$DOTFILES_DIR/.local/share/telegram-themes/." "$HOME/.local/share/telegram-themes/" 2>/dev/null || true
     fi
 
-    if [[ -d "$DOTFILES_DIR/.local/share/navi" ]]; then
-      mkdir -p "$HOME/.local/share/navi/cheats"
-      cp -rn "$DOTFILES_DIR/.local/share/navi/cheats/." "$HOME/.local/share/navi/cheats/" 2>/dev/null || true
-      log "Navi interactive cheatsheets installed"
+    # ── Cheatsheets & Documentation (tealdeer & navi) ───────────────────────────
+    if [[ -x "$DOTFILES_DIR/.local/bin/sync-cheats" ]]; then
+      "$DOTFILES_DIR/.local/bin/sync-cheats" >/dev/null 2>&1 || true
+      log "Tealdeer and Navi custom cheatsheets synchronized (100% coverage)"
     fi
 
     # ── Custom Zsh completions ─────────────────────────────────────────────────

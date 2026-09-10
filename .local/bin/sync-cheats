@@ -1,0 +1,250 @@
+#!/usr/bin/env bash
+# ── sync-cheats ───────────────────────────────────────────────────────────────
+# Automated Cheatsheet & Documentation Synchronizer for tealdeer (tldr) and navi.
+# Ensures all current, suggested, and future tools have proper tldr pages and
+# navi cheatsheets, and keeps ~/.local/share in sync with ~/dotfiles.
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+# Catppuccin Mocha Colors
+readonly C_RESET="\033[0m"
+readonly C_BOLD="\033[1m"
+readonly C_DIM="\033[2m"
+readonly C_MAUVE="\033[38;2;203;166;247m"
+readonly C_BLUE="\033[38;2;137;180;250m"
+readonly C_GREEN="\033[38;2;166;227;161m"
+readonly C_YELLOW="\033[38;2;249;226;175m"
+readonly C_PEACH="\033[38;2;250;179;135m"
+readonly C_RED="\033[38;2;243;139;168m"
+
+DOTFILES_DIR="${HOME}/dotfiles"
+TEALDEER_DOT_DIR="${DOTFILES_DIR}/.local/share/tealdeer/pages"
+NAVI_DOT_DIR="${DOTFILES_DIR}/.local/share/navi/cheats"
+
+TEALDEER_LOCAL_DIR="${HOME}/.local/share/tealdeer/pages"
+NAVI_LOCAL_DIR="${HOME}/.local/share/navi/cheats"
+BIN_DIR="${HOME}/.local/bin"
+
+mkdir -p "$TEALDEER_DOT_DIR" "$NAVI_DOT_DIR" "$HOME/.local/share/tealdeer" "$HOME/.local/share/navi"
+
+# 1. Ensure tealdeer symlink
+sync_symlinks() {
+    echo -e "${C_BOLD}${C_MAUVE}⚡ Synchronizing Cheatsheet Links & Directories...${C_RESET}"
+    
+    # Tealdeer pages directory symlink
+    if [[ -L "$TEALDEER_LOCAL_DIR" ]]; then
+        target=$(readlink -f "$TEALDEER_LOCAL_DIR" || true)
+        if [[ "$target" != "$TEALDEER_DOT_DIR" ]]; then
+            rm -f "$TEALDEER_LOCAL_DIR"
+            ln -sf "$TEALDEER_DOT_DIR" "$TEALDEER_LOCAL_DIR"
+        fi
+    elif [[ -d "$TEALDEER_LOCAL_DIR" ]]; then
+        cp -rn "$TEALDEER_LOCAL_DIR"/* "$TEALDEER_DOT_DIR"/ 2>/dev/null || true
+        rm -rf "$TEALDEER_LOCAL_DIR"
+        ln -sf "$TEALDEER_DOT_DIR" "$TEALDEER_LOCAL_DIR"
+    else
+        ln -sf "$TEALDEER_DOT_DIR" "$TEALDEER_LOCAL_DIR"
+    fi
+    echo -e "  ${C_GREEN}✓${C_RESET} tealdeer: ${TEALDEER_LOCAL_DIR} ➔ ${C_BLUE}${TEALDEER_DOT_DIR}${C_RESET}"
+
+    # Navi cheats files symlinks
+    mkdir -p "$NAVI_LOCAL_DIR"
+    for cheat in "$NAVI_DOT_DIR"/*.cheat; do
+        [[ -f "$cheat" ]] || continue
+        base=$(basename "$cheat")
+        ln -sf "$cheat" "$NAVI_LOCAL_DIR/$base"
+    done
+    echo -e "  ${C_GREEN}✓${C_RESET} navi: linked all dotfiles cheats into ${C_BLUE}${NAVI_LOCAL_DIR}${C_RESET}"
+}
+
+# 2. Extract description from script header, desktop file, or quick timeout
+get_description() {
+    local target="$1"
+    local base
+    base=$(basename "$target")
+    local clean="${base%.sh}"
+    clean="${clean%.AppImage}"
+    local desc=""
+    
+    # Check .desktop entries first (safest and best descriptions)
+    for d in "$HOME/.local/share/applications/${clean}.desktop" "/usr/share/applications/${clean}.desktop" "/usr/share/applications/${clean,,}.desktop"; do
+        if [[ -f "$d" ]]; then
+            desc=$(grep -E '^Comment=' "$d" | head -n 1 | cut -d'=' -f2- || true)
+            [[ -n "$desc" ]] && break
+        fi
+    done
+    
+    # Check script comments
+    if [[ -z "$desc" && -f "$target" && -r "$target" ]]; then
+        if file "$target" | grep -qE 'text|script'; then
+            desc=$(head -n 25 "$target" 2>/dev/null | grep -E '^#(\s*──)?\s*([a-zA-Z0-9_-]+\s*—|Description:|Features:)?' | grep -v '^#!' | grep -v '^# ──' | grep -v '^# ══' | head -n 1 | sed -E 's/^#+\s*//' | tr -d '`' || true)
+        fi
+    fi
+    
+    # Fast guarded --help fallback (only for non-GUI binaries)
+    if [[ -z "$desc" && -x "$target" ]]; then
+        desc=$(timeout 0.3s "$target" --help 2>&1 | grep -v '^Usage:' | grep -v '^[[:space:]]*$' | head -n 1 | sed -E 's/^[[:space:]]*//' | tr -d '`' || true)
+    fi
+    
+    if [[ -z "$desc" ]]; then
+        desc="${clean} utility on Arch Linux."
+    fi
+    echo "$desc"
+}
+
+# 3. Generate a tldr page for a missing tool
+generate_tldr_page() {
+    local tool_name="$1"
+    local clean_name="${tool_name%.sh}"
+    clean_name="${clean_name%.AppImage}"
+    local page_path="${TEALDEER_DOT_DIR}/${clean_name}.page.md"
+    local full_bin="${BIN_DIR}/${tool_name}"
+    
+    [[ -f "$page_path" ]] && return 0
+    
+    local desc
+    desc=$(get_description "$full_bin")
+    
+    cat << TLDR_EOF > "$page_path"
+# ${clean_name}
+
+> ${desc}
+> Managed locally in ~/.local/bin/${tool_name}.
+
+- Run default action:
+  \`${tool_name}\`
+
+- Show help and usage details:
+  \`${tool_name} --help\`
+TLDR_EOF
+
+    # Create .sh alias if needed
+    if [[ "$tool_name" == *".sh" ]]; then
+        ln -sf "${clean_name}.page.md" "${TEALDEER_DOT_DIR}/${tool_name}.page.md" 2>/dev/null || true
+    fi
+    echo -e "  ${C_PEACH}+ Generated tldr page:${C_RESET} ${page_path}"
+}
+
+# 4. Generate a navi cheat entry for a missing tool
+generate_navi_entry() {
+    local tool_name="$1"
+    local clean_name="${tool_name%.sh}"
+    clean_name="${clean_name%.AppImage}"
+    local cheat_file="${NAVI_DOT_DIR}/walid-custom-tools.cheat"
+    local full_bin="${BIN_DIR}/${tool_name}"
+    
+    if grep -qE "(#|^\s*)\b${tool_name}\b" "$cheat_file" 2>/dev/null || grep -qE "(#|^\s*)\b${clean_name}\b" "$cheat_file" 2>/dev/null; then
+        return 0
+    fi
+    
+    local desc
+    desc=$(get_description "$full_bin")
+    
+    cat << NAVI_EOF >> "$cheat_file"
+
+% custom, local, tools
+# ${desc}
+${tool_name}
+NAVI_EOF
+    echo -e "  ${C_PEACH}+ Appended navi cheat:${C_RESET} ${tool_name} in walid-custom-tools.cheat"
+}
+
+# 5. Full audit
+run_audit() {
+    local auto_gen="${1:-false}"
+    echo ""
+    echo -e "${C_BOLD}${C_BLUE}🔍 Auditing Installed Tools vs Cheatsheet Registries...${C_RESET}"
+    
+    local total_tools=0
+    local has_tldr=0
+    local missing_tldr=()
+    local has_navi=0
+    local missing_navi=()
+    
+    local raw_bins=()
+    while IFS= read -r f; do
+        [[ -f "$f" || -L "$f" ]] || continue
+        base=$(basename "$f")
+        # Ignore backups, library objects, text assets, internal helpers
+        [[ "$base" == *".bak" || "$base" == *".so"* || "$base" == *".png" || "$base" == *".svg" || "$base" == *".txt" || "$base" == *".json" || "$base" == *".desktop" || "$base" == "cantor_"* || "$base" == *".bin" || "$base" == *"-probe" ]] && continue
+        raw_bins+=("$base")
+    done < <(find "$BIN_DIR" "$DOTFILES_DIR/.local/bin" -maxdepth 1 -type f -o -type l 2>/dev/null)
+    
+    # Deduplicate
+    local bins=()
+    while IFS= read -r line; do
+        bins+=("$line")
+    done < <(printf '%s\n' "${raw_bins[@]}" | sort -u)
+    
+    for tool in "${bins[@]}"; do
+        (( total_tools++ )) || true
+        local clean="${tool%.sh}"
+        clean="${clean%.AppImage}"
+        
+        # Check tldr
+        if [[ -f "${TEALDEER_DOT_DIR}/${tool}.page.md" ]] || [[ -f "${TEALDEER_DOT_DIR}/${clean}.page.md" ]] || tldr "$tool" >/dev/null 2>&1 || tldr "$clean" >/dev/null 2>&1; then
+            (( has_tldr++ )) || true
+        else
+            missing_tldr+=("$tool")
+            if [[ "$auto_gen" == "true" ]]; then
+                generate_tldr_page "$tool"
+            fi
+        fi
+        
+        # Check navi
+        if grep -rqE "\b${tool}\b" "$NAVI_DOT_DIR" 2>/dev/null || grep -rqE "\b${clean}\b" "$NAVI_DOT_DIR" 2>/dev/null; then
+            (( has_navi++ )) || true
+        else
+            missing_navi+=("$tool")
+            if [[ "$auto_gen" == "true" ]]; then
+                generate_navi_entry "$tool"
+            fi
+        fi
+    done
+    
+    echo ""
+    echo -e "${C_BOLD}📊 Cheatsheet Coverage Report:${C_RESET}"
+    echo -e "  • Total Custom & Local Tools: ${C_BOLD}${total_tools}${C_RESET}"
+    echo -e "  • tealdeer (tldr) Pages     : ${C_GREEN}${has_tldr}${C_RESET} / ${total_tools} (Missing: ${#missing_tldr[@]})"
+    echo -e "  • navi Cheatsheets          : ${C_GREEN}${has_navi}${C_RESET} / ${total_tools} (Missing: ${#missing_navi[@]})"
+    
+    if [[ ${#missing_tldr[@]} -gt 0 ]]; then
+        echo ""
+        echo -e "${C_YELLOW}⚠️  Missing tldr pages:${C_RESET} ${missing_tldr[*]}"
+    fi
+    if [[ ${#missing_navi[@]} -gt 0 ]]; then
+        echo -e "${C_YELLOW}⚠️  Missing navi cheats:${C_RESET} ${missing_navi[*]}"
+    fi
+    
+    if [[ "$auto_gen" == "false" && ( ${#missing_tldr[@]} -gt 0 || ${#missing_navi[@]} -gt 0 ) ]]; then
+        echo ""
+        echo -e "${C_DIM}Tip: Run '${C_MAUVE}sync-cheats --auto${C_DIM}' to automatically generate missing pages & cheats!${C_RESET}"
+    fi
+}
+
+case "${1:-}" in
+    --check)
+        sync_symlinks
+        run_audit false
+        ;;
+    --auto)
+        sync_symlinks
+        run_audit true
+        ;;
+    --generate)
+        target_tool="${2:-}"
+        if [[ -z "$target_tool" ]]; then
+            echo "Usage: sync-cheats --generate <tool-name>" >&2
+            exit 1
+        fi
+        sync_symlinks
+        generate_tldr_page "$target_tool"
+        generate_navi_entry "$target_tool"
+        echo -e "${C_GREEN}✓ Successfully generated tldr page and navi cheat for ${target_tool}.${C_RESET}"
+        ;;
+    *)
+        sync_symlinks
+        run_audit false
+        ;;
+esac
