@@ -12,3 +12,5 @@ copyq.lock
 *.backup*
 *.backup-*
 target/
+lockfile
+timers.target.wants/

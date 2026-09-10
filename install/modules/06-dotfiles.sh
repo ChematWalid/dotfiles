@@ -49,7 +49,7 @@ run_module() {
       gh-dash gitui glow gtk-3.0 gtk-4.0 i3 khal kitty lazydocker
       lazygit lf mise mpd mpv ncmpcpp nvim picom polybar qbittorrent
       qBittorrent rclone rofi songrec spicetify starship superfile systemd
-      tealdeer thefuck Thunar tmux tumbler xfce4 xsettingsd yazi zellij zsh-plugins
+      tealdeer thefuck Thunar tmux tumbler xfce4 xsettingsd yazi zellij zsh zsh-plugins
     )
     for d in "${config_dirs[@]}"; do
       if [[ -d "$DOTFILES_DIR/.config/$d" ]]; then
