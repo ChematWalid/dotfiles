@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# ── drop ──────────────────────────────────────────────────────────────────────
+# Fast drag-and-drop utility from terminal to GUI apps using ripdrag.
+# Usage: drop <file1> [file2...]
+# ─────────────────────────────────────────────────────────────────────────────
+if [[ $# -eq 0 ]]; then
+    echo "Usage: drop <file1> [file2...]" >&2
+    exit 1
+fi
+exec ripdrag -x -a "$@"

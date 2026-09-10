@@ -1,0 +1,9 @@
+--theme=/home/walid/.config/silicon/theme.tmTheme
+--font="JetBrainsMono Nerd Font"
+--background=#1e1e2e
+--pad-horiz=30
+--pad-vert=30
+--shadow-color=#11111b
+--shadow-blur-radius=10
+--line-pad=4
+--tab-width=4

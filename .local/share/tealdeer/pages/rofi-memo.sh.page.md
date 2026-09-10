@@ -1,0 +1,1 @@
+/home/walid/dotfiles/.local/share/tealdeer/pages/rofi-memo.page.md

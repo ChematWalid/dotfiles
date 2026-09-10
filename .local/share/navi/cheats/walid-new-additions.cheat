@@ -1,0 +1,91 @@
+% ncspot, spotify, music, tui, rust
+
+# Launch ncspot Spotify terminal player
+ncspot
+
+# Launch ncspot with custom config
+ncspot -c ~/.config/ncspot/config.toml
+
+% ripdrag, drop, drag, drop, gui, upload
+
+# Drag files from terminal into GUI apps (AyuGram, Discord, Browser)
+drop <file1> <file2>
+
+# Drag file and exit automatically on drop
+ripdrag -x -a <file>
+
+# Drag from stdin
+echo "<file_path>" | ripdrag -I
+
+% hyperfine, benchmark, performance, rust
+
+# Benchmark command execution speed
+hyperfine '<command>'
+
+# Compare multiple commands head-to-head
+hyperfine '<command1>' '<command2>'
+
+# Benchmark with warm-up runs
+hyperfine --warmup 3 '<command>'
+
+# Export benchmark results to markdown table
+hyperfine --export-markdown results.md '<command1>' '<command2>'
+
+% bandwhich, network, bandwidth, monitor, rust
+
+# Launch live process bandwidth monitor
+sudo bandwhich
+
+# Monitor specific interface
+sudo bandwhich -i <interface>
+
+# Show process bandwidth table only
+sudo bandwhich -p
+
+# Show remote connections only
+sudo bandwhich -c
+
+% grex, regex, generator, rust
+
+# Generate regex from test strings
+grex "<string1>" "<string2>" "<string3>"
+
+# Generate regex with shorthand digits (\d)
+grex -s "<string1>" "<string2>"
+
+# Generate case-insensitive regex
+grex -c "<string1>" "<string2>"
+
+% jless, json, pager, viewer, rust
+
+# Interactively view and navigate JSON file
+jless <file.json>
+
+# Pipe API response into interactive JSON viewer
+xh get <url> | jless
+
+% silicon, code, screenshot, image, catppuccin, rust
+
+# Generate beautiful code image from source file
+silicon <file.rs> -o <snippet.png>
+
+# Generate code image from clipboard and copy result image back to clipboard
+xclip -o | silicon -l <language> -c
+
+# Generate code image with line highlight
+silicon --highlight-lines 10-20 <file.py> -o <snippet.png>
+
+% rofi-bluetooth, bluetooth, devices, rofi
+
+# Open Rofi Bluetooth manager (Super+B)
+rofi-bluetooth -theme ~/.config/rofi/config.rasi
+
+% rofi-memo, notes, scratchpad, memo
+
+# Open Rofi quick memo taker / reader (Super+Shift+O)
+rofi-memo.sh
+
+% cava, visualizer, audio, popup
+
+# Toggle floating Catppuccin Cava audio visualizer (Super+Shift+V)
+toggle-cava.sh
