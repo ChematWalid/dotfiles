@@ -7,7 +7,19 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <stdarg.h>
+
 #define CACHE_FILE_REL "/.cache/last_used_directory"
+
+static void log_debug(const char *fmt, ...) {
+    FILE *f = fopen("/tmp/portal-debug.log", "a");
+    if (!f) return;
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(f, fmt, args);
+    va_end(args);
+    fclose(f);
+}
 
 static void get_cache_file(char *buf, size_t size) {
     const char *home = getenv("HOME");
@@ -65,6 +77,19 @@ static void save_last_dir(const char *dir) {
         fputs(dir, f);
         fclose(f);
         rename(temp_path, cache_path);
+    }
+
+    const char *home = getenv("HOME");
+    if (!home) home = "/home/walid";
+    char fdm_cache[1024];
+    snprintf(fdm_cache, sizeof(fdm_cache), "%s/.cache/fdm_last_selected_folder", home);
+    char fdm_tmp[1024];
+    snprintf(fdm_tmp, sizeof(fdm_tmp), "%s.tmp.%d", fdm_cache, (int)getpid());
+    FILE *f_fdm = fopen(fdm_tmp, "w");
+    if (f_fdm) {
+        fputs(dir, f_fdm);
+        fclose(f_fdm);
+        rename(fdm_tmp, fdm_cache);
     }
 
     update_qt_project_conf(dir);
@@ -260,15 +285,22 @@ gboolean gtk_file_chooser_set_current_folder(GtkFileChooser *chooser, const gcha
         orig_set_current_folder = (orig_set_current_folder_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_set_current_folder");
     }
 
+    gpointer initialized = g_object_get_data(G_OBJECT(chooser), "remember_dir_initialized");
+    gboolean is_visible = GTK_IS_WIDGET(chooser) && (gtk_widget_get_mapped(GTK_WIDGET(chooser)) || gtk_widget_get_realized(GTK_WIDGET(chooser)));
+
     const char *target = filename;
     char *last = NULL;
 
-    if (is_default_generic_path(filename)) {
+    if (!initialized && !is_visible && is_default_generic_path(filename)) {
         last = load_last_dir();
         if (last) {
             target = last;
         }
+        g_object_set_data(G_OBJECT(chooser), "remember_dir_initialized", GINT_TO_POINTER(1));
     }
+
+    log_debug("set_current_folder: in='%s', target='%s', initialized=%d, is_visible=%d\n",
+              filename ? filename : "NULL", target ? target : "NULL", initialized ? 1 : 0, is_visible ? 1 : 0);
 
     gboolean res = orig_set_current_folder ? orig_set_current_folder(chooser, target) : FALSE;
     if (last) free(last);
@@ -282,17 +314,22 @@ void gtk_widget_show(GtkWidget *widget) {
 
     if (GTK_IS_FILE_CHOOSER(widget)) {
         GtkFileChooser *chooser = GTK_FILE_CHOOSER(widget);
-        gchar *current = gtk_file_chooser_get_current_folder(chooser);
-        if (is_default_generic_path(current)) {
-            char *last = load_last_dir();
-            if (last) {
-                if (orig_set_current_folder) {
-                    orig_set_current_folder(chooser, last);
+        gpointer initialized = g_object_get_data(G_OBJECT(chooser), "remember_dir_initialized");
+        if (!initialized) {
+            gchar *current = gtk_file_chooser_get_current_folder(chooser);
+            log_debug("widget_show: chooser current='%s'\n", current ? current : "NULL");
+            if (is_default_generic_path(current)) {
+                char *last = load_last_dir();
+                if (last) {
+                    if (orig_set_current_folder) {
+                        orig_set_current_folder(chooser, last);
+                    }
+                    free(last);
                 }
-                free(last);
             }
+            if (current) g_free(current);
+            g_object_set_data(G_OBJECT(chooser), "remember_dir_initialized", GINT_TO_POINTER(1));
         }
-        if (current) g_free(current);
 
         attach_typable_location_bar(widget, chooser);
     }
@@ -308,14 +345,22 @@ GSList* gtk_file_chooser_get_uris(GtkFileChooser *chooser) {
     }
 
     GSList *uris = orig_get_uris ? orig_get_uris(chooser) : NULL;
+    log_debug("get_uris called, uris=%p\n", uris);
     if (uris && uris->data) {
+        for (GSList *l = uris; l != NULL; l = l->next) {
+            log_debug("  uri: '%s'\n", (char *)l->data);
+        }
         char *uri = (char *)uris->data;
         char *filename = g_filename_from_uri(uri, NULL, NULL);
         if (filename) {
-            char *dirname = g_path_get_dirname(filename);
-            if (dirname) {
-                save_last_dir(dirname);
-                g_free(dirname);
+            if (g_file_test(filename, G_FILE_TEST_IS_DIR)) {
+                save_last_dir(filename);
+            } else {
+                char *dirname = g_path_get_dirname(filename);
+                if (dirname) {
+                    save_last_dir(dirname);
+                    g_free(dirname);
+                }
             }
             g_free(filename);
         }
@@ -330,10 +375,14 @@ gchar* gtk_file_chooser_get_filename(GtkFileChooser *chooser) {
 
     gchar *filename = orig_get_filename ? orig_get_filename(chooser) : NULL;
     if (filename) {
-        char *dirname = g_path_get_dirname(filename);
-        if (dirname) {
-            save_last_dir(dirname);
-            g_free(dirname);
+        if (g_file_test(filename, G_FILE_TEST_IS_DIR)) {
+            save_last_dir(filename);
+        } else {
+            char *dirname = g_path_get_dirname(filename);
+            if (dirname) {
+                save_last_dir(dirname);
+                g_free(dirname);
+            }
         }
     }
     return filename;
@@ -347,10 +396,14 @@ GSList* gtk_file_chooser_get_filenames(GtkFileChooser *chooser) {
     GSList *filenames = orig_get_filenames ? orig_get_filenames(chooser) : NULL;
     if (filenames && filenames->data) {
         char *filename = (char *)filenames->data;
-        char *dirname = g_path_get_dirname(filename);
-        if (dirname) {
-            save_last_dir(dirname);
-            g_free(dirname);
+        if (g_file_test(filename, G_FILE_TEST_IS_DIR)) {
+            save_last_dir(filename);
+        } else {
+            char *dirname = g_path_get_dirname(filename);
+            if (dirname) {
+                save_last_dir(dirname);
+                g_free(dirname);
+            }
         }
     }
     return filenames;

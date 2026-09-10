@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
 #  hdd-route — Move large app & cache data from SSD to HDD and symlink back
-#  Repo: https://github.com/ACEECA1/dotfiles
+#  Repo: https://github.com/ChematWalid/dotfiles
 #  Usage: hdd-route all | hdd-route pictures | hdd-route status
 # ══════════════════════════════════════════════════════════════════════════════
 
