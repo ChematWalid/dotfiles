@@ -59,3 +59,9 @@ scrollbar.overlay-indicator.dragging,
 scrollbar.overlay-indicator.hovering {
     background-color: rgba(24, 24, 37, 0.6);
 }
+
+/* ── Zero-thickness border for Catppuccin popups, menus, & popovers ────────── */
+popover, popover.background, menu, .popup, tooltip {
+    border: none;
+}
+
