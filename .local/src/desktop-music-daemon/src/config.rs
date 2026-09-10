@@ -5,5 +5,5 @@ pub const TMP_FILE: &str = "/tmp/conky-music.txt.tmp";
 pub const PID_FILE: &str = "/tmp/.desktop-music-daemon.pid";
 
 // Nerd Font Glyphs (matching Polybar mpris-live)
-pub const ICON_PLAY: &str = "\u{f03e5}"; // 󰏥 Pause circle || (when playing)
-pub const ICON_PAUSE: &str = "\u{f040c}"; // 󰐌 Play circle triangle ▶ (when paused)
+pub const ICON_PLAY: &str = "\u{f03e4}"; // 󰏤 Pause bars || (when playing)
+pub const ICON_PAUSE: &str = "\u{f040a}"; // 󰐊 Play triangle ▶ (when paused)
