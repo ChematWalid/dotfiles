@@ -38,17 +38,23 @@ main() {
     local actions=()
     local nids=()
     local appnames=()
+    local summaries=()
+    local bodies=()
 
     # Fixed top actions
     rofi_lines+=("󰎟  Redisplay Latest Notification")
     actions+=("pop_latest")
     nids+=("0")
     appnames+=("")
+    summaries+=("")
+    bodies+=("")
 
     rofi_lines+=("󰎟  Clear All Notification History")
     actions+=("clear_all")
     nids+=("0")
     appnames+=("")
+    summaries+=("")
+    bodies+=("")
 
     for item in "${parsed_items[@]}"; do
         [[ -z "$item" ]] && continue
@@ -64,6 +70,8 @@ main() {
         actions+=("open")
         nids+=("$id")
         appnames+=("$app")
+        summaries+=("$summary")
+        bodies+=("$body")
     done
 
     # Run Rofi in dmenu mode
@@ -97,6 +105,16 @@ main() {
         open)
             local nid="${nids[$idx]}"
             local app="${appnames[$idx]}"
+            local sum="${summaries[$idx]}"
+            local bdy="${bodies[$idx]}"
+            local full="$sum"
+            [[ -n "$bdy" ]] && full+=$'\n'"$bdy"
+            if command -v xclip >/dev/null 2>&1; then
+                printf "%s" "$full" | xclip -selection clipboard 2>/dev/null || true
+            fi
+            if command -v copyq >/dev/null 2>&1; then
+                copyq add "$full" 2>/dev/null || true
+            fi
             if [[ -n "$nid" && "$nid" != "0" ]]; then
                 dunstctl history-pop "$nid" >/dev/null 2>&1 || true
             fi

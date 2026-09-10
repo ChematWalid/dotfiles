@@ -353,3 +353,19 @@ telegram-desktop
 % custom, local, tools
 # -*- mode: tcl; fill-column: 75; tab-width: 8 -*- \
 xmaxima
+
+% custom, local, tools
+# bottom 0.14.9
+btm
+
+% custom, local, tools
+# NAME:
+doggo
+
+% custom, local, tools
+# dunst-history utility on Arch Linux.
+dunst-history.sh
+
+% custom, local, tools
+# ocr-screenshot utility on Arch Linux.
+ocr-screenshot.sh

@@ -39,6 +39,7 @@ export GOCACHE="$HDD/.cache/go-build"
 export HF_HOME="$HDD/.cache/huggingface"
 export TORCH_HOME="$HDD/.cache/torch"
 export XDG_CACHE_HOME="$HOME/.cache"
+export TESSDATA_PREFIX="$HOME/.local/share/tessdata"
 
 # ── Mobile dev ──
 export ANDROID_HOME="$HDD/Android/Sdk"
