@@ -1,0 +1,15 @@
+[Unit]
+Description=Spotify daemon (Rust)
+Documentation=https://github.com/Spotifyd/spotifyd
+Wants=sound.target
+After=sound.target
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/home/walid/.local/bin/spotifyd --no-daemon --config-path /home/walid/.config/spotifyd/spotifyd.conf
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

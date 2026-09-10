@@ -214,3 +214,46 @@ wallpaper-dir reset
 
 # Pick next random wallpaper immediately (Super + N)
 wallpaper-next.sh
+
+% spotifyd, spotify, daemon, music, rust
+
+# Start spotifyd daemon manually with config
+spotifyd --no-daemon --config-path ~/.config/spotifyd/spotifyd.conf
+
+# Start spotifyd systemd user service
+systemctl --user start spotifyd
+
+# Stop spotifyd systemd user service
+systemctl --user stop spotifyd
+
+# Enable spotifyd at user login
+systemctl --user enable spotifyd
+
+# Check spotifyd status and logs
+systemctl --user status spotifyd
+
+# View spotifyd live journal logs
+journalctl --user -u spotifyd -f
+
+% mopidy, iris, music, web, mpd, mpris
+
+# Start mopidy with Iris web client
+mopidy
+
+# Start mopidy systemd user service
+systemctl --user start mopidy
+
+# Stop mopidy systemd user service
+systemctl --user stop mopidy
+
+# Enable mopidy at user login
+systemctl --user enable mopidy
+
+# Check mopidy status and logs
+systemctl --user status mopidy
+
+# Open Iris web interface in browser (port 6680)
+xdg-open http://localhost:6680/iris/
+
+# Connect ncmpcpp to Mopidy MPD server (port 6601)
+ncmpcpp -p 6601

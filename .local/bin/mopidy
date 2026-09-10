@@ -1,0 +1,3 @@
+#!/bin/bash
+export GST_PLUGIN_PATH="/home/walid/.local/lib/gstreamer-1.0:${GST_PLUGIN_PATH}"
+exec /home/walid/.local/share/mopidy-env/bin/mopidy "$@"
