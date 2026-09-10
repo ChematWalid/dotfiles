@@ -138,7 +138,7 @@
 
 [telegram]
     appname = "Telegram Desktop"
-    default_icon = "telegram"
+    default_icon = "com.ayugram.desktop"
 
 [ayugram]
     appname = "AyuGram"

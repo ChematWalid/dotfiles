@@ -9,3 +9,4 @@ Type=Application
 Categories=Network;InstantMessaging;Chat;
 Keywords=telegram;tg;ayugram;chat;messaging;
 StartupWMClass=AyuGram
+MimeType=x-scheme-handler/tg;x-scheme-handler/tonsite;

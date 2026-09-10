@@ -17,13 +17,13 @@ esac
 
 # Map notification appname to X11 WM_CLASS and process names
 declare -A APP_CLASS_MAP
-APP_CLASS_MAP["Telegram Desktop"]="TelegramDesktop"
-APP_CLASS_MAP["telegram-desktop"]="TelegramDesktop"
-APP_CLASS_MAP["telegram"]="TelegramDesktop"
+APP_CLASS_MAP["Telegram Desktop"]="AyuGram"
+APP_CLASS_MAP["telegram-desktop"]="AyuGram"
+APP_CLASS_MAP["telegram"]="AyuGram"
 APP_CLASS_MAP["AyuGram"]="AyuGram"
 APP_CLASS_MAP["AyuGram Desktop"]="AyuGram"
-APP_CLASS_MAP["64Gram"]="TelegramDesktop"
-APP_CLASS_MAP["64Gram Desktop"]="TelegramDesktop"
+APP_CLASS_MAP["64Gram"]="AyuGram"
+APP_CLASS_MAP["64Gram Desktop"]="AyuGram"
 APP_CLASS_MAP["Spotify"]="Spotify"
 APP_CLASS_MAP["spotify"]="Spotify"
 APP_CLASS_MAP["Google Chrome"]="Google-chrome"

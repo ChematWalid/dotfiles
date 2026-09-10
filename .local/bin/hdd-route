@@ -69,7 +69,7 @@ TARGET="${1:-help}"
 
 case "$TARGET" in
 
-  telegram)
+  telegram|ayugram)
     echo "=== Routing Telegram, AyuGram & 64Gram to HDD ==="
     move_and_link "$HOME/.local/share/AyuGram"          "$HOME_SHARE/AyuGram"
     move_and_link "$HOME/.local/share/AyuGramDesktop"   "$HOME_SHARE/AyuGramDesktop"

@@ -133,3 +133,7 @@ alias box='boxes -d stone'
 alias matrix='cmatrix -b -C cyan'
 alias bonsai='cbonsai -l -t 0.05'
 alias aquarium='asciiquarium'
+
+# Communication
+alias telegram='ayugram'
+alias telegram-desktop='ayugram'

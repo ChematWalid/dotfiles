@@ -205,7 +205,6 @@ syncthing
 system-config-printer
 task
 tealdeer
-telegram-desktop
 texlive-basic
 texlive-binextra
 texlive-fontsrecommended
