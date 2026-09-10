@@ -19,8 +19,8 @@ pub const ICON_PLAY_BTN: &str = "\u{f040c}"; // 󰐌 play circle
 pub const ICON_PREV: &str = "\u{f04ae}"; // 󰒮 previous
 pub const ICON_NEXT: &str = "\u{f04ad}"; // 󰒭 next
 pub const ICON_NOTE: &str = "\u{f0386}"; // 󰎆 musical note
-pub const ICON_CONKY_PLAY: &str = "\u{f03e5}"; // 󰏥 pause circle (matches Polybar playing)
-pub const ICON_CONKY_PAUSE: &str = "\u{f040c}"; // 󰐌 play circle (matches Polybar paused)
+pub const ICON_CONKY_PLAY: &str = "\u{f040c}"; // 󰐌 play circle triangle (when playing)
+pub const ICON_CONKY_PAUSE: &str = "\u{f03e5}"; // 󰏥 pause circle || (when paused)
 
 // Catppuccin Mocha Colors
 pub const COLOR_GREEN: &str = "#a6e3a1";
