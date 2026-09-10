@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ── rofi-bluetooth ────────────────────────────────────────────────────────────
+# Enhanced Bluetooth menu with controller health check & auto-diagnostic.
+# ─────────────────────────────────────────────────────────────────────────────
+if bluetoothctl show 2>&1 | grep -qi "No default controller"; then
+    CHOICE=$(echo -e "🔄 Attempt Adapter Reload (sudo)\n❌ Close" | rofi -dmenu -p "⚠️ No Bluetooth Controller" -mesg "Kernel driver (ath3k/btusb) timed out during boot.\nDevice: Qualcomm Atheros AR3011 (0cf3:3002)\nAction: Reload module or replug USB dongle." -theme ~/.config/rofi/config.rasi)
+    if [[ "$CHOICE" == *"Attempt Adapter Reload"* ]]; then
+        kitty --class "FloatingTerm" --title "Bluetooth Adapter Reset" -e bash -c "echo 'Reloading Bluetooth kernel modules (ath3k / btusb)...'; sudo modprobe -r ath3k btusb 2>/dev/null; sleep 1; sudo modprobe ath3k; sudo modprobe btusb; sleep 1; bluetoothctl show; echo ''; echo 'Press Enter to finish...'; read"
+    fi
+    exit 0
+fi
+
+exec /usr/bin/rofi-bluetooth "$@"
