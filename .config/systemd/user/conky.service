@@ -1,12 +1,11 @@
 [Unit]
 Description=Conky Desktop Clock and Song Display
 After=graphical-session.target
-PartOf=graphical-session.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStartPre=/usr/bin/bash -c 'for i in {1..30}; do pgrep -x picom >/dev/null && break; sleep 0.1; done'
+ExecStartPre=/usr/bin/bash -c 'for i in {1..60}; do pgrep -x picom >/dev/null && break; sleep 0.1; done'
 ExecStart=/usr/bin/conky -c /home/walid/.config/conky/conky.conf -q
 Restart=always
 RestartSec=1
