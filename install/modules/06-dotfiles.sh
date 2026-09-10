@@ -37,9 +37,9 @@ run_module() {
       [[ -d "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" ]] && safe_link "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
     elif [[ -d "/mnt/drive3" ]]; then
       safe_link "/mnt/drive3" "$HOME/E"
-      [[ -d "/mnt/drive3/Coding" ]] && safe_link "$DATA_MOUNT/Coding" "$HOME/Coding"
-      [[ -d "/mnt/drive3/Pictures" ]] && safe_link "$DATA_MOUNT/Pictures" "$HOME/Pictures"
-      [[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && safe_link "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+      [[ -d "/mnt/drive3/Coding" ]] && safe_link "/mnt/drive3/Coding" "$HOME/Coding"
+      [[ -d "/mnt/drive3/Pictures" ]] && safe_link "/mnt/drive3/Pictures" "$HOME/Pictures"
+      [[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && safe_link "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
     fi
 
     # ── ~/.config directories — symlinked wholesale ─────────────────────────────

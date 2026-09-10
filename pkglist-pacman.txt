@@ -50,6 +50,7 @@ docker-buildx
 docker-compose
 dog
 duf
+dex
 dunst
 dust
 efibootmgr

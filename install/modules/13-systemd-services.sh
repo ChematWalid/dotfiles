@@ -10,7 +10,7 @@ run_module() {
   if prompt_yn "Enable user systemd services (conky, mpd, syncthing, desktop daemons)?" "y"; then
     systemctl --user daemon-reload 2>/dev/null || true
     local svc
-    for svc in copyq greenclip i3-autoname mpd syncthing wireplumber conky desktop-music-daemon wallpaper-rotate sync-antigravity.timer; do
+    for svc in copyq greenclip i3-autoname mpd syncthing wireplumber conky desktop-music-daemon wallpaper-rotate muslimtify sync-antigravity.timer; do
       if systemctl --user enable "$svc" 2>/dev/null; then
         log "Enabled: $svc"
       else
