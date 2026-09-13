@@ -1,6 +1,5 @@
 [Unit]
 Description=Antigravity Bidirectional Conversation Synchronizer Timer
-After=default.target
 
 [Timer]
 OnBootSec=1m
