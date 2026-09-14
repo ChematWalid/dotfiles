@@ -20,12 +20,14 @@ else
 fi
 
 export CARGO_HOME="$HOME/.cargo"
+export GOPATH="$HDD/go"
 export PNPM_HOME="$HDD/.pnpm-store"
-export PATH="$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$PATH"
+export PATH="$GOPATH/bin:$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$PATH"
 export HF_HOME="$HDD/.cache/huggingface"
 export ANDROID_HOME="$HDD/Android/Sdk"
 
 # === Aliases ===
+[[ -f "$HOME/.config/zsh/conf.d/50-aliases.zsh" ]] && source "$HOME/.config/zsh/conf.d/50-aliases.zsh"
 alias ls='eza --icons'
 alias ll='eza -la --icons --git'
 alias cat='bat --theme="Catppuccin Mocha"'

@@ -12,7 +12,7 @@ pkill -f "network-tail.sh" 2>/dev/null || true
 
 # Wait until all polybar processes have shut down (max 1s)
 for _ in {1..10}; do
-    if ! pgrep -u "$UID" -x polybar >/dev/null; then
+    if ! pgrep -u "${UID:-$(id -u)}" -x polybar >/dev/null; then
         break
     fi
     sleep 0.1
@@ -22,12 +22,14 @@ done
 killall -9 polybar 2>/dev/null || true
 
 # Launch main polybar
-DISPLAY="${DISPLAY:-:0}" nohup polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 &
+DISPLAY="${DISPLAY:-:0}" nohup polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 & disown
 
 # Wait for IPC socket to initialize and hide Polybar by default
-for _ in {1..20}; do
-    if polybar-msg cmd hide 2>/dev/null; then
-        break
-    fi
-    sleep 0.05
-done
+if [[ "${1:-}" != "--show" ]]; then
+    for _ in {1..20}; do
+        if polybar-msg cmd hide 2>/dev/null; then
+            break
+        fi
+        sleep 0.05
+    done
+fi

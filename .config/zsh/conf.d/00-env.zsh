@@ -50,6 +50,6 @@ export GEM_HOME="$HDD/.gems"
 export GEM_PATH="$HDD/.gems"
 
 # ── PATH & Default Editor ──
-export PATH="$HOME/.ghcup/bin:$HOME/.nimble/bin:$HOME/.spicetify:$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:$PATH"
+export PATH="$GOPATH/bin:$HOME/.ghcup/bin:$HOME/.nimble/bin:$HOME/.spicetify:$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:$PATH"
 export EDITOR="nvim"
 export VISUAL="nvim"

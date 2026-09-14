@@ -32,6 +32,6 @@ apply_input
 # Ensure background hardware hotplug watcher is active
 if [[ "${1:-}" != "--no-spawn" ]]; then
     if ! pgrep -f "input-watch-daemon.sh" >/dev/null 2>&1; then
-        nohup "${HOME}/.local/bin/input-watch-daemon.sh" >/dev/null 2>&1 &
+        nohup "${HOME}/.local/bin/input-watch-daemon.sh" >/dev/null 2>&1 & disown
     fi
 fi
