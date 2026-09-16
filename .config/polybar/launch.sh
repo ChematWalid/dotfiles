@@ -22,14 +22,27 @@ done
 killall -9 polybar 2>/dev/null || true
 
 # Launch main polybar
-DISPLAY="${DISPLAY:-:0}" nohup polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 & disown
+DISPLAY="${DISPLAY:-:0}" setsid polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 &
 
-# Wait for IPC socket to initialize and hide Polybar by default
+# Launch tray popup bar
+DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar-tray.log 2>&1 &
+
+# Wait for IPC socket to initialize and hide Polybar by default if requested
 if [[ "${1:-}" != "--show" ]]; then
     for _ in {1..20}; do
-        if polybar-msg cmd hide 2>/dev/null; then
+        MAIN_PID=$(pgrep -f "polybar main" | head -1 || true)
+        if [[ -n "$MAIN_PID" ]] && polybar-msg -p "$MAIN_PID" cmd hide 2>/dev/null; then
             break
         fi
         sleep 0.05
     done
 fi
+
+# Always hide tray popup bar by default on launch
+for _ in {1..20}; do
+    TRAY_PID=$(pgrep -f "polybar tray" | head -1 || true)
+    if [[ -n "$TRAY_PID" ]] && polybar-msg -p "$TRAY_PID" cmd hide 2>/dev/null; then
+        break
+    fi
+    sleep 0.05
+done

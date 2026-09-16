@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APPIMAGE="${HOME}/Applications/WiFi-Audio-Streaming-1.2.0-linux-x86_64.AppImage"
+
+if [[ "${1:-}" == "stop" || "${1:-}" == "kill" || "${1:-}" == "quit" ]]; then
+    if pkill -f "WiFi Audio Streaming" 2>/dev/null; then
+        echo "✓ WiFi Audio Streaming stopped."
+    else
+        echo "WiFi Audio Streaming is not running."
+    fi
+    exit 0
+fi
+
+exec "$APPIMAGE" "$@"

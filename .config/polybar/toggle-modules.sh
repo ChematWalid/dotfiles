@@ -5,7 +5,7 @@
 set -euo pipefail
 
 readonly CONFIG="${HOME}/.config/polybar/config.ini"
-readonly ALL_MODULES=("date" "prayer" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray" "powermenu")
+readonly ALL_MODULES=("date" "prayer" "pulseaudio" "memory" "cpu" "temperature" "battery" "filesystem" "backlight" "wlan" "eth" "tray-toggle" "powermenu")
 
 current_line=$(grep "^modules-right" "$CONFIG" || true)
 current_modules="${current_line#*=}"

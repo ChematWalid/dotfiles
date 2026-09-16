@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=WiFi Audio Streaming
+Comment=Stream audio between PC and Android
+Exec=/home/walid/Applications/WiFi-Audio-Streaming-1.2.0-linux-x86_64.AppImage
+Icon=audio-card
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
