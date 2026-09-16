@@ -1,7 +1,7 @@
 export XCURSOR_THEME=Bibata-Modern-Classic
 export XCURSOR_SIZE=24
 export CHROME_FLAGS="--force-device-scale-factor=1 --enable-smooth-scrolling"
-export BROWSER=google-chrome-stable
+export BROWSER=firefox
 
 # GTK & Qt Theming (Unified Catppuccin Mocha Mauve & Native GTK3 File Chooser)
 export GTK_THEME=catppuccin-mocha-mauve-standard+default

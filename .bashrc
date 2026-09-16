@@ -56,3 +56,5 @@ export FZF_DEFAULT_OPTS=" \
 --color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \
 --color=selected-bg:#45475a \
 --height 40% --layout=reverse --border rounded --inline-info"
+
+export MANPATH="/home/walid/.local/share/man:$MANPATH"
