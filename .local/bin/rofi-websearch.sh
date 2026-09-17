@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ── rofi-websearch.sh ─────────────────────────────────────────────────────────
-# Fast Google search prompt in Rofi with instant Chrome launch.
+# Fast Google search prompt in Rofi with instant Firefox launch.
 
 set -euo pipefail
 
@@ -13,6 +13,17 @@ query=$(
 )
 
 if [[ -n "$query" ]]; then
-    encoded_query=$(jq -rn --arg x "$query" '$x|@uri' 2>/dev/null || echo "$query" | tr ' ' '+')
-    google-chrome-stable "https://www.google.com/search?q=${encoded_query}" >/dev/null 2>&1 &
+    browser="${BROWSER:-firefox}"
+    if [[ "$browser" == "google-chrome-stable" || "$browser" == "google-chrome" ]]; then
+        browser="firefox"
+    fi
+
+    if [[ "$query" =~ ^https?:// ]]; then
+        "$browser" "$query" >/dev/null 2>&1 &
+    elif [[ "$query" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/.*)?$ && ! "$query" =~ [[:space:]] ]]; then
+        "$browser" "https://${query}" >/dev/null 2>&1 &
+    else
+        encoded_query=$(jq -rn --arg x "$query" '$x|@uri' 2>/dev/null || echo "$query" | tr ' ' '+')
+        "$browser" "https://www.google.com/search?q=${encoded_query}" >/dev/null 2>&1 &
+    fi
 fi
