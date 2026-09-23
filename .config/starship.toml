@@ -1,5 +1,9 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
+# Global timeout controls to prevent terminal delay on deep directories & HDD mounts
+command_timeout = 1500
+scan_timeout = 60
+
 format = """
 [](#3B4252)\
 $os\
@@ -10,58 +14,21 @@ $directory\
 $git_branch\
 $git_status\
 [](fg:#A6E3A1 bg:#89B4FA)\
-$buf\
 $bun\
 $c\
 $cmake\
-$cobol\
-$conda\
 $cpp\
-$crystal\
-$daml\
-$dart\
 $deno\
 $dotnet\
-$elixir\
-$elm\
-$erlang\
-$fennel\
-$fortran\
-$gleam\
 $golang\
 $gradle\
-$haskell\
-$haxe\
-$helm\
 $java\
-$julia\
 $kotlin\
 $lua\
 $maven\
-$meson\
-$mojo\
-$nim\
 $nodejs\
-$ocaml\
-$odin\
-$opa\
-$perl\
-$php\
-$purescript\
 $python\
-$quarto\
-$raku\
-$red\
-$rlang\
-$ruby\
 $rust\
-$scala\
-$solidity\
-$swift\
-$terraform\
-$typst\
-$vlang\
-$zig\
 $docker_context\
 [](fg:#89B4FA bg:#E8AEB7)\
 $time\
@@ -95,7 +62,7 @@ disabled = false
 [directory]
 style = "bg:#F4A261 fg:#1E1E2E"
 format = "[ $path ]($style)"
-truncation_length = 3
+truncation_length = 4
 truncation_symbol = "…/"
 truncate_to_repo = true
 
@@ -107,6 +74,7 @@ format = '[ $symbol $branch ]($style)'
 [git_status]
 style = "bg:#A6E3A1 fg:#1E1E2E"
 format = '[$all_status$ahead_behind ]($style)'
+ignore_submodules = true
 
 # ----------------- Languages & Runtimes -----------------
 [buf]
