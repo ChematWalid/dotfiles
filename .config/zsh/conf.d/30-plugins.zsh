@@ -63,7 +63,8 @@ zstyle ':fzf-tab:complete:systemctl-*:*' fzf-preview 'SYSTEMD_COLORS=1 systemctl
 zstyle ':fzf-tab:complete:git-(log|diff|show):*' fzf-preview 'git show --color=always $word 2>/dev/null'
 zstyle ':fzf-tab:complete:git-checkout:*' fzf-preview 'git log --color=always -n 10 --oneline $word 2>/dev/null'
 
-# === Smart Auto-suggestions (History First for speed, fallback to Completion) ===
+# === Smart Auto-suggestions (History-based for zero typing lag) ===
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#6c7086"
-ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_STRATEGY=(history)
 ZSH_AUTOSUGGEST_USE_ASYNC=1
+ZSH_AUTOSUGGEST_MANUAL_REBIND=1

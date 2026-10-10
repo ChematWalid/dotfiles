@@ -369,3 +369,62 @@ dunst-history.sh
 % custom, local, tools
 # ocr-screenshot utility on Arch Linux.
 ocr-screenshot.sh
+
+% custom, local, tools
+# AnyDesk launcher with isolated clean Adwaita light theme to prevent dark-theme
+anydesk
+
+% custom, local, tools
+# Prevent overlapping runs
+gdrive-backup.sh
+
+% custom, local, tools
+# wfas utility on Arch Linux.
+wfas
+
+% custom, local, tools
+# Stream audio between PC and Android
+wifi-audio-streaming
+
+% books, manga, foliate, reader, import
+# Import entire directory of books/manga into Foliate library (fast mode with covers)
+foliate-import-dir <directory_path>
+
+# Import directory into Foliate using classic window loop
+foliate-import-dir --classic <directory_path>
+
+% custom, local, tools
+# Manga, Anime and Novel Reader
+mangayomi
+
+% custom, local, tools
+# ======================================================================
+timetable-status
+
+% custom, local, tools
+# University Timetable Synchronizer (Rust)
+timetable-sync
+
+% custom, local, tools
+# usage: bython [-h] [-V] [-v] [-c] [-k] [-t] [-2] [-o OUTPUT] input ...
+by2py
+
+% custom, local, tools
+# Cisco Packet Tracer 9.0.1
+packettracer
+
+% custom, local, tools
+# posting utility on Arch Linux.
+posting
+
+% custom, local, tools
+# usage: py2by [-h] [-v] [-o OUTPUT] input
+py2by
+
+% custom, local, tools
+# An extremely fast Python package manager.
+uv
+
+% custom, local, tools
+# Run a command provided by a Python package.
+uvx

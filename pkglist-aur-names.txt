@@ -25,6 +25,7 @@ postman-bin
 projectlibre
 rustdesk
 sddm-theme-catppuccin-git
+snapd
 spotify
 spring-boot-cli
 tdrop

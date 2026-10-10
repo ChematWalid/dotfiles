@@ -1,0 +1,14 @@
+[Unit]
+Description=Google Drive One-Way Backup (Documents and Entertainement)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/walid/.local/bin/gdrive-backup.sh
+Nice=19
+IOSchedulingClass=2
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=default.target

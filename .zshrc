@@ -20,3 +20,6 @@ if [[ -d "$ZSH_CONFIG_DIR" ]]; then
     done
     unset config_file
 fi
+
+# kimi-code
+export PATH="/home/walid/.kimi-code/bin:$PATH"

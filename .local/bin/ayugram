@@ -5,6 +5,7 @@
 
 set -euo pipefail
 
+export DESKTOPINTEGRATION=none
 export LD_LIBRARY_PATH="${HOME}/.local/share/AyuGram/lib:${LD_LIBRARY_PATH:-}"
 
 exec "${HOME}/.local/bin/smart-open.sh" "^(AyuGramDesktop|AyuGram|TelegramDesktop)$" "${HOME}/.local/share/AyuGram/AyuGram" "$@"

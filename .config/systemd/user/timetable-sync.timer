@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Timetable Sync Timer (Catch-up on boot if powered off)
+
+[Timer]
+OnCalendar=*-*-* 07:00:00
+OnStartupSec=2m
+Persistent=true
+Unit=timetable-sync.service
+
+[Install]
+WantedBy=timers.target

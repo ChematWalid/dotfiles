@@ -81,6 +81,7 @@ function conky_gradient_overlay()
             conky_window.height
         )
         local cr = cairo_create(cs)
+
         local center_x = conky_window.width / 2.0
 
         -- Option A: Clock Gradient (Mauve -> Pink -> Flamingo -> Rosewater at 45 deg)

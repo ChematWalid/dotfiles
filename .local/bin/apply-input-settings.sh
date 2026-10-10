@@ -8,6 +8,9 @@ apply_input() {
     # 1. Keyboard Layouts
     setxkbmap -option "" 2>/dev/null || true
     setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null || true
+    if [[ -d "${HOME}/.config/xkb" ]]; then
+        setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" -option "grp:win_space_toggle" -print | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null || true
+    fi
 
     # 2. Keyboard Repeat Rate (250ms delay, 50 repeats/sec)
     xset r rate 250 50 2>/dev/null || true

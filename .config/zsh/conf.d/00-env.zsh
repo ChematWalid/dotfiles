@@ -3,7 +3,7 @@ export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME=""
 CASE_SENSITIVE="false"
 HYPHEN_INSENSITIVE="true"
-zstyle ':omz:update' mode reminder
+zstyle ':omz:update' mode disabled
 ZSH_DISABLE_COMPFIX="true"
 
 # === Developer Environment & HDD Cache Routing ===
@@ -50,7 +50,7 @@ export GEM_HOME="$HDD/.gems"
 export GEM_PATH="$HDD/.gems"
 
 # ── PATH & Default Editor ──
-export PATH="$GOPATH/bin:$HOME/.ghcup/bin:$HOME/.nimble/bin:$HOME/.spicetify:$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:$PATH"
+export PATH="$GOPATH/bin:$HOME/.ghcup/bin:$HOME/.nimble/bin:$HOME/.spicetify:$PNPM_HOME:$CARGO_HOME/bin:$HOME/.local/bin:$GEM_HOME/bin:/snap/bin:$PATH"
 export EDITOR="nvim"
 export VISUAL="nvim"
 export BROWSER="firefox"

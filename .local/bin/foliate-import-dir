@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# ── foliate-import-dir ────────────────────────────────────────────────────────
+# Import an entire folder of books/manga (CBZ, CBR, EPUB, PDF, MOBI, FB2) into Foliate.
+#
+# Usage:
+#   foliate-import-dir [OPTIONS] [DIRECTORY...]
+#
+# Options:
+#   -f, --fast        Fast direct import (extracts covers, writes metadata, updates uri-store) [default]
+#   -c, --classic     Classic GUI-loop import (launches foliate briefly per book)
+#   -n, --no-reopen   Do not restart Foliate if it was open before import
+#   -h, --help        Show this help message
+
+set -euo pipefail
+
+# Source common script helpers if available
+SCRIPTS_COMMON="${HOME}/dotfiles/.local/bin/scripts-common.sh"
+if [[ -f "$SCRIPTS_COMMON" ]]; then
+    # shellcheck source=/dev/null
+    source "$SCRIPTS_COMMON"
+fi
+
+notify_user() {
+    local urgency="${1:-normal}"
+    local title="$2"
+    local body="${3:-}"
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u "$urgency" -t 4000 -i "com.github.johnfactotum.Foliate" "$title" "$body" 2>/dev/null || true
+    fi
+}
+
+usage() {
+    cat << 'EOF'
+foliate-import-dir: Import an entire folder of books/manga into Foliate.
+
+Usage:
+  foliate-import-dir [OPTIONS] [DIRECTORY...]
+
+Arguments:
+  DIRECTORY           Path to folder containing books/manga. If omitted,
+                      prompts interactively or opens a folder picker dialog.
+
+Options:
+  -f, --fast          Fast direct import with cover thumbnail generation (default)
+  -c, --classic       Classic GUI workaround loop (opens and closes Foliate window per book)
+  -n, --no-reopen     Do not reopen Foliate after import
+  -h, --help          Show this help message
+
+Supported Formats:
+  .cbz, .cbr, .epub, .pdf, .mobi, .azw, .azw3, .fb2
+
+Examples:
+  foliate-import-dir ~/Downloads/Manga/
+  foliate-import-dir /mnt/drive3/Entertainement/Novels/
+  foliate-import-dir --classic ~/Books/
+EOF
+}
+
+# Defaults
+MODE="fast"
+REOPEN_FOLIATE=true
+TARGET_DIRS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -f|--fast)
+            MODE="fast"
+            shift
+            ;;
+        -c|--classic)
+            MODE="classic"
+            shift
+            ;;
+        -n|--no-reopen)
+            REOPEN_FOLIATE=false
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -*)
+            echo "Error: Unknown option '$1'" >&2
+            usage
+            exit 1
+            ;;
+        *)
+            TARGET_DIRS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# If no directory supplied, ask or pick via dialog
+if [[ ${#TARGET_DIRS[@]} -eq 0 ]]; then
+    if [[ -t 0 ]]; then
+        echo -n "Enter path to book/manga folder (leave empty for file picker): "
+        read -r -e INPUT_DIR
+        if [[ -n "$INPUT_DIR" ]]; then
+            TARGET_DIRS+=("$INPUT_DIR")
+        fi
+    fi
+
+    # Fallback to GUI picker if still empty and DISPLAY is set
+    if [[ ${#TARGET_DIRS[@]} -eq 0 ]] && [[ -n "${DISPLAY:-}" ]] && command -v zenity >/dev/null 2>&1; then
+        SELECTED_DIR=$(zenity --file-selection --directory --title="Select Book / Manga Folder for Foliate" 2>/dev/null || true)
+        if [[ -n "$SELECTED_DIR" ]]; then
+            TARGET_DIRS+=("$SELECTED_DIR")
+        fi
+    fi
+fi
+
+if [[ ${#TARGET_DIRS[@]} -eq 0 ]]; then
+    echo "Error: No directory specified." >&2
+    usage
+    exit 1
+fi
+
+# Check if Foliate was running before import
+WAS_RUNNING=false
+if pgrep -f "foliate" >/dev/null 2>&1; then
+    WAS_RUNNING=true
+fi
+
+# Main import loop over provided directories
+for RAW_DIR in "${TARGET_DIRS[@]}"; do
+    # Expand tilde and get absolute path
+    TARGET_DIR="${RAW_DIR/#\~/$HOME}"
+    if [[ ! -d "$TARGET_DIR" ]]; then
+        echo "Error: Directory not found: '$TARGET_DIR'" >&2
+        continue
+    fi
+
+    echo "==> Scanning directory: $TARGET_DIR"
+    
+    # Count matching files
+    TOTAL_BOOKS=$(find "$TARGET_DIR" -type f \( \
+        -name "*.cbz" -o -name "*.cbr" -o -name "*.epub" -o -name "*.pdf" -o \
+        -name "*.mobi" -o -name "*.azw" -o -name "*.azw3" -o -name "*.fb2" \
+    \) 2>/dev/null | wc -l)
+
+    if [[ "$TOTAL_BOOKS" -eq 0 ]]; then
+        echo "No supported ebook/manga files found in '$TARGET_DIR'."
+        continue
+    fi
+
+    echo "Found $TOTAL_BOOKS book(s)/volume(s)."
+
+    if [[ "$MODE" == "fast" ]]; then
+        echo "==> Running fast direct import..."
+        foliate-import "$TARGET_DIR"
+    else
+        echo "==> Running classic GUI import loop for $TOTAL_BOOKS books..."
+        COUNT=0
+        find "$TARGET_DIR" -type f \( \
+            -name "*.cbz" -o -name "*.cbr" -o -name "*.epub" -o -name "*.pdf" -o \
+            -name "*.mobi" -o -name "*.azw" -o -name "*.azw3" -o -name "*.fb2" \
+        \) | while read -r book; do
+            COUNT=$((COUNT + 1))
+            echo "[$COUNT/$TOTAL_BOOKS] Importing: $(basename "$book")"
+            foliate "$book" >/dev/null 2>&1 &
+            BG_PID=$!
+            sleep 2
+            # Close via DBus quit action if possible, fallback to kill
+            gdbus call --session --dest com.github.johnfactotum.Foliate \
+                --object-path /com/github/johnfactotum/Foliate \
+                --method org.gtk.Actions.Activate "quit" "[]" "{}" >/dev/null 2>&1 || kill "$BG_PID" 2>/dev/null || true
+        done
+        echo "Classic loop complete!"
+    fi
+
+    notify_user "normal" "Foliate Library Updated" "Imported $TOTAL_BOOKS book(s) from $(basename "$TARGET_DIR")"
+done
+
+# Restart Foliate if it was running and reopen was requested
+if [[ "$WAS_RUNNING" == true ]] && [[ "$REOPEN_FOLIATE" == true ]]; then
+    echo "==> Refreshing Foliate library view..."
+    if [[ -n "${DISPLAY:-}" ]]; then
+        DISPLAY="$DISPLAY" setsid foliate >/dev/null 2>&1 &
+    else
+        setsid foliate >/dev/null 2>&1 &
+    fi
+fi
+
+echo "Done!"

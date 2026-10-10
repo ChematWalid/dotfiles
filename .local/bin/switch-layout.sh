@@ -8,10 +8,16 @@ current=$(setxkbmap -query 2>/dev/null | awk '/layout/{print $2}' | cut -d',' -f
 
 if [[ "$current" == "be" ]]; then
     setxkbmap -layout "ara,be" -option "grp:win_space_toggle"
+    if [[ -d "${HOME}/.config/xkb" ]]; then
+        setxkbmap -I"${HOME}/.config/xkb" -layout "ara,be" -option "grp:win_space_toggle" -print | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null || true
+    fi
     layout_name="Arabic (العربية)"
     flag="🇸🇦"
 else
     setxkbmap -layout "be,ara" -option "grp:win_space_toggle"
+    if [[ -d "${HOME}/.config/xkb" ]]; then
+        setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" -option "grp:win_space_toggle" -print | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null || true
+    fi
     layout_name="Belgian (AZERTY)"
     flag="🇧🇪"
 fi

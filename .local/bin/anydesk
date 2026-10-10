@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# ── anydesk ───────────────────────────────────────────────────────────────────
+# AnyDesk launcher with isolated clean Adwaita light theme to prevent dark-theme
+# contrast rendering conflicts (unreadable black-on-dark entries & white-on-white text).
+# ─────────────────────────────────────────────────────────────────────────────
+
+set -euo pipefail
+
+exec env XDG_CONFIG_HOME="${HOME}/.config/anydesk-gtk" GTK_THEME=Adwaita:light /usr/bin/anydesk "$@"

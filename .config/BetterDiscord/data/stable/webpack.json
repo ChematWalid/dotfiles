@@ -2,7 +2,7 @@
     "core-stores-Flux": "17928",
     "core-ReactSpring": "27480",
     "core-React": "64641",
-    "core-Dispatcher": "228366",
+    "core-Dispatcher": "73153",
     "core-SimpleMarkdown": "478676",
     "core-AccessibilityContext": "844222",
     "core-Tooltip": "900002",
@@ -23,5 +23,10 @@
     "core-contextmenu-classes": "798819",
     "core-themeattributes-AvatarImg": "97808",
     "core-themeattributes-TabBar": "761508",
-    "core-RemoteModule": "19575"
+    "core-RemoteModule": "19575",
+    "core-themeattributes-MessageComponent": "10822",
+    "core-themeattributes-messageHook": "10822",
+    "core-themeattributes-VoiceUserComponent": "481947",
+    "core-themeattributes-ChatAvatar": "622868",
+    "core-ChannelActions": "730852"
 }

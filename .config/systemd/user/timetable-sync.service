@@ -1,0 +1,10 @@
+[Unit]
+Description=University Timetable Daily Synchronizer (Rust)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/walid/.local/bin/timetable-sync
+StandardOutput=journal
+StandardError=journal

@@ -73,8 +73,8 @@ bw-unlock() {
         echo "✓ Bitwarden vault unlocked & session saved for all terminal tabs!"
     fi
 }
-if [ -f ~/.cache/.bw_session ] && [ -z "$BW_SESSION" ]; then
-    export BW_SESSION=$(cat ~/.cache/.bw_session 2>/dev/null)
+if [[ -f ~/.cache/.bw_session && -z "$BW_SESSION" ]]; then
+    export BW_SESSION="$(< ~/.cache/.bw_session)"
 fi
 
 # Antigravity AI CLI

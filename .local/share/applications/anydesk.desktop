@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=AnyDesk
+GenericName=AnyDesk
+X-GNOME-FullName=AnyDesk
+Exec=env XDG_CONFIG_HOME=/home/walid/.config/anydesk-gtk GTK_THEME=Adwaita:light /usr/bin/anydesk %u
+Icon=anydesk
+Terminal=false
+TryExec=anydesk
+Categories=Network;GTK;
+MimeType=x-scheme-handler/anydesk;

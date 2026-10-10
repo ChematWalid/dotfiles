@@ -14,3 +14,4 @@ copyq.lock
 target/
 lockfile
 timers.target.wants/
+*.zwc
