@@ -26,8 +26,10 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             // MPRIS playback status or track property changed
-            Some(_) = props_stream.next() => {
-                writer::write_output_atomic(&mpris::query_current_state());
+            Some(msg_result) = props_stream.next() => {
+                if msg_result.as_ref().map_or(true, mpris::affects_displayed_state) {
+                    writer::write_output_atomic(&mpris::query_current_state());
+                }
             }
             // A D-Bus name appeared or disappeared
             Some(msg_result) = name_stream.next() => {

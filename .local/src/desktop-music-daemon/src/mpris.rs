@@ -2,8 +2,9 @@
 
 use crate::config::{ICON_PAUSE, ICON_PLAY};
 use anyhow::Result;
+use std::collections::HashMap;
 use std::process::{Command as SyncCommand, Stdio};
-use zbus::{message::Type as MsgType, Connection, MatchRule, MessageStream};
+use zbus::{message::Type as MsgType, Connection, MatchRule, Message, MessageStream, OwnedVariant};
 
 /// Queries playerctl for the highest priority active player:
 /// Prefers Playing > Paused. Falls back to MPD via `mpc current`.
@@ -96,4 +97,21 @@ pub async fn setup_dbus_streams(conn: &Connection) -> Result<(MessageStream, Mes
     let name_stream = MessageStream::for_match_rule(name_rule, conn, None).await?;
 
     Ok((props_stream, name_stream))
+}
+
+/// Return true only for player properties that affect the displayed track.
+/// Unknown signal bodies are refreshed conservatively to avoid stale output.
+pub fn affects_displayed_state(message: &Message) -> bool {
+    let body: Result<(String, HashMap<String, OwnedVariant>, Vec<String>), _> =
+        message.body().deserialize();
+    let Ok((interface, changed, invalidated)) = body else {
+        return true;
+    };
+    if interface != "org.mpris.MediaPlayer2.Player" {
+        return false;
+    }
+
+    ["PlaybackStatus", "Metadata"].iter().any(|property| {
+        changed.contains_key(*property) || invalidated.iter().any(|key| key == property)
+    })
 }
