@@ -16,7 +16,17 @@ if ! keyboard_state=$(setxkbmap -query); then
     report_error 'could not read the current XKB layout'
     exit 1
 fi
-current=$(awk '/^[[:space:]]*layout:/ {split($2, layouts, ","); print layouts[1]}' <<< "$keyboard_state")
+current=""
+while IFS= read -r line; do
+    case "$line" in
+        *layout:*)
+            current=${line#*:}
+            current=${current//[[:space:]]/}
+            current=${current%%,*}
+            break
+            ;;
+    esac
+done <<< "$keyboard_state"
 
 if [[ "$current" == "be" ]]; then
     layouts="ara,be"
