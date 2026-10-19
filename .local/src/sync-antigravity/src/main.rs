@@ -11,9 +11,14 @@ mod sync;
 use std::env;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let is_quiet = args.iter().any(|a| a == "--quiet" || a == "-q");
-    let dry_run = args.iter().any(|a| a == "--dry-run");
+    let (mut is_quiet, mut dry_run) = (false, false);
+    for arg in env::args().skip(1) {
+        match arg.as_str() {
+            "--quiet" | "-q" => is_quiet = true,
+            "--dry-run" => dry_run = true,
+            _ => {}
+        }
+    }
 
     if let Err(error) = sync::run_sync(is_quiet, dry_run) {
         eprintln!("Antigravity sync failed: {error}");
