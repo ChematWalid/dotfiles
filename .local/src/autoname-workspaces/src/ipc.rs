@@ -91,6 +91,21 @@ pub fn wait_for_i3_socket(sock_path: &str) -> String {
     }
 }
 
+/// Back off only when the socket is still accepting connections but a watcher
+/// could not subscribe or its event stream ended. If i3 is restarting, wait on
+/// the socket directory events instead of delaying reconnection.
+pub fn wait_for_i3_socket_after_failure(sock_path: &str, retry_delay: &mut Duration) -> String {
+    let current_path = get_i3_socket_path();
+    if !current_path.is_empty() && UnixStream::connect(&current_path).is_ok() {
+        thread::sleep(*retry_delay);
+        *retry_delay = (*retry_delay * 2).min(Duration::from_secs(2));
+        current_path
+    } else {
+        *retry_delay = Duration::from_millis(50);
+        wait_for_i3_socket(sock_path)
+    }
+}
+
 fn watch_directory(path: &Path) -> io::Result<File> {
     let path = CString::new(path.as_os_str().as_bytes())
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid socket directory"))?;
@@ -253,9 +268,30 @@ pub fn subscribe_events_with_payload(
 
     let mut header = [0u8; 14];
     stream.read_exact(&mut header)?;
+    if &header[..6] != b"i3-ipc" {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "invalid i3 IPC response magic",
+        ));
+    }
     let len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
+    let reply_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
+    if reply_type != 2 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("unexpected i3 IPC subscription reply type {reply_type}"),
+        ));
+    }
     let mut body = vec![0u8; len];
     stream.read_exact(&mut body)?;
+    let reply: Value = serde_json::from_slice(&body)
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+    if reply.get("success").and_then(Value::as_bool) != Some(true) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("i3 rejected event subscription: {reply}"),
+        ));
+    }
 
     Ok(stream)
 }

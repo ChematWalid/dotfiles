@@ -3,11 +3,13 @@
 
 use std::collections::VecDeque;
 use std::io::Read;
+use std::time::Duration;
 
 use serde_json::Value;
 
 use crate::ipc::{
-    event_change, get_i3_socket_path, subscribe_events_with_payload, wait_for_i3_socket, I3Client,
+    event_change, get_i3_socket_path, subscribe_events_with_payload,
+    wait_for_i3_socket_after_failure, I3Client,
 };
 
 const WINDOW_EVENT: u32 = 0x8000_0003;
@@ -22,29 +24,41 @@ pub fn run() {
     }
 
     let mut client = I3Client::new(socket_path.clone());
+    let mut retry_delay = Duration::from_millis(50);
     loop {
-        if let Ok(mut events) = subscribe_events_with_payload(&socket_path, EVENT_SUBSCRIPTION) {
-            let mut body = Vec::new();
-            loop {
-                let mut header = [0u8; 14];
-                if events.read_exact(&mut header).is_err() {
-                    break;
-                }
+        let mut events = match subscribe_events_with_payload(&socket_path, EVENT_SUBSCRIPTION) {
+            Ok(stream) => stream,
+            Err(error) => {
+                eprintln!("autotiling: i3 event subscription failed: {error}");
+                socket_path = wait_for_i3_socket_after_failure(&socket_path, &mut retry_delay);
+                client = I3Client::new(socket_path.clone());
+                continue;
+            }
+        };
 
-                let body_len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
-                let event_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
-                body.resize(body_len, 0);
-                if events.read_exact(&mut body).is_err() {
-                    break;
-                }
+        let mut body = Vec::new();
+        loop {
+            let mut header = [0u8; 14];
+            if let Err(error) = events.read_exact(&mut header) {
+                eprintln!("autotiling: i3 event stream ended: {error}");
+                break;
+            }
 
-                if event_requires_autotile(event_type, &body) {
-                    autotile_focused(&mut client);
-                }
+            let body_len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
+            let event_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
+            body.resize(body_len, 0);
+            if let Err(error) = events.read_exact(&mut body) {
+                eprintln!("autotiling: could not read i3 event: {error}");
+                break;
+            }
+
+            retry_delay = Duration::from_millis(50);
+            if event_requires_autotile(event_type, &body) {
+                autotile_focused(&mut client);
             }
         }
 
-        socket_path = wait_for_i3_socket(&socket_path);
+        socket_path = wait_for_i3_socket_after_failure(&socket_path, &mut retry_delay);
         client = I3Client::new(socket_path.clone());
     }
 }
