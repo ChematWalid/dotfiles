@@ -27,6 +27,10 @@ namespace {
 constexpr std::string_view state_name{"polybar-network-state"};
 constexpr std::string_view disconnected{"󰤭 Disconnected"};
 
+[[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
+    return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
+}
+
 class UniqueFd {
 public:
     explicit UniqueFd(int fd) noexcept : fd_(fd) {}
@@ -225,7 +229,7 @@ int main() {
         }
 
         bool should_refresh = false;
-        if ((descriptors[0].revents & POLLIN) != 0) {
+        if (has_event(descriptors[0].revents, POLLIN)) {
             const auto bytes = ::read(inotify_fd.get(), buffer.data(), buffer.size());
             if (bytes < 0 && errno != EINTR) {
                 std::cerr << "network-status-live: inotify read: " << std::strerror(errno) << '\n';
@@ -243,7 +247,7 @@ int main() {
                 }
             }
         }
-        if ((descriptors[1].revents & POLLIN) != 0) {
+        if (has_event(descriptors[1].revents, POLLIN)) {
             const auto bytes = ::recv(route_fd.get(), buffer.data(), buffer.size(), 0);
             if (bytes < 0 && errno != EINTR) {
                 std::cerr << "network-status-live: netlink read: " << std::strerror(errno) << '\n';
