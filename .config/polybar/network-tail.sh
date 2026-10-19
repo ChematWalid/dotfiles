@@ -82,12 +82,25 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 0' INT TERM
 
-while IFS= read -r -u "${NM_MONITOR[0]}" line; do
-    case "$line" in
-        *"connected"*|*"disconnected"*|*"connecting"*|*"activated"*|*"deactivated"*)
-            refresh_if_changed
-            ;;
-    esac
+while true; do
+    line=""
+    if IFS= read -r -u "${NM_MONITOR[0]}" line; then
+        case "$line" in
+            *"connected"*|*"disconnected"*|*"connecting"*|*"activated"*|*"deactivated"*)
+                refresh_if_changed
+                ;;
+        esac
+        continue
+    else
+        read_status=$?
+    fi
+
+    if (( read_status > 128 )); then
+        # SIGUSR1 interrupts Bash's blocking read on some releases. Refresh has
+        # already run in the trap; continue waiting for NetworkManager events.
+        continue
+    fi
+    break
 done
 
 if wait "$NM_PID"; then
