@@ -160,7 +160,7 @@ int main(int argc, char* argv[]) {
         }
 
         bool refresh = false;
-        int remaining = static_cast<int>(received);
+        std::size_t remaining = static_cast<std::size_t>(received);
         for (auto* header = reinterpret_cast<nlmsghdr*>(buffer.data());
              NLMSG_OK(header, remaining); header = NLMSG_NEXT(header, remaining)) {
             if (is_target_event(header, interface_name, interface_index)) {

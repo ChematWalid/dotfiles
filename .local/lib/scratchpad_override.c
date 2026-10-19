@@ -38,10 +38,10 @@ int XMapWindow(Display *dpy, Window w) {
     int scr = DefaultScreen(dpy);
     int sw = DisplayWidth(dpy, scr);
     int sh = DisplayHeight(dpy, scr);
-    int width = 900;
-    int height = 550;
-    int x = (sw - width) / 2;
-    int y = (sh - height) / 2;
+    const unsigned int width = 900U;
+    const unsigned int height = 550U;
+    int x = (sw - (int)width) / 2;
+    int y = (sh - (int)height) / 2;
     if (x < 0) x = 0;
     if (y < 0) y = 0;
 
