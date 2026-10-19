@@ -14,7 +14,11 @@ fi
 # Kill any running autohide watcher
 pkill -x "tray-autohide" 2>/dev/null || true
 
-if xwininfo -name "polybar-tray_DVI-I-1" 2>/dev/null | grep -q "IsViewable"; then
+TRAY_WINDOW=$(xwininfo -root -tree 2>/dev/null \
+    | awk '$2 ~ /^"polybar-tray_/ { print $1; exit }')
+
+if [[ -n "$TRAY_WINDOW" ]] \
+    && xwininfo -id "$TRAY_WINDOW" 2>/dev/null | grep -q "Map State: IsViewable"; then
     # Tray is currently visible -> hide it
     polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
 else
