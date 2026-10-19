@@ -2,7 +2,7 @@
 
 use crate::config::output_paths;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 pub struct OutputWriter {
@@ -22,36 +22,33 @@ impl OutputWriter {
         }
     }
 
-    pub fn write(&mut self, text: &str) {
+    pub fn write(&mut self, text: &str) -> io::Result<()> {
         let text = text.trim();
         if self.last_written.as_deref() == Some(text) {
-            return;
+            return Ok(());
         }
 
         if let Some(parent) = self.output.parent() {
-            if fs::create_dir_all(parent).is_err() {
-                return;
-            }
+            fs::create_dir_all(parent)?;
         }
 
-        let Ok(mut file) = OpenOptions::new()
+        let mut file = OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
-            .open(&self.temporary)
-        else {
-            return;
-        };
-        if file.write_all(text.as_bytes()).is_ok() {
-            drop(file);
-            if fs::rename(&self.temporary, &self.output).is_ok() {
-                self.last_written = Some(text.to_owned());
-            } else {
-                let _ = fs::remove_file(&self.temporary);
-            }
-        } else {
+            .open(&self.temporary)?;
+        if let Err(error) = file.write_all(text.as_bytes()) {
             let _ = fs::remove_file(&self.temporary);
+            return Err(error);
         }
+        drop(file);
+
+        if let Err(error) = fs::rename(&self.temporary, &self.output) {
+            let _ = fs::remove_file(&self.temporary);
+            return Err(error);
+        }
+        self.last_written = Some(text.to_owned());
+        Ok(())
     }
 }
 

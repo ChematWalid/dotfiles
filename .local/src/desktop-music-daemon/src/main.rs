@@ -13,7 +13,7 @@ use zbus::Connection;
 async fn main() -> Result<()> {
     // Write initial state immediately
     let mut output = writer::OutputWriter::new();
-    output.write(&mpris::query_current_state().await);
+    report_write_error(output.write(&mpris::query_current_state().await));
 
     // Connect to session D-Bus
     let conn = Connection::session()
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
             // MPRIS playback status or track property changed
             Some(msg_result) = props_stream.next() => {
                 if msg_result.as_ref().map_or(true, mpris::affects_displayed_state) {
-                    output.write(&mpris::query_current_state().await);
+                    report_write_error(output.write(&mpris::query_current_state().await));
                 }
             }
             // A D-Bus name appeared or disappeared
@@ -38,11 +38,17 @@ async fn main() -> Result<()> {
                     let body: Result<(String, String, String), _> = msg.body().deserialize();
                     if let Ok((name, _old, _new)) = body {
                         if name.starts_with("org.mpris.") {
-                            output.write(&mpris::query_current_state().await);
+                            report_write_error(output.write(&mpris::query_current_state().await));
                         }
                     }
                 }
             }
         }
+    }
+}
+
+fn report_write_error(result: std::io::Result<()>) {
+    if let Err(error) = result {
+        eprintln!("desktop-music-daemon: could not update Conky music output: {error}");
     }
 }
