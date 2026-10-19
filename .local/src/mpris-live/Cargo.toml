@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tokio        = { version = "1", default-features = false, features = ["macros", "process", "rt", "sync", "time"] }
+tokio        = { version = "1", default-features = false, features = ["macros", "rt", "sync", "time"] }
 zbus         = { version = "6", default-features = false, features = ["tokio"] }
 futures-lite = "2"
 anyhow       = "1"

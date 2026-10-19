@@ -46,7 +46,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
     let mut name_stream = MessageStream::for_match_rule(name_rule, &conn, None).await?;
 
     // Re-query after the match rules are active to close the startup race.
-    state.send_replace(query_current_state().await);
+    state.send_replace(query_current_state(&conn).await);
 
     tokio::spawn(async move {
         loop {
@@ -54,7 +54,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
                 message = props_stream.next() => {
                     match message {
                         Some(Ok(message)) if affects_displayed_state(&message) => {
-                            let latest = query_current_state().await;
+                            let latest = query_current_state(&conn).await;
                             state.send_replace(latest);
                         }
                         Some(Err(error)) => {
@@ -73,7 +73,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
                             let body: Result<(String, String, String), _> = message.body().deserialize();
                             if let Ok((name, _old, _new)) = body {
                                 if name.starts_with("org.mpris.") {
-                                    let latest = query_current_state().await;
+                                    let latest = query_current_state(&conn).await;
                                     state.send_replace(latest);
                                 }
                             }

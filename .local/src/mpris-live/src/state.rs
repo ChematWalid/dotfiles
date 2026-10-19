@@ -1,7 +1,7 @@
 //! Media state representation and querying.
 
-use std::process::Stdio;
-use tokio::process::Command;
+use std::collections::HashMap;
+use zbus::{Connection, OwnedVariant};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MediaState {
@@ -11,71 +11,94 @@ pub struct MediaState {
     pub full_text_chars: usize,
 }
 
-pub async fn query_current_state() -> MediaState {
-    let out = Command::new("playerctl")
-        .args([
-            "metadata",
-            "-a",
-            "--format",
-            "{{playerName}}:::{{status}}:::{{artist}}:::{{title}}",
-        ])
-        .stderr(Stdio::null())
-        .output()
-        .await;
+pub async fn query_current_state(conn: &Connection) -> MediaState {
+    let names_reply = match conn
+        .call_method(
+            Some("org.freedesktop.DBus"),
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "ListNames",
+            &(),
+        )
+        .await
+    {
+        Ok(reply) => reply,
+        Err(_) => return MediaState::default(),
+    };
+    let Ok(names) = names_reply.body().deserialize::<Vec<String>>() else {
+        return MediaState::default();
+    };
 
-    if let Ok(out) = out {
-        let stdout = String::from_utf8_lossy(&out.stdout);
-        let mut playing: Option<MediaState> = None;
-        let mut paused: Option<MediaState> = None;
-
-        for line in stdout.lines() {
-            let mut parts = line.splitn(5, ":::");
-            let (Some(player), Some(status), Some(artist), Some(title)) =
-                (parts.next(), parts.next(), parts.next(), parts.next())
-            else {
-                continue;
-            };
-            let player = player.trim().to_string();
-            let status = status.trim().to_string();
-            let artist = artist.trim();
-            let title = title.trim();
-
-            if artist.is_empty() && title.is_empty() {
-                continue;
-            }
-
-            let full_text = match (artist.is_empty(), title.is_empty()) {
-                (false, false) => format!("{} - {}", artist, title),
-                (true, false) => title.to_string(),
-                _ => artist.to_string(),
-            };
-            let full_text_chars = full_text.chars().count();
-
-            let st = MediaState {
-                player,
-                status: status.clone(),
-                full_text,
-                full_text_chars,
-            };
-
-            if status == "Playing" && playing.is_none() {
-                playing = Some(st);
-            } else if status == "Paused" && paused.is_none() {
-                paused = Some(st);
-            }
-
-            if playing.is_some() {
-                break;
-            }
+    let mut paused = None;
+    for name in names.iter().filter(|name| name.starts_with("org.mpris.")) {
+        let properties_reply = match conn
+            .call_method(
+                Some(name.as_str()),
+                "/org/mpris/MediaPlayer2",
+                Some("org.freedesktop.DBus.Properties"),
+                "GetAll",
+                &("org.mpris.MediaPlayer2.Player",),
+            )
+            .await
+        {
+            Ok(reply) => reply,
+            Err(_) => continue,
+        };
+        let Ok(properties) = properties_reply
+            .body()
+            .deserialize::<HashMap<String, OwnedVariant>>()
+        else {
+            continue;
+        };
+        let Some(status) = properties
+            .get("PlaybackStatus")
+            .and_then(|value| String::try_from(value.try_clone().ok()?).ok())
+        else {
+            continue;
+        };
+        if status != "Playing" && (status != "Paused" || paused.is_some()) {
+            continue;
         }
 
-        if let Some(s) = playing {
-            return s;
+        let Some(metadata) = properties.get("Metadata").and_then(|value| {
+            HashMap::<String, OwnedVariant>::try_from(value.try_clone().ok()?).ok()
+        }) else {
+            continue;
+        };
+        let artist = metadata
+            .get("xesam:artist")
+            .and_then(|value| Vec::<String>::try_from(value.try_clone().ok()?).ok())
+            .unwrap_or_default()
+            .join(", ");
+        let title = metadata
+            .get("xesam:title")
+            .and_then(|value| String::try_from(value.try_clone().ok()?).ok())
+            .unwrap_or_default();
+        if artist.is_empty() && title.is_empty() {
+            continue;
         }
-        if let Some(s) = paused {
-            return s;
+
+        let full_text = match (artist.is_empty(), title.is_empty()) {
+            (false, false) => format!("{artist} - {title}"),
+            (true, false) => title,
+            (false, true) => artist,
+            (true, true) => continue,
+        };
+        let state = MediaState {
+            player: name
+                .strip_prefix("org.mpris.MediaPlayer2.")
+                .unwrap_or(name)
+                .to_string(),
+            status: status.clone(),
+            full_text_chars: full_text.chars().count(),
+            full_text,
+        };
+
+        if status == "Playing" {
+            return state;
         }
+        paused = Some(state);
     }
 
-    MediaState::default()
+    paused.unwrap_or_default()
 }
