@@ -37,13 +37,31 @@ pub fn run() {
                     break;
                 }
 
-                if matches!(event_type, WINDOW_EVENT | MODE_EVENT) {
+                if event_requires_autotile(event_type, &body) {
                     autotile_focused(&mut client);
                 }
             },
             Err(_) => thread::sleep(Duration::from_secs(1)),
         }
     }
+}
+
+fn event_requires_autotile(event_type: u32, body: &[u8]) -> bool {
+    if event_type == MODE_EVENT {
+        return true;
+    }
+    if event_type != WINDOW_EVENT {
+        return false;
+    }
+
+    let Ok(event) = serde_json::from_slice::<Value>(body) else {
+        return true;
+    };
+    let Some(change) = event.get("change").and_then(Value::as_str) else {
+        return true;
+    };
+
+    !matches!(change, "title" | "urgent" | "mark")
 }
 
 fn autotile_focused(client: &mut I3Client) {
