@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The user manager can outlive i3 and keep stale X11 credentials. Import the
-# active session values before starting any graphical user services.
+# The user manager and D-Bus can outlive i3 and retain stale X11 credentials.
+# Refresh systemd's display credentials and D-Bus's display/Qt environment
+# before starting graphical services or allowing GUI services to auto-activate.
 systemctl --user import-environment DISPLAY XAUTHORITY
+LC_ALL=en_US.UTF-8 QT_QPA_PLATFORMTHEME=qt6ct \
+    dbus-update-activation-environment DISPLAY XAUTHORITY LC_ALL QT_QPA_PLATFORMTHEME
 
 # Make the display compositor and tray host available before tray clients.
 systemctl --user start picom.service
