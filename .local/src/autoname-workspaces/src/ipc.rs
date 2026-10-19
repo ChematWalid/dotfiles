@@ -94,8 +94,14 @@ impl I3Client {
 }
 
 pub fn subscribe_events(sock_path: &str) -> Result<UnixStream, std::io::Error> {
+    subscribe_events_with_payload(sock_path, r#"["window", "workspace"]"#)
+}
+
+pub fn subscribe_events_with_payload(
+    sock_path: &str,
+    payload: &str,
+) -> Result<UnixStream, std::io::Error> {
     let mut stream = UnixStream::connect(sock_path)?;
-    let payload = r#"["window", "workspace"]"#;
     let mut sub_msg = Vec::new();
     sub_msg.extend_from_slice(b"i3-ipc");
     sub_msg.extend_from_slice(&(payload.len() as u32).to_ne_bytes());

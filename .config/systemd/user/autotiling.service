@@ -1,8 +1,8 @@
 [Unit]
-Description=Event-driven i3 autotiling
+Description=Native event-driven i3 autotiling
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/autotiling -sr 1.0
+ExecStart=%h/.local/bin/autoname-workspaces --autotiling
 Restart=on-failure
 RestartSec=1

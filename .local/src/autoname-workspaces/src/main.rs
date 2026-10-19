@@ -1,6 +1,7 @@
 //! autoname-workspaces — Dynamically updates i3 workspace names with Nerd Font application icons.
 //! High-performance native Rust using raw i3 IPC event subscriptions.
 
+mod autotiling;
 mod config;
 mod icons;
 mod ipc;
@@ -14,6 +15,11 @@ use ipc::{event_changes_workspace_icons, get_i3_socket_path, subscribe_events, I
 use workspace::update_workspaces;
 
 fn main() {
+    if std::env::args().any(|arg| arg == "--autotiling") {
+        autotiling::run();
+        return;
+    }
+
     let sock_path = get_i3_socket_path();
     if sock_path.is_empty() {
         eprintln!("Error: i3 socket path not found. Is i3 running?");
