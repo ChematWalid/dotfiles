@@ -32,8 +32,27 @@ apply_input() {
         [[ "$id" =~ ^[0-9]+$ ]] || continue
         properties=$(xinput list-props "$id" 2>/dev/null) || continue
         [[ "$properties" == *"libinput Accel Profile Enabled"* ]] || continue
-        xinput set-prop "$id" "libinput Accel Profile Enabled" 0, 1, 0 2>/dev/null || true
-        xinput set-prop "$id" "libinput Accel Speed" -0.25 2>/dev/null || true
+
+        local profile_matches=false speed_matches=false property value
+        while IFS= read -r property; do
+            case "$property" in
+                *"libinput Accel Profile Enabled ("*"):"*)
+                    value=${property#*:}
+                    value=${value//[[:space:]]/}
+                    [[ "$value" == "0,1,0" ]] && profile_matches=true
+                    ;;
+                *"libinput Accel Speed ("*"):"*)
+                    value=${property#*:}
+                    value=${value//[[:space:]]/}
+                    [[ "$value" == "-0.250000" || "$value" == "-0.25" ]] && speed_matches=true
+                    ;;
+            esac
+        done <<< "$properties"
+
+        [[ "$profile_matches" == true ]] || \
+            xinput set-prop "$id" "libinput Accel Profile Enabled" 0, 1, 0 2>/dev/null || true
+        [[ "$speed_matches" == true ]] || \
+            xinput set-prop "$id" "libinput Accel Speed" -0.25 2>/dev/null || true
     done < <(xinput list --id-only 2>/dev/null || true)
 }
 
