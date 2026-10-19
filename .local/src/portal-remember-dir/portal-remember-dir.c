@@ -23,7 +23,13 @@ static void update_qt_project_conf(const char *path) {
     if (!path) return;
     char *conf_path = g_build_filename(home, ".config", "QtProject.conf", NULL);
     char *contents = NULL;
-    if (!g_file_get_contents(conf_path, &contents, NULL, NULL)) {
+    GError *read_error = NULL;
+    if (!g_file_get_contents(conf_path, &contents, NULL, &read_error)) {
+        if (!g_error_matches(read_error, G_FILE_ERROR, G_FILE_ERROR_NOENT)) {
+            g_warning("Could not read the Qt file chooser location preference: %s",
+                      read_error->message);
+        }
+        g_clear_error(&read_error);
         g_free(conf_path);
         return;
     }
@@ -63,32 +69,31 @@ static void update_qt_project_conf(const char *path) {
 
 static void save_last_dir(const char *dir) {
     if (!dir || dir[0] != '/') return;
+    if (g_strcmp0(last_saved_directory, dir) == 0) return;
+
     struct stat st;
     if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) return;
-    if (g_strcmp0(last_saved_directory, dir) == 0) return;
 
     const char *home = g_get_home_dir();
     char *cache_path = g_build_filename(g_get_user_cache_dir(), "last_used_directory", NULL);
     char *fdm_cache = g_build_filename(home, ".cache", "fdm_last_selected_folder", NULL);
     GError *error = NULL;
-    if (ensure_parent_directory(cache_path, "remembered-directory cache") &&
-        !g_file_set_contents(cache_path, dir, -1, &error)) {
-        g_warning("Could not save the remembered-directory cache: %s", error->message);
-        g_error_free(error);
+    if (ensure_parent_directory(cache_path, "remembered-directory cache")) {
+        if (!g_file_set_contents(cache_path, dir, -1, &error)) {
+            g_warning("Could not save the remembered-directory cache: %s", error->message);
+            g_clear_error(&error);
+        } else if (g_chmod(cache_path, 0600) != 0) {
+            g_warning("Could not restrict permissions on the remembered-directory cache");
+        }
     }
 
-    error = NULL;
-    if (ensure_parent_directory(fdm_cache, "download-manager directory cache") &&
-        !g_file_set_contents(fdm_cache, dir, -1, &error)) {
-        g_warning("Could not save the download-manager directory cache: %s", error->message);
-        g_error_free(error);
-    }
-
-    if (g_chmod(cache_path, 0600) != 0) {
-        g_warning("Could not restrict permissions on the remembered-directory cache");
-    }
-    if (g_chmod(fdm_cache, 0600) != 0) {
-        g_warning("Could not restrict permissions on the download-manager directory cache");
+    if (ensure_parent_directory(fdm_cache, "download-manager directory cache")) {
+        if (!g_file_set_contents(fdm_cache, dir, -1, &error)) {
+            g_warning("Could not save the download-manager directory cache: %s", error->message);
+            g_clear_error(&error);
+        } else if (g_chmod(fdm_cache, 0600) != 0) {
+            g_warning("Could not restrict permissions on the download-manager directory cache");
+        }
     }
     g_free(cache_path);
     g_free(fdm_cache);
