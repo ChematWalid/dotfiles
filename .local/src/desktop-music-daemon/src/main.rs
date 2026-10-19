@@ -5,7 +5,7 @@ mod config;
 mod mpris;
 mod writer;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use futures_lite::StreamExt;
 use zbus::Connection;
 
@@ -27,20 +27,33 @@ async fn main() -> Result<()> {
     loop {
         tokio::select! {
             // MPRIS playback status or track property changed
-            Some(msg_result) = props_stream.next() => {
-                if msg_result.as_ref().map_or(true, mpris::affects_displayed_state) {
-                    report_write_error(output.write(&mpris::query_current_state().await));
+            message = props_stream.next() => {
+                match message {
+                    Some(Ok(message)) if mpris::affects_displayed_state(&message) => {
+                        report_write_error(output.write(&mpris::query_current_state().await));
+                    }
+                    Some(Err(error)) => {
+                        eprintln!("desktop-music-daemon: D-Bus property stream error: {error}");
+                    }
+                    Some(Ok(_)) => {}
+                    None => return Err(anyhow!("D-Bus property stream ended")),
                 }
             }
             // A D-Bus name appeared or disappeared
-            Some(msg_result) = name_stream.next() => {
-                if let Ok(msg) = msg_result {
-                    let body: Result<(String, String, String), _> = msg.body().deserialize();
-                    if let Ok((name, _old, _new)) = body {
-                        if name.starts_with("org.mpris.") {
-                            report_write_error(output.write(&mpris::query_current_state().await));
+            message = name_stream.next() => {
+                match message {
+                    Some(Ok(message)) => {
+                        let body: Result<(String, String, String), _> = message.body().deserialize();
+                        if let Ok((name, _old, _new)) = body {
+                            if name.starts_with("org.mpris.") {
+                                report_write_error(output.write(&mpris::query_current_state().await));
+                            }
                         }
                     }
+                    Some(Err(error)) => {
+                        eprintln!("desktop-music-daemon: D-Bus name stream error: {error}");
+                    }
+                    None => return Err(anyhow!("D-Bus name stream ended")),
                 }
             }
         }

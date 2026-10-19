@@ -47,20 +47,39 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
     tokio::spawn(async move {
         loop {
             tokio::select! {
-                Some(msg_result) = props_stream.next() => {
-                    if msg_result.as_ref().map_or(true, affects_displayed_state) {
-                        let latest = query_current_state().await;
-                        state.send_replace(latest);
+                message = props_stream.next() => {
+                    match message {
+                        Some(Ok(message)) if affects_displayed_state(&message) => {
+                            let latest = query_current_state().await;
+                            state.send_replace(latest);
+                        }
+                        Some(Err(error)) => {
+                            eprintln!("mpris-live: D-Bus property stream error: {error}");
+                        }
+                        Some(Ok(_)) => {}
+                        None => {
+                            eprintln!("mpris-live: D-Bus property stream ended");
+                            break;
+                        }
                     }
                 }
-                Some(msg_result) = name_stream.next() => {
-                    if let Ok(msg) = msg_result {
-                        let body: Result<(String, String, String), _> = msg.body().deserialize();
-                        if let Ok((name, _old, _new)) = body {
-                            if name.starts_with("org.mpris.") {
-                                let latest = query_current_state().await;
-                                state.send_replace(latest);
+                message = name_stream.next() => {
+                    match message {
+                        Some(Ok(message)) => {
+                            let body: Result<(String, String, String), _> = message.body().deserialize();
+                            if let Ok((name, _old, _new)) = body {
+                                if name.starts_with("org.mpris.") {
+                                    let latest = query_current_state().await;
+                                    state.send_replace(latest);
+                                }
                             }
+                        }
+                        Some(Err(error)) => {
+                            eprintln!("mpris-live: D-Bus name stream error: {error}");
+                        }
+                        None => {
+                            eprintln!("mpris-live: D-Bus name stream ended");
+                            break;
                         }
                     }
                 }
