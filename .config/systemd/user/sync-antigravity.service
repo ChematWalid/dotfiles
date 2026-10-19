@@ -3,7 +3,7 @@ Description=Antigravity Bidirectional Conversation Synchronizer
 
 [Service]
 Type=oneshot
-ExecStart=%h/.local/bin/sync-antigravity
+ExecStart=%h/.local/bin/sync-antigravity --quiet
 
 [Install]
 WantedBy=default.target
