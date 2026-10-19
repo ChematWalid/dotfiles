@@ -2,6 +2,7 @@
 #include <X11/Xlib.h>
 #include <dlfcn.h>
 #include <stdlib.h>
+#include <string.h>
 
 /*
  * Scratchpad Override-Redirect Wrapper
@@ -16,10 +17,16 @@ static void init(void) {
 }
 
 static int (*real_XMapWindow)(Display*, Window) = NULL;
+_Static_assert(sizeof(real_XMapWindow) == sizeof(void*),
+               "XMapWindow function pointers must match dlsym pointer size");
 
 int XMapWindow(Display *dpy, Window w) {
     if (!real_XMapWindow) {
-        real_XMapWindow = dlsym(RTLD_NEXT, "XMapWindow");
+        void *symbol = dlsym(RTLD_NEXT, "XMapWindow");
+        memcpy(&real_XMapWindow, &symbol, sizeof(real_XMapWindow));
+        if (!real_XMapWindow) {
+            return 0;
+        }
     }
 
     /* Set override_redirect so i3 ignores this window completely */
