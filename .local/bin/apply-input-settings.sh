@@ -40,19 +40,41 @@ apply_input() {
         printf 'apply-input-settings: could not apply the Belgian/Arabic keyboard layout\n' >&2
     fi
 
-    # 2. Keyboard Repeat Rate (250ms delay, 50 repeats/sec)
-    if ! xset r rate 250 50 2>/dev/null; then
-        printf 'apply-input-settings: could not set keyboard repeat rate\n' >&2
-    fi
+    # Read the X server state once and avoid spawning three setters on every
+    # input hotplug when repeat, blanking, and acceleration are already right.
+    local xstate
+    if xstate=$(LC_ALL=C xset q 2>/dev/null); then
+        # 2. Keyboard Repeat Rate (250ms delay, 50 repeats/sec)
+        if [[ ! "$xstate" =~ auto[[:space:]]repeat:[[:space:]]+on ]] ||
+            [[ ! "$xstate" =~ auto[[:space:]]repeat[[:space:]]delay:[[:space:]]+250[[:space:]]+repeat[[:space:]]rate:[[:space:]]+50 ]]; then
+            if ! xset r rate 250 50 2>/dev/null; then
+                printf 'apply-input-settings: could not set keyboard repeat rate\n' >&2
+            fi
+        fi
 
-    # 3. Disable Screen Blanking
-    if ! xset s off -dpms s noblank 2>/dev/null; then
-        printf 'apply-input-settings: could not disable screen blanking\n' >&2
-    fi
+        # 3. Disable Screen Blanking
+        if [[ ! "$xstate" =~ prefer[[:space:]]blanking:[[:space:]]+no ]] ||
+            [[ ! "$xstate" =~ timeout:[[:space:]]+0[[:space:]]+cycle: ]] ||
+            [[ "$xstate" != *'DPMS is Disabled'* ]]; then
+            if ! xset s off -dpms s noblank 2>/dev/null; then
+                printf 'apply-input-settings: could not disable screen blanking\n' >&2
+            fi
+        fi
 
-    # 4. Disable X11 core pointer acceleration
-    if ! xset m 0 0 2>/dev/null; then
-        printf 'apply-input-settings: could not disable pointer acceleration\n' >&2
+        # 4. Disable X11 core pointer acceleration
+        if [[ ! "$xstate" =~ acceleration:[[:space:]]+0/1[[:space:]]+threshold:[[:space:]]+0 ]]; then
+            if ! xset m 0 0 2>/dev/null; then
+                printf 'apply-input-settings: could not disable pointer acceleration\n' >&2
+            fi
+        fi
+    else
+        # If state cannot be queried, retain the original best-effort behavior.
+        xset r rate 250 50 2>/dev/null ||
+            printf 'apply-input-settings: could not set keyboard repeat rate\n' >&2
+        xset s off -dpms s noblank 2>/dev/null ||
+            printf 'apply-input-settings: could not disable screen blanking\n' >&2
+        xset m 0 0 2>/dev/null ||
+            printf 'apply-input-settings: could not disable pointer acceleration\n' >&2
     fi
 
     # 5. Mouse Libinput Raw Input (Flat Profile: 0, 1, 0) & Speed (-0.25)
