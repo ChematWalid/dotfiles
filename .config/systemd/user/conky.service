@@ -9,8 +9,7 @@ ExecStartPre=/usr/bin/bash -c 'for i in {1..60}; do pgrep -x picom >/dev/null &&
 ExecStart=/usr/bin/conky -c /home/walid/.config/conky/conky.conf -q
 Restart=always
 RestartSec=1
-Environment=DISPLAY=:0
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
 
 [Install]
-WantedBy=default.target
+# Started from i3 after the X display and compositor are ready.
