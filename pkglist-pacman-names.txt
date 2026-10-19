@@ -200,6 +200,7 @@ slop
 smartmontools
 songrec
 sox
+stalonetray
 starship
 steam
 sudo

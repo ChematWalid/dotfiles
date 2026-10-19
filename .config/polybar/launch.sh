@@ -26,10 +26,12 @@ stop_polybar() {
     done
 
     killall -9 polybar 2>/dev/null || true
+    pkill -x tray-autohide 2>/dev/null || true
 }
 
 if [[ "${1:-}" == --stop ]]; then
     stop_polybar
+    pkill -x stalonetray 2>/dev/null || true
     exit 0
 fi
 
@@ -43,8 +45,13 @@ mkdir -p "$STATE_DIR"
 window_visibility() {
     local role window
     role="$1"
-    window=$(xwininfo -root -tree 2>/dev/null \
-        | awk -v prefix="\"polybar-${role}_" 'index($2, prefix) == 1 { print $1; exit }')
+    if [[ "$role" == stalonetray ]]; then
+        window=$(xwininfo -root -tree 2>/dev/null \
+            | awk 'tolower($0) ~ /stalonetray/ && !found { window = $1; found = 1 } END { if (found) print window }')
+    else
+        window=$(xwininfo -root -tree 2>/dev/null \
+            | awk -v prefix="\"polybar-${role}_" 'index($2, prefix) == 1 && !found { window = $1; found = 1 } END { if (found) print window }')
+    fi
     [[ -n "$window" ]] || return 1
 
     if xwininfo -id "$window" 2>/dev/null | grep -q 'Map State: IsViewable'; then
@@ -55,7 +62,7 @@ window_visibility() {
 }
 
 MAIN_WAS_VISIBLE=$(window_visibility main || true)
-TRAY_WAS_VISIBLE=$(window_visibility tray || true)
+TRAY_WAS_VISIBLE=$(window_visibility stalonetray || true)
 if [[ -z "$MAIN_WAS_VISIBLE" ]]; then
     MAIN_WAS_VISIBLE=$(cat "$VISIBILITY_STATE" 2>/dev/null || printf 'visible')
 fi
@@ -83,15 +90,22 @@ if [[ ! -x "${HOME}/.local/bin/polybar-datetime" ]]; then
     exit 1
 fi
 
+STALONETRAY_BIN=$(command -v stalonetray || true)
+if [[ -z "$STALONETRAY_BIN" && -x "${HOME}/.local/bin/stalonetray" ]]; then
+    STALONETRAY_BIN="${HOME}/.local/bin/stalonetray"
+fi
+if [[ -z "$STALONETRAY_BIN" || ! -x "$STALONETRAY_BIN" ]]; then
+    printf 'Stalonetray is required for the multi-row tray: %s\n' \
+        'install the stalonetray package' >&2
+    exit 1
+fi
+
 # Terminate an existing Polybar instance and its module processes.
 stop_polybar
 pkill -x "mpris-live" 2>/dev/null || true
 
 # Launch main polybar
 DISPLAY="${DISPLAY:-:0}" setsid polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 &
-
-# Launch tray popup bar
-DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar-tray.log 2>&1 &
 
 # Wait for the main bar's IPC endpoint. systemd can then retry this launcher
 # while the X display or its authorization cookie is still coming up.
@@ -127,23 +141,30 @@ else
     printf 'visible\n' > "${VISIBILITY_STATE}.tmp.$$"
 fi
 mv -f "${VISIBILITY_STATE}.tmp.$$" "$VISIBILITY_STATE"
+MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
+    | awk '$2 ~ /^"polybar-main_/ && !found { window = $1; found = 1 } END { if (found) print window }')
 
-# Restore the tray popup state and re-arm its outside-click watcher if it was
-# open before the reload.
-for _ in {1..20}; do
-    TRAY_PID=$(pgrep -n -f "polybar tray" || true)
-    if [[ -n "$TRAY_PID" ]] && polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1; then
-        if [[ "$TRAY_WAS_VISIBLE" == visible ]]; then
-            MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
-                | awk '$2 ~ /^"polybar-main_/ && !found { print $1; found = 1 }')
-            setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" "$TRAY_STATE" >/dev/null 2>&1 &
-            printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
-            polybar-msg -p "$TRAY_PID" cmd show >/dev/null 2>&1
-        else
-            printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
-        fi
-        mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
-        break
-    fi
-    sleep 0.05
-done
+# Keep one tray owner across Polybar reloads so applications retain their XEmbed registrations.
+if ! pgrep -u "${UID:-$(id -u)}" -x stalonetray >/dev/null; then
+    DISPLAY="${DISPLAY:-:0}" setsid "$STALONETRAY_BIN" \
+        -c "${HOME}/.config/polybar/stalonetrayrc" > /tmp/stalonetray.log 2>&1 &
+fi
+
+TRAY_WINDOW=$(timeout 5s xdotool search --sync --class --limit 1 '^stalonetray$' 2>/dev/null || true)
+
+if [[ -z "$TRAY_WINDOW" ]]; then
+    printf 'Stalonetray did not create its window; see /tmp/stalonetray.log\n' >&2
+    exit 1
+fi
+
+if [[ "$TRAY_WAS_VISIBLE" == visible ]]; then
+    setsid "${HOME}/.config/polybar/tray-autohide" stalonetray "$MAIN_WINDOW" \
+        "$TRAY_STATE" "$TRAY_WINDOW" >/dev/null 2>&1 &
+    printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
+    xdotool windowmap "$TRAY_WINDOW"
+    xdotool windowraise "$TRAY_WINDOW"
+else
+    xdotool windowunmap "$TRAY_WINDOW"
+    printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
+fi
+mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"

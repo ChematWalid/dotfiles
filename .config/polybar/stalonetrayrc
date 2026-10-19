@@ -1,0 +1,19 @@
+# Stalonetray tray popup, styled to match the existing Polybar tray.
+# Six columns are available; additional icons flow into rows above it.
+background "#313244"
+decorations border
+dockapp_mode none
+geometry 6x1-24-33
+grow_gravity SE
+icon_gravity NW
+icon_size 16
+slot_size 22
+max_geometry 6x0
+no_shrink false
+skip_taskbar true
+sticky true
+window_layer top
+window_strut none
+window_type utility
+vertical false
+xsync false

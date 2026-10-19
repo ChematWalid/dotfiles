@@ -15,24 +15,32 @@ static Display *data_disp = NULL;
 static char tray_pid[32] = {0};
 static char state_path[4096] = {0};
 static Window toggle_window = None;
+static Window tray_window = None;
 extern char **environ;
 
 static void hide_tray_and_exit(void) {
-    if (tray_pid[0] == '\0') {
+    if (tray_window != None) {
+        XUnmapWindow(ctrl_disp, tray_window);
+        XFlush(ctrl_disp);
+    } else if (tray_pid[0] != '\0') {
+        char *const args[] = {"polybar-msg", "-p", tray_pid, "cmd", "hide", NULL};
+        pid_t child;
+        int result = posix_spawnp(&child, args[0], NULL, NULL, args, environ);
+        if (result != 0) {
+            _exit(1);
+        }
+    } else {
         _exit(1);
     }
 
-    char *const args[] = {"polybar-msg", "-p", tray_pid, "cmd", "hide", NULL};
-    pid_t child;
-    int result = posix_spawnp(&child, args[0], NULL, NULL, args, environ);
-    if (result == 0 && state_path[0] != '\0') {
+    if (state_path[0] != '\0') {
         int fd = open(state_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
         if (fd >= 0) {
             (void)write(fd, "hidden\n", 7);
             close(fd);
         }
     }
-    _exit(result == 0 ? 0 : 1);
+    _exit(0);
 }
 
 static void event_callback(XPointer priv, XRecordInterceptData *data) {
@@ -65,6 +73,9 @@ int main(int argc, char *argv[]) {
     }
     if (argc >= 4) {
         snprintf(state_path, sizeof(state_path), "%s", argv[3]);
+    }
+    if (argc >= 5) {
+        tray_window = (Window)strtoul(argv[4], NULL, 0);
     }
 
     ctrl_disp = XOpenDisplay(NULL);
