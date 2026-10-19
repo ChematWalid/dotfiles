@@ -13,13 +13,6 @@
 
 set -euo pipefail
 
-# Source common script helpers if available
-SCRIPTS_COMMON="${HOME}/dotfiles/.local/bin/scripts-common.sh"
-if [[ -f "$SCRIPTS_COMMON" ]]; then
-    # shellcheck source=/dev/null
-    source "$SCRIPTS_COMMON"
-fi
-
 notify_user() {
     local urgency="${1:-normal}"
     local title="$2"
