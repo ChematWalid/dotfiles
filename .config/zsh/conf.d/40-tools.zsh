@@ -5,8 +5,8 @@ _source_cached() {
     local tool="$1"
     local cache="$2"
     shift 2
-    local bin
-    bin="$(command -v "$tool" 2>/dev/null)" || return 1
+    local bin="${commands[$tool]-}"
+    [[ -n "$bin" ]] || return 1
     if [[ ! -f "$cache" || "$cache" -ot "$bin" ]]; then
         mkdir -p "${cache:h}"
         "$@" > "$cache" 2>/dev/null
