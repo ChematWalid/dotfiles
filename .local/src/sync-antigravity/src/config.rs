@@ -1,14 +1,10 @@
 //! Filesystem path configuration for Antigravity synchronizer.
 
 use std::path::PathBuf;
-
-pub fn home_dir() -> PathBuf {
-    std::env::var("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/home/walid"))
-}
+use std::{env, io};
 
 pub struct SyncPaths {
+    pub workspace_dir: PathBuf,
     pub gui_dir: PathBuf,
     pub cli_dir: PathBuf,
     pub gui_convs: PathBuf,
@@ -20,8 +16,16 @@ pub struct SyncPaths {
 }
 
 impl SyncPaths {
-    pub fn new() -> Self {
-        let home = home_dir();
+    pub fn new() -> io::Result<Self> {
+        let home = env::var_os("HOME")
+            .map(PathBuf::from)
+            .filter(|path| path.is_absolute())
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "HOME is unset or not an absolute path",
+                )
+            })?;
         let gui_dir = home.join(".gemini/antigravity");
         let cli_dir = home.join(".gemini/antigravity-cli");
 
@@ -34,7 +38,8 @@ impl SyncPaths {
         let gui_proto = gui_dir.join("agyhub_summaries_proto.pb");
         let cli_db = cli_dir.join("conversation_summaries.db");
 
-        Self {
+        Ok(Self {
+            workspace_dir: home.join("E/Documents"),
             gui_dir,
             cli_dir,
             gui_convs,
@@ -43,6 +48,6 @@ impl SyncPaths {
             cli_brain,
             gui_proto,
             cli_db,
-        }
+        })
     }
 }

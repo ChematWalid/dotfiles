@@ -37,7 +37,7 @@ fn link_if_missing(source: &Path, destination: &Path, dry_run: bool) -> io::Resu
 }
 
 pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn Error>> {
-    let paths = SyncPaths::new();
+    let paths = SyncPaths::new()?;
 
     if !quiet_if_no_changes {
         println!("🔄 Antigravity Bidirectional Conversation Synchronizer (Rust)");
@@ -87,6 +87,7 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         .filter(|row| !gui_entries.contains_key(row.conversation_id.as_str()))
         .collect();
     let synced_to_gui = cli_only_rows.len();
+    let ws_uri = file_uri(&paths.workspace_dir)?;
 
     if !dry_run && !imports.is_empty() && paths.cli_db.exists() {
         let backup_path = paths.cli_dir.join("conversation_summaries.db.bak");
@@ -110,10 +111,8 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         let title = row.title.as_deref().unwrap_or("Untitled Conversation");
         let step_count = row.step_count.unwrap_or(1);
         let ts = parse_iso_ts(row.last_modified_time.as_deref());
-        let ws_uri = "file:///home/walid/E/Documents";
-
         let entry_bytes =
-            build_gui_proto_entry(&row.conversation_id, title, step_count, ts, ws_uri);
+            build_gui_proto_entry(&row.conversation_id, title, step_count, ts, &ws_uri);
         raw_proto.extend_from_slice(&entry_bytes);
     }
 
@@ -173,4 +172,26 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         println!("   • {file_action}    : +{}", files_linked);
     }
     Ok(())
+}
+
+fn file_uri(path: &Path) -> Result<String, io::Error> {
+    let path = path.to_str().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "workspace path is not valid UTF-8",
+        )
+    })?;
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut uri = String::with_capacity("file://".len() + path.len());
+    uri.push_str("file://");
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'/' | b'-' | b'_' | b'.' | b'~') {
+            uri.push(byte as char);
+        } else {
+            uri.push('%');
+            uri.push(HEX[(byte >> 4) as usize] as char);
+            uri.push(HEX[(byte & 0x0f) as usize] as char);
+        }
+    }
+    Ok(uri)
 }
