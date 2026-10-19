@@ -22,7 +22,7 @@ fn main() -> Result<()> {
 
     let renderer = Renderer::new(cache_dir.clone());
 
-    if let Some(idx) = run_rofi(&items, &renderer, &cache_dir) {
+    if let Some(idx) = run_rofi(&items, &renderer, &cache_dir)? {
         if idx < items.len() {
             select_and_paste(items[idx].i)?;
         }

@@ -1,6 +1,7 @@
 //! Rofi UI construction and runner.
 
-use std::io::Write;
+use anyhow::{bail, Context, Result};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -11,10 +12,18 @@ fn dirs_home() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
 }
 
-pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer, cache_dir: &Path) -> Option<usize> {
-    let config_rasi = dirs_home()?.join(".config/rofi/config.rasi");
-    let config_rasi = config_rasi.to_str()?;
-    let mut rofi_entries = Vec::new();
+pub fn run_rofi(
+    items: &[CopyQItem],
+    renderer: &Renderer,
+    cache_dir: &Path,
+) -> Result<Option<usize>> {
+    let config_rasi = dirs_home()
+        .context("HOME is not set")?
+        .join(".config/rofi/config.rasi");
+    let config_rasi = config_rasi
+        .to_str()
+        .context("Rofi config path is not valid UTF-8")?;
+    let mut rofi_input = String::with_capacity(items.len().saturating_mul(96));
 
     for item in items {
         let (preview, label) = if item.is_image {
@@ -28,7 +37,7 @@ pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer, cache_dir: &Path) -> O
                     "Image Thumbnail",
                     "",
                     "Image format unavailable",
-                );
+                )?;
                 (card, format!("  [Image #{}]", item.i))
             }
         } else if item.is_files {
@@ -51,23 +60,22 @@ pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer, cache_dir: &Path) -> O
             };
 
             let preview = if count == 1 && paths[0].to_lowercase().ends_with(".pdf") {
-                renderer
-                    .render_pdf_preview(Path::new(paths[0]))
-                    .unwrap_or_else(|| {
-                        renderer.render_text_card(
-                            "",
-                            "PDF Document",
-                            paths[0],
-                            "PDF preview rendering failed",
-                        )
-                    })
+                match renderer.render_pdf_preview(Path::new(paths[0])) {
+                    Some(preview) => preview,
+                    None => renderer.render_text_card(
+                        "",
+                        "PDF Document",
+                        paths[0],
+                        "PDF preview rendering failed",
+                    )?,
+                }
             } else {
                 renderer.render_text_card(
                     "",
                     "File List",
                     &format!("{} files attached", count),
                     &paths.join("\n"),
-                )
+                )?
             };
             (preview, label)
         } else {
@@ -87,14 +95,18 @@ pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer, cache_dir: &Path) -> O
             } else {
                 String::new()
             };
-            let card = renderer.render_text_card("", "Text Preview", &sub, text);
+            let card = renderer.render_text_card("", "Text Preview", &sub, text)?;
             (card, format!("  {}", clean_label))
         };
 
-        rofi_entries.push(format!("{}\0icon\x1f{}", label, preview));
+        if !rofi_input.is_empty() {
+            rofi_input.push('\n');
+        }
+        rofi_input.push_str(&label);
+        rofi_input.push('\0');
+        rofi_input.push_str("icon\x1f");
+        rofi_input.push_str(&preview);
     }
-
-    let rofi_input = rofi_entries.join("\n");
 
     let theme_overrides = "configuration { show-icons: false; } \
          window { width: 1060px; height: 580px; border: 0px; border-radius: 12px; } \
@@ -122,16 +134,33 @@ pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer, cache_dir: &Path) -> O
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
-        .ok()?;
+        .context("Failed to start Rofi")?;
 
+    let mut input_error = None;
     if let Some(mut stdin) = rofi_cmd.stdin.take() {
-        let _ = stdin.write_all(rofi_input.as_bytes());
+        if let Err(error) = stdin.write_all(rofi_input.as_bytes()) {
+            if error.kind() != io::ErrorKind::BrokenPipe {
+                input_error = Some(error);
+            }
+        }
     }
 
-    let output = rofi_cmd.wait_with_output().ok()?;
+    let output = rofi_cmd
+        .wait_with_output()
+        .context("Failed while waiting for Rofi")?;
+    if !output.status.success() && output.status.code() != Some(1) {
+        let error_output = String::from_utf8_lossy(&output.stderr);
+        if !error_output.trim().is_empty() {
+            bail!("Rofi failed: {}", error_output.trim());
+        }
+        bail!("Rofi exited with status {}", output.status);
+    }
+    if let Some(error) = input_error {
+        return Err(error).context("Failed to send entries to Rofi");
+    }
     let selected = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-    selected.parse::<usize>().ok()
+    Ok(selected.parse::<usize>().ok())
 }

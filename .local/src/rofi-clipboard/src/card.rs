@@ -1,7 +1,8 @@
 //! High-performance card image renderer using swash and image.
 
+use anyhow::Result;
 use image::imageops::FilterType;
-use image::{Rgba, RgbaImage};
+use image::{ImageFormat, Rgba, RgbaImage};
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
@@ -178,7 +179,13 @@ impl Renderer {
         lines
     }
 
-    pub fn render_text_card(&self, icon: &str, title: &str, sub: &str, text: &str) -> String {
+    pub fn render_text_card(
+        &self,
+        icon: &str,
+        title: &str,
+        sub: &str,
+        text: &str,
+    ) -> Result<String> {
         let mut hasher = DefaultHasher::new();
         icon.hash(&mut hasher);
         title.hash(&mut hasher);
@@ -188,7 +195,7 @@ impl Renderer {
         let path = self.cache_dir.join(format!("txt_{:x}.png", hash));
 
         if path.exists() {
-            return path.to_string_lossy().into_owned();
+            return Ok(path.to_string_lossy().into_owned());
         }
 
         let mut img = RgbaImage::from_pixel(CARD_W, CARD_H, BG_COLOR);
@@ -272,8 +279,15 @@ impl Renderer {
             );
         }
 
-        let _ = img.save(&path);
-        path.to_string_lossy().into_owned()
+        let temp_path = self
+            .cache_dir
+            .join(format!("txt_{hash}.{}.tmp", std::process::id()));
+        img.save_with_format(&temp_path, ImageFormat::Png)?;
+        if let Err(error) = fs::rename(&temp_path, &path) {
+            let _ = fs::remove_file(temp_path);
+            return Err(error.into());
+        }
+        Ok(path.to_string_lossy().into_owned())
     }
 
     pub fn render_pdf_preview(&self, pdf_path: &Path) -> Option<String> {
@@ -352,8 +366,9 @@ mod tests {
         fs::create_dir_all(&cache_dir).unwrap();
 
         let renderer = Renderer::new(cache_dir.clone());
-        let path =
-            renderer.render_text_card("󰆍", "Renderer test", "font migration", "A rendered body");
+        let path = renderer
+            .render_text_card("󰆍", "Renderer test", "font migration", "A rendered body")
+            .unwrap();
         let image = image::open(&path).unwrap().to_rgba8();
 
         assert_eq!(image.dimensions(), (CARD_W, CARD_H));
