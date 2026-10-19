@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════════════════════
-#  flameshot-safe.sh — Universal, Zero-Interruption Screenshot Launcher
-#  Captures anywhere, anytime with full Flameshot annotation & editing GUI:
-#   - Launches Flameshot GUI directly so you can select, draw, and edit.
-#   - NEVER sends synthetic key events (prevents closing menus/popups).
-#   - Zero artificial delays (captures open menus instantly before closing).
-#   - Ignores intentional user aborts (Escape) without taking unwanted snaps.
-#   - Automatically syncs to X11 clipboard and CopyQ history.
-#   - Reliable maim fallback if Flameshot encounters an error.
+#  flameshot-safe.sh — Screenshot launcher for i3/X11.
+#  Direct maim capture preserves transient menus and hover previews; use the
+#  separate gui mode when you want Flameshot's interactive region selector.
 # ══════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -28,6 +23,21 @@ copy_to_clipboards() {
 }
 
 case "$MODE" in
+    overlay)
+        # Do not launch a selector or move focus before capture: Telegram
+        # previews and other transient windows can disappear when focus changes.
+        if maim -u "$OUT_FILE" 2>/dev/null; then
+            copy_to_clipboards "$OUT_FILE"
+            dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screenshot Captured" "Saved to Screenshots & copied to clipboard"
+            if command -v feh >/dev/null 2>&1; then
+                feh --auto-zoom --scale-down "$OUT_FILE" >/dev/null 2>&1 &
+            fi
+        else
+            dunstify -a "screenshot" -u critical "Screenshot failed" "Could not capture the screen"
+            exit 1
+        fi
+        ;;
+
     gui)
         set +e
         flameshot gui 2>/dev/null
