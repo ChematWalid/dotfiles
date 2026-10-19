@@ -11,8 +11,8 @@ use std::io::Read;
 use std::time::Duration;
 
 use ipc::{
-    event_changes_workspace_icons, get_i3_socket_path, is_stream_disconnect, subscribe_events,
-    wait_for_i3_socket_after_failure, I3Client,
+    event_changes_workspace_icons, get_i3_socket_path, is_stream_disconnect,
+    is_transient_ipc_error, subscribe_events, wait_for_i3_socket_after_failure, I3Client,
 };
 use workspace::update_workspaces;
 
@@ -32,7 +32,9 @@ fn main() {
 
     // Initial update
     if let Err(error) = update_workspaces(&mut client) {
-        eprintln!("autoname-workspaces: initial workspace update failed: {error}");
+        if !is_transient_ipc_error(&error) {
+            eprintln!("autoname-workspaces: initial workspace update failed: {error}");
+        }
     }
 
     // Event listener subscription loop
@@ -41,11 +43,15 @@ fn main() {
         let mut event_stream = match subscribe_events(&sock_path) {
             Ok(stream) => stream,
             Err(error) => {
-                eprintln!("autoname-workspaces: i3 event subscription failed: {error}");
+                if !is_transient_ipc_error(&error) {
+                    eprintln!("autoname-workspaces: i3 event subscription failed: {error}");
+                }
                 sock_path = wait_for_i3_socket_after_failure(&sock_path, &mut retry_delay);
                 client = I3Client::new(sock_path.clone());
                 if let Err(error) = update_workspaces(&mut client) {
-                    eprintln!("autoname-workspaces: workspace update failed: {error}");
+                    if !is_transient_ipc_error(&error) {
+                        eprintln!("autoname-workspaces: workspace update failed: {error}");
+                    }
                 }
                 continue;
             }
@@ -73,7 +79,9 @@ fn main() {
             retry_delay = Duration::from_millis(50);
             if event_changes_workspace_icons(ev_type, &ev_body) {
                 if let Err(error) = update_workspaces(&mut client) {
-                    eprintln!("autoname-workspaces: workspace update failed: {error}");
+                    if !is_transient_ipc_error(&error) {
+                        eprintln!("autoname-workspaces: workspace update failed: {error}");
+                    }
                 }
             }
         }
@@ -81,7 +89,9 @@ fn main() {
         sock_path = wait_for_i3_socket_after_failure(&sock_path, &mut retry_delay);
         client = I3Client::new(sock_path.clone());
         if let Err(error) = update_workspaces(&mut client) {
-            eprintln!("autoname-workspaces: workspace update failed: {error}");
+            if !is_transient_ipc_error(&error) {
+                eprintln!("autoname-workspaces: workspace update failed: {error}");
+            }
         }
     }
 }

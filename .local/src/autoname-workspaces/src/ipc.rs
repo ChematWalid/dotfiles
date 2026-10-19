@@ -36,10 +36,10 @@ pub fn event_change(body: &[u8]) -> Option<&str> {
         .and_then(|event| event.change)
 }
 
-/// i3 closes subscribed event sockets while restarting or reloading. Treat
-/// those normal stream shutdowns as reconnect signals instead of user-facing
-/// errors; other I/O failures remain reportable.
-pub fn is_stream_disconnect(error: &io::Error) -> bool {
+/// i3 briefly removes/replaces its IPC socket while restarting or reloading.
+/// Treat the resulting socket errors as reconnect signals instead of noisy
+/// user-facing failures; unrelated I/O errors remain reportable.
+pub fn is_transient_ipc_error(error: &io::Error) -> bool {
     matches!(
         error.kind(),
         io::ErrorKind::UnexpectedEof
@@ -47,7 +47,13 @@ pub fn is_stream_disconnect(error: &io::Error) -> bool {
             | io::ErrorKind::ConnectionAborted
             | io::ErrorKind::BrokenPipe
             | io::ErrorKind::NotConnected
+            | io::ErrorKind::NotFound
+            | io::ErrorKind::ConnectionRefused
     )
+}
+
+pub fn is_stream_disconnect(error: &io::Error) -> bool {
+    is_transient_ipc_error(error)
 }
 
 #[repr(C)]
