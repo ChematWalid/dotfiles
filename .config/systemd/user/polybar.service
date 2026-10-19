@@ -12,3 +12,4 @@ ExecStart=%h/.config/polybar/launch.sh --show
 RemainAfterExit=yes
 Restart=on-failure
 RestartSec=5s
+TimeoutStopSec=3s
