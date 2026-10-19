@@ -3,12 +3,38 @@
 use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
+use std::io;
 use std::os::unix::fs::symlink;
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 
 use crate::config::SyncPaths;
 use crate::db::{fetch_cli_rows, insert_cli_rows, parse_iso_ts};
 use crate::proto::{build_gui_proto_entry, read_gui_proto};
+
+fn link_if_missing(source: &Path, destination: &Path, dry_run: bool) -> io::Result<bool> {
+    if !source.exists() || destination.exists() {
+        return Ok(false);
+    }
+    if dry_run {
+        return Ok(true);
+    }
+
+    match symlink(source, destination) {
+        Ok(()) => Ok(true),
+        // Another writer may have created the same link after the existence
+        // check. Treat that race as already complete.
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(false),
+        Err(error) => Err(io::Error::new(
+            error.kind(),
+            format!(
+                "could not link {} -> {}: {error}",
+                source.display(),
+                destination.display()
+            ),
+        )),
+    }
+}
 
 pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn Error>> {
     let paths = SyncPaths::new();
@@ -116,14 +142,9 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         let c_brain = paths.cli_brain.join(cid);
 
         if g_brain.exists() && !c_brain.exists() {
-            if dry_run || symlink(&g_brain, &c_brain).is_ok() {
-                files_linked += 1;
-            }
-        } else if c_brain.exists()
-            && !g_brain.exists()
-            && (dry_run || symlink(&c_brain, &g_brain).is_ok())
-        {
-            files_linked += 1;
+            files_linked += usize::from(link_if_missing(&g_brain, &c_brain, dry_run)?);
+        } else if c_brain.exists() && !g_brain.exists() {
+            files_linked += usize::from(link_if_missing(&c_brain, &g_brain, dry_run)?);
         }
 
         let filename = format!("{cid}.json");
@@ -131,14 +152,9 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         let c_conv = paths.cli_convs.join(filename);
 
         if g_conv.exists() && !c_conv.exists() {
-            if dry_run || symlink(&g_conv, &c_conv).is_ok() {
-                files_linked += 1;
-            }
-        } else if c_conv.exists()
-            && !g_conv.exists()
-            && (dry_run || symlink(&c_conv, &g_conv).is_ok())
-        {
-            files_linked += 1;
+            files_linked += usize::from(link_if_missing(&g_conv, &c_conv, dry_run)?);
+        } else if c_conv.exists() && !g_conv.exists() {
+            files_linked += usize::from(link_if_missing(&c_conv, &g_conv, dry_run)?);
         }
     }
 
