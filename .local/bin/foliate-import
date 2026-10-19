@@ -11,7 +11,6 @@ import json
 import hashlib
 import zipfile
 import urllib.parse
-from pathlib import Path
 from PIL import Image
 
 FOLIATE_DATA_DIR = os.path.expanduser("~/.local/share/com.github.johnfactotum.Foliate")
@@ -20,7 +19,7 @@ FOLIATE_LIB_DIR = os.path.join(FOLIATE_DATA_DIR, "library")
 URI_STORE_PATH = os.path.join(FOLIATE_LIB_DIR, "uri-store.json")
 
 SUPPORTED_EXTS = {".cbz", ".cbr", ".epub", ".pdf", ".mobi", ".azw", ".azw3", ".fb2"}
-IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 
 
 def read_archive_image(archive: zipfile.ZipFile, name: str) -> Image.Image:
@@ -52,9 +51,9 @@ def extract_cbz_cover(cbz_path: str) -> Image.Image | None:
     try:
         with zipfile.ZipFile(cbz_path) as z:
             first_image = min((
-                name for name in z.namelist()
-                if any(name.lower().endswith(ext) for ext in IMAGE_EXTS)
-                and not name.startswith("__MACOSX")
+                member.filename for member in z.infolist()
+                if member.filename.lower().endswith(IMAGE_EXTS)
+                and not member.filename.startswith("__MACOSX")
             ), default=None)
             if first_image:
                 return read_archive_image(z, first_image)
@@ -68,14 +67,16 @@ def extract_epub_cover(epub_path: str) -> Image.Image | None:
     try:
         with zipfile.ZipFile(epub_path) as z:
             # First try cover-named files
-            for name in z.namelist():
+            members = z.infolist()
+            for member in members:
+                name = member.filename
                 lower = name.lower()
-                if "cover" in lower and any(lower.endswith(ext) for ext in IMAGE_EXTS):
+                if "cover" in lower and lower.endswith(IMAGE_EXTS):
                     return read_archive_image(z, name)
             # Otherwise first image
             first_image = min((
-                name for name in z.namelist()
-                if any(name.lower().endswith(ext) for ext in IMAGE_EXTS)
+                member.filename for member in members
+                if member.filename.lower().endswith(IMAGE_EXTS)
             ), default=None)
             if first_image:
                 return read_archive_image(z, first_image)
