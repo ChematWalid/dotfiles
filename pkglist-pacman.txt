@@ -41,6 +41,7 @@ ctop
 cups
 cups-pk-helper
 dbeaver
+dex
 difftastic
 direnv
 discord
@@ -50,7 +51,6 @@ docker-buildx
 docker-compose
 dog
 duf
-dex
 dunst
 dust
 efibootmgr
@@ -111,9 +111,9 @@ lib32-mesa
 lib32-vulkan-nouveau
 libgepub
 libgsf
+libopenraw
 libpulse
 libreoffice-fresh
-libopenraw
 libva-intel-driver
 lightdm
 lightdm-gtk-greeter
@@ -184,10 +184,10 @@ qt6ct
 rbw
 rclone
 ripgrep
-rtkit
 rofi
 rofi-calc
 rofi-rbw
+rtkit
 ruby
 rust-analyzer
 rustup
