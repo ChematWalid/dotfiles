@@ -92,7 +92,24 @@ run_module() {
     # ── ~/.local/src source directories ─────────────────────────────────────────
     if [[ -d "$DOTFILES_DIR/.local/src" ]]; then
       mkdir -p "$HOME/.local/src"
-      cp -rn "$DOTFILES_DIR/.local/src/." "$HOME/.local/src/" 2>/dev/null || true
+      local source_root="$DOTFILES_DIR/.local/src"
+      local source_file relative_path destination
+      local source_copy_failed=false
+      while IFS= read -r -d '' source_file; do
+        relative_path="${source_file#"$source_root"/}"
+        destination="$HOME/.local/src/$relative_path"
+        if ! mkdir -p "$(dirname "$destination")" \
+          || ! cp -an -- "$source_file" "$destination" 2>/dev/null; then
+          source_copy_failed=true
+        fi
+      done < <(
+        find "$source_root" \
+          \( -type d -name target -prune \) -o \
+          \( -type f -o -type l \) -print0
+      )
+      if [[ "$source_copy_failed" == true ]]; then
+        warn "Some local source files could not be copied"
+      fi
     fi
 
     # ── ~/.local/share files & desktop entries ──────────────────────────────────
