@@ -9,9 +9,15 @@ local function hex_to_rgba(hex, alpha)
     return r, g, b, (alpha or 1.0)
 end
 
+local function make_color(hex, alpha)
+    local r, g, b, a = hex_to_rgba(hex, alpha)
+    return { r = r, g = g, b = b, a = a }
+end
+
 local function make_color_stop(offset, hex)
-    local r, g, b, a = hex_to_rgba(hex)
-    return { offset = offset, r = r, g = g, b = b, a = a }
+    local color = make_color(hex)
+    color.offset = offset
+    return color
 end
 
 local clock_stops = {
@@ -28,11 +34,16 @@ local date_stops = {
     make_color_stop(1.00, "#a6e3a1"),
 }
 
+local shadow_color = make_color("#11111b", 0.9)
+local stroke_color = make_color("#11111b", 1.0)
+local gradient_cos_45 = math.cos(math.pi / 4.0)
+local gradient_sin_45 = math.sin(math.pi / 4.0)
+
 local home = os.getenv("HOME") or "."
 local runtime_dir = os.getenv("XDG_RUNTIME_DIR") or (home .. "/.cache")
 local music_path = runtime_dir .. "/conky-music.txt"
 
-local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x, y, align, angle_deg, color_stops, stroke_color, stroke_width, shadow_color, shadow_ox, shadow_oy)
+local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x, y, align, color_stops, stroke_width, shadow_ox, shadow_oy)
     if not text or text == "" then return end
 
     cairo_select_font_face(cr, font_face, CAIRO_FONT_SLANT_NORMAL, font_weight)
@@ -51,8 +62,7 @@ local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x
 
     -- 1. Drop Shadow Pass (Deep #11111b at 90% opacity)
     if shadow_color then
-        local sr, sg, sb, sa = hex_to_rgba(shadow_color, 0.9)
-        cairo_set_source_rgba(cr, sr, sg, sb, sa)
+        cairo_set_source_rgba(cr, shadow_color.r, shadow_color.g, shadow_color.b, shadow_color.a)
         cairo_move_to(cr, draw_x + shadow_ox, draw_y + shadow_oy)
         cairo_text_path(cr, text)
         cairo_fill(cr)
@@ -60,8 +70,7 @@ local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x
 
     -- 2. Stroke Border Pass (Sharp outline for 100% legibility on any wallpaper)
     if stroke_color and stroke_width and stroke_width > 0 then
-        local kr, kg, kb, ka = hex_to_rgba(stroke_color, 1.0)
-        cairo_set_source_rgba(cr, kr, kg, kb, ka)
+        cairo_set_source_rgba(cr, stroke_color.r, stroke_color.g, stroke_color.b, stroke_color.a)
         cairo_set_line_width(cr, stroke_width)
         cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND)
         cairo_move_to(cr, draw_x, draw_y)
@@ -70,16 +79,14 @@ local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x
     end
 
     -- 3. 45-Degree Diagonal Gradient Fill (Multi-stop Catppuccin Mocha)
-    local angle_rad = angle_deg * math.pi / 180.0
-    local cos_a = math.cos(angle_rad)
-    local sin_a = math.sin(angle_rad)
     local x0 = draw_x + extents.x_bearing
     local y0 = draw_y + extents.y_bearing
     local w = extents.width
     local h = extents.height
 
-    local pat = cairo_pattern_create_linear(x0, y0, x0 + w * cos_a, y0 + h * sin_a)
-    for _, stop in ipairs(color_stops) do
+    local pat = cairo_pattern_create_linear(x0, y0, x0 + w * gradient_cos_45, y0 + h * gradient_sin_45)
+    for i = 1, #color_stops do
+        local stop = color_stops[i]
         cairo_pattern_add_color_stop_rgba(pat, stop.offset, stop.r, stop.g, stop.b, stop.a)
     end
 
@@ -120,23 +127,23 @@ function conky_gradient_overlay()
         -- 1. Clock (98pt Bold)
         draw_gradient_text(
             cr, time_text, "JetBrainsMono Nerd Font", 98, CAIRO_FONT_WEIGHT_BOLD,
-            center_x, 120, "center", 45, clock_stops,
-            "#11111b", 3.2, "#11111b", 3.5, 3.5
+            center_x, 120, "center", clock_stops,
+            3.2, 3.5, 3.5
         )
 
         -- 2. Date (28pt Bold)
         draw_gradient_text(
             cr, date_text, "JetBrainsMono Nerd Font", 28, CAIRO_FONT_WEIGHT_BOLD,
-            center_x, 195, "center", 45, date_stops,
-            "#11111b", 2.4, "#11111b", 2.5, 2.5
+            center_x, 195, "center", date_stops,
+            2.4, 2.5, 2.5
         )
 
         -- 3. Now Playing (22pt Bold)
         if music_text ~= "" then
             draw_gradient_text(
                 cr, music_text, "JetBrainsMono Nerd Font", 22, CAIRO_FONT_WEIGHT_BOLD,
-                center_x, 260, "center", 45, date_stops,
-                "#11111b", 2.4, "#11111b", 2.5, 2.5
+                center_x, 260, "center", date_stops,
+                2.4, 2.5, 2.5
             )
         end
 
