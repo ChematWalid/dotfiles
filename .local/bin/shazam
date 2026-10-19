@@ -32,7 +32,7 @@ elif [[ -f "/usr/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg" ]];
     APP_ICON="/usr/share/icons/hicolor/scalable/apps/re.fossplant.songrec.svg"
 fi
 readonly APP_ICON
-readonly COVER_CACHE="/tmp/shazam_cover.jpg"
+readonly COVER_TMP_ROOT="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}"
 
 show_help() {
     cat << HELP
@@ -254,10 +254,16 @@ fi
 
 # Download album cover for notification (max 2s)
 notif_icon="$APP_ICON"
-if [[ -n "$cover_url" && "$cover_url" != "null" ]]; then
-    if timeout 2 curl -s -o "$COVER_CACHE" "$cover_url" 2>/dev/null; then
-        if [[ -s "$COVER_CACHE" ]]; then
-            notif_icon="$COVER_CACHE"
+if [[ -n "$cover_url" && "$cover_url" == https://* ]]; then
+    cover_tmp_root="$COVER_TMP_ROOT"
+    [[ -d "$cover_tmp_root" && -w "$cover_tmp_root" ]] || cover_tmp_root=/tmp
+    cover_cache=$(mktemp "${cover_tmp_root%/}/shazam-cover.XXXXXX.jpg" 2>/dev/null || true)
+    if [[ -n "$cover_cache" ]]; then
+        if timeout 2 curl --proto '=https' --fail --silent \
+            --output "$cover_cache" "$cover_url" 2>/dev/null && [[ -s "$cover_cache" ]]; then
+            notif_icon="$cover_cache"
+        else
+            rm -f -- "$cover_cache"
         fi
     fi
 fi
