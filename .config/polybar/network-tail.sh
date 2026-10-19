@@ -19,9 +19,18 @@ LAST_STATUS=""
 
 update() {
     if [[ -f "$STATE_FILE" ]]; then
-        local ip
-        ip=$(ip -4 -o addr show scope global \
-            | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' || true)
+        local ip ip_output
+        if ! command -v ip >/dev/null 2>&1; then
+            STATUS="󰤮 IP query unavailable"
+            printf 'network-tail: ip command is missing\n' >&2
+            return
+        fi
+        if ! ip_output=$(ip -4 -o addr show scope global); then
+            STATUS="󰤮 Network query failed"
+            printf 'network-tail: could not query global IPv4 addresses\n' >&2
+            return
+        fi
+        ip=$(awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' <<< "$ip_output")
         if [[ -z "$ip" ]]; then
             STATUS="󰤭 Disconnected"
         else
@@ -29,6 +38,11 @@ update() {
         fi
     else
         local ssid
+        if ! command -v iwgetid >/dev/null 2>&1; then
+            STATUS="󰤮 Wi-Fi status unavailable"
+            printf 'network-tail: iwgetid command is missing\n' >&2
+            return
+        fi
         ssid=$(iwgetid -r || true)
         if [[ -z "$ssid" ]]; then
             STATUS="󰤭 Disconnected"
@@ -53,7 +67,7 @@ refresh_if_changed
 
 # Stream NetworkManager events asynchronously and trigger update on changes.
 # Track nmcli itself so a Polybar restart cannot leave its monitor orphaned.
-coproc NM_MONITOR { exec nmcli monitor; }
+coproc NM_MONITOR { exec env LC_ALL=C nmcli monitor; }
 NM_PID=$NM_MONITOR_PID
 
 cleanup() {
