@@ -108,15 +108,13 @@ impl Renderer {
                     continue;
                 }
 
-                let (px, py) = (px as u32, py as u32);
-                let mut pixel = *img.get_pixel(px, py);
+                let pixel = img.get_pixel_mut(px as u32, py as u32);
                 let a = alpha as f32 / 255.0;
                 for channel in 0..3 {
                     pixel[channel] =
                         ((1.0 - a) * pixel[channel] as f32 + a * color[channel] as f32) as u8;
                 }
                 pixel[3] = 255;
-                img.put_pixel(px, py, pixel);
             }
         }
     }
@@ -174,16 +172,20 @@ impl Renderer {
 
         let mut img = RgbaImage::from_pixel(CARD_W, CARD_H, BG_COLOR);
 
-        // Header Background
-        for y in 0..64 {
-            for x in 0..CARD_W {
-                img.put_pixel(x, y, HEADER_BG);
-            }
+        // Fill the header in the backing buffer to avoid per-pixel bounds checks.
+        let header_bytes = CARD_W as usize * 64 * 4;
+        let (header_pixels, _) = img.as_mut()[..header_bytes].as_chunks_mut::<4>();
+        for pixel in header_pixels {
+            pixel.copy_from_slice(&HEADER_BG.0);
         }
 
         // Header Border Line
-        for x in 0..CARD_W {
-            img.put_pixel(x, 64, Rgba([49, 50, 68, 255]));
+        let border = Rgba([49, 50, 68, 255]);
+        let border_start = header_bytes;
+        let (border_pixels, _) =
+            img.as_mut()[border_start..border_start + CARD_W as usize * 4].as_chunks_mut::<4>();
+        for pixel in border_pixels {
+            pixel.copy_from_slice(&border.0);
         }
 
         // Header Icon & Title
