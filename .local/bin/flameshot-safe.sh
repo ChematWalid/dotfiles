@@ -22,6 +22,13 @@ copy_to_clipboards() {
     fi
 }
 
+# Qt maps the system-wide C.UTF-8 locale to "C" and logs a missing-translation
+# warning on every CLI invocation. Force the available English translation only
+# for Flameshot, without changing locale behavior for the rest of the desktop.
+run_flameshot() {
+    LC_ALL=en_US.UTF-8 command flameshot "$@"
+}
+
 case "$MODE" in
     overlay)
         # Do not launch a selector or move focus before capture: Telegram
@@ -40,7 +47,7 @@ case "$MODE" in
 
     gui)
         set +e
-        flameshot gui 2>/dev/null
+        run_flameshot gui 2>/dev/null
         FS_EXIT=$?
         set -e
         
@@ -60,7 +67,7 @@ case "$MODE" in
 
     full)
         set +e
-        flameshot full -p "$SAVE_DIR" -c 2>/dev/null
+        run_flameshot full -p "$SAVE_DIR" -c 2>/dev/null
         FS_EXIT=$?
         set -e
         if [ "$FS_EXIT" -ne 0 ]; then
@@ -73,7 +80,7 @@ case "$MODE" in
 
     screen)
         set +e
-        flameshot screen -p "$SAVE_DIR" -c 2>/dev/null
+        run_flameshot screen -p "$SAVE_DIR" -c 2>/dev/null
         FS_EXIT=$?
         set -e
         if [ "$FS_EXIT" -ne 0 ]; then
@@ -106,6 +113,6 @@ case "$MODE" in
         ;;
 
     *)
-        flameshot gui 2>/dev/null || maim -u "$OUT_FILE" 2>/dev/null
+        run_flameshot gui 2>/dev/null || maim -u "$OUT_FILE" 2>/dev/null
         ;;
 esac
