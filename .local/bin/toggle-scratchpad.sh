@@ -121,15 +121,18 @@ if [[ -z "$scratch_ws" ]]; then
     # Spawn kitty via i3 so it is properly managed and detached
     run_i3_command "exec --no-startup-id kitty --class $CLASS_NAME --title $TITLE"
 
-    window_id=""
+    # Query once for the case where Kitty mapped before the event stream became
+    # readable. After that, ignore unrelated focus/title events without
+    # repeatedly fetching and parsing i3's full window tree.
+    if ! window_id=$(find_scratchpad_id); then
+        printf 'toggle-scratchpad: could not query for the new Kitty window\n' >&2
+        exit 1
+    fi
+    deadline=$((SECONDS + 5))
     while [[ -z "$window_id" ]]; do
-        if ! window_id=$(find_scratchpad_id); then
-            printf 'toggle-scratchpad: could not query for the new Kitty window\n' >&2
-            exit 1
-        fi
-        [[ -n "$window_id" ]] && break
-
-        if ! IFS= read -r -t 5 event <&"$event_fd"; then
+        remaining=$((deadline - SECONDS))
+        (( remaining > 0 )) || break
+        if ! IFS= read -r -t "$remaining" event <&"$event_fd"; then
             break
         fi
 
@@ -140,6 +143,14 @@ if [[ -z "$scratch_ws" ]]; then
             | .container.id // empty
         ' <<< "$event" 2>/dev/null || true)
     done
+
+    # Cover a lost/late event with one final state query after the wait.
+    if [[ -z "$window_id" ]]; then
+        if ! window_id=$(find_scratchpad_id); then
+            printf 'toggle-scratchpad: could not query for the new Kitty window\n' >&2
+            exit 1
+        fi
+    fi
 
     cleanup_event_listener
     trap - EXIT
