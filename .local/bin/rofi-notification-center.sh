@@ -19,17 +19,21 @@ main() {
     local raw_history
     raw_history=$(dunstctl history 2>/dev/null || echo '{"data":[[]]}')
 
-    # Parse notifications into tab-separated lines: ID \t APP \t SUMMARY \t BODY
-    local parsed_items=()
-    mapfile -t parsed_items < <(
-        echo "$raw_history" | jq -r '
+    # Use NUL separators so empty fields, tabs, and embedded newlines do not
+    # shift notification metadata while Bash parses it.
+    local -a parsed_fields=()
+    mapfile -d '' -t parsed_fields < <(
+        printf '%s' "$raw_history" | jq -j '
             .data[0] // [] |
             .[] |
-            "\(.id.data)\t\(.appname.data // "System")\t\(.summary.data // "")\t\((.body.data // "") | gsub("\n"; " ") | if length > 60 then .[0:57] + "..." else . end)"
+            ((.id.data // 0) | tostring), "\u0000",
+            ((.appname.data // "System") | gsub("[\u0000-\u001f\u007f]"; " ")), "\u0000",
+            ((.summary.data // "") | gsub("[\u0000-\u001f\u007f]"; " ")), "\u0000",
+            ((.body.data // "") | gsub("[\u0000-\u001f\u007f]"; " ") | if length > 60 then .[0:57] + "..." else . end), "\u0000"
         '
     )
 
-    if [[ ${#parsed_items[@]} -eq 0 ]]; then
+    if [[ ${#parsed_fields[@]} -lt 4 ]]; then
         show_empty
     fi
 
@@ -56,10 +60,12 @@ main() {
     summaries+=("")
     bodies+=("")
 
-    for item in "${parsed_items[@]}"; do
-        [[ -z "$item" ]] && continue
-        local id app summary body
-        IFS=$'\t' read -r id app summary body <<< "$item"
+    local field_index id app summary body
+    for ((field_index = 0; field_index + 3 < ${#parsed_fields[@]}; field_index += 4)); do
+        id="${parsed_fields[field_index]}"
+        app="${parsed_fields[field_index + 1]}"
+        summary="${parsed_fields[field_index + 2]}"
+        body="${parsed_fields[field_index + 3]}"
 
         local line="󰂚 [${app}] ${summary}"
         if [[ -n "$body" && "$body" != "$summary" ]]; then
