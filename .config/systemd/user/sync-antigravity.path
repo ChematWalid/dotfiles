@@ -1,0 +1,11 @@
+[Unit]
+Description=Watch Antigravity conversation data for changes
+
+[Path]
+PathModified=%h/.gemini/antigravity/agyhub_summaries_proto.pb
+PathModified=%h/.gemini/antigravity-cli/conversation_summaries.db
+PathModified=%h/.gemini/antigravity-cli/conversation_summaries.db-wal
+Unit=sync-antigravity.service
+
+[Install]
+WantedBy=default.target

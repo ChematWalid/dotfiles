@@ -1,14 +1,16 @@
 //! Synchronization engine across conversations, transcripts, artifacts, and catalogs.
 
 use std::collections::HashSet;
+use std::error::Error;
 use std::fs;
 use std::os::unix::fs::symlink;
+use std::os::unix::fs::PermissionsExt;
 
 use crate::config::SyncPaths;
 use crate::db::{fetch_cli_rows, insert_cli_row, parse_iso_ts};
 use crate::proto::{build_gui_proto_entry, read_gui_proto};
 
-pub fn run_sync(quiet_if_no_changes: bool) {
+pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn Error>> {
     let paths = SyncPaths::new();
 
     if !quiet_if_no_changes {
@@ -16,30 +18,31 @@ pub fn run_sync(quiet_if_no_changes: bool) {
         println!("{}", "=".repeat(55));
     }
 
-    let _ = fs::create_dir_all(&paths.gui_convs);
-    let _ = fs::create_dir_all(&paths.cli_convs);
-    let _ = fs::create_dir_all(&paths.gui_brain);
-    let _ = fs::create_dir_all(&paths.cli_brain);
+    if !dry_run {
+        fs::create_dir_all(&paths.gui_convs)?;
+        fs::create_dir_all(&paths.cli_convs)?;
+        fs::create_dir_all(&paths.gui_brain)?;
+        fs::create_dir_all(&paths.cli_brain)?;
+    }
 
     // 1. Backups
-    if paths.gui_proto.exists() {
-        let _ = fs::copy(
+    if !dry_run && paths.gui_proto.exists() {
+        fs::copy(
             &paths.gui_proto,
             paths.gui_dir.join("agyhub_summaries_proto.pb.bak"),
-        );
+        )?;
     }
-    if paths.cli_db.exists() {
-        let _ = fs::copy(
-            &paths.cli_db,
-            paths.cli_dir.join("conversation_summaries.db.bak"),
-        );
+    if !dry_run && paths.cli_db.exists() {
+        let backup_path = paths.cli_dir.join("conversation_summaries.db.bak");
+        fs::copy(&paths.cli_db, &backup_path)?;
+        fs::set_permissions(&backup_path, fs::Permissions::from_mode(0o600))?;
     }
 
     // 2. Read GUI proto
     let (gui_entries, mut raw_proto) = read_gui_proto(&paths.gui_proto);
 
     // 3. Read CLI SQLite db
-    let cli_rows = fetch_cli_rows(&paths.cli_db);
+    let cli_rows = fetch_cli_rows(&paths.cli_db)?;
 
     let mut cli_map = HashSet::new();
     let mut cli_row_map = Vec::new();
@@ -59,17 +62,17 @@ pub fn run_sync(quiet_if_no_changes: bool) {
             } else {
                 &entry.title
             };
-            let now_iso = "2026-09-06 20:00:00.000000+00:00";
-            insert_cli_row(
-                &paths.cli_db,
-                cid,
-                title,
-                entry.step_count,
-                now_iso,
-                now_iso,
-                "file:///home/walid/E/Documents",
-            );
-            synced_to_cli += 1;
+            if dry_run
+                || insert_cli_row(
+                    &paths.cli_db,
+                    cid,
+                    title,
+                    entry.step_count,
+                    entry.last_modified_unix,
+                )?
+            {
+                synced_to_cli += 1;
+            }
         }
     }
 
@@ -88,8 +91,16 @@ pub fn run_sync(quiet_if_no_changes: bool) {
         }
     }
 
-    if synced_to_gui > 0 && !raw_proto.is_empty() {
-        let _ = fs::write(&paths.gui_proto, &raw_proto);
+    if !dry_run && synced_to_gui > 0 && !raw_proto.is_empty() {
+        let temp_path = paths.gui_proto.with_extension(format!(
+            "pb.tmp.{}.{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)?
+                .as_nanos()
+        ));
+        fs::write(&temp_path, &raw_proto)?;
+        fs::rename(&temp_path, &paths.gui_proto)?;
     }
 
     // 6. Brain / Transcripts / Artifacts mirroring
@@ -101,31 +112,42 @@ pub fn run_sync(quiet_if_no_changes: bool) {
         let c_brain = paths.cli_brain.join(&cid);
 
         if g_brain.exists() && !c_brain.exists() {
-            let _ = symlink(&g_brain, &c_brain);
-            files_linked += 1;
+            if dry_run || symlink(&g_brain, &c_brain).is_ok() {
+                files_linked += 1;
+            }
         } else if c_brain.exists() && !g_brain.exists() {
-            let _ = symlink(&c_brain, &g_brain);
-            files_linked += 1;
+            if dry_run || symlink(&c_brain, &g_brain).is_ok() {
+                files_linked += 1;
+            }
         }
 
         let g_conv = paths.gui_convs.join(format!("{}.json", cid));
         let c_conv = paths.cli_convs.join(format!("{}.json", cid));
 
         if g_conv.exists() && !c_conv.exists() {
-            let _ = symlink(&g_conv, &c_conv);
-            files_linked += 1;
+            if dry_run || symlink(&g_conv, &c_conv).is_ok() {
+                files_linked += 1;
+            }
         } else if c_conv.exists() && !g_conv.exists() {
-            let _ = symlink(&c_conv, &g_conv);
-            files_linked += 1;
+            if dry_run || symlink(&c_conv, &g_conv).is_ok() {
+                files_linked += 1;
+            }
         }
     }
 
     if !quiet_if_no_changes || synced_to_cli > 0 || synced_to_gui > 0 || files_linked > 0 {
         let total = gui_entries.len().max(cli_map.len());
-        println!("✨ Sync Complete:");
+        println!("✨ Sync {}:", if dry_run { "Preview" } else { "Complete" });
         println!("   • Total active conversations : {}", total);
-        println!("   • Synced to CLI DB          : +{}", synced_to_cli);
-        println!("   • Synced to GUI Proto       : +{}", synced_to_gui);
-        println!("   • Files/Artifacts Linked    : +{}", files_linked);
+        let prefix = if dry_run { "Would sync" } else { "Synced" };
+        println!("   • {prefix} to CLI DB          : +{}", synced_to_cli);
+        println!("   • {prefix} to GUI Proto       : +{}", synced_to_gui);
+        let file_action = if dry_run {
+            "Would link"
+        } else {
+            "Files/Artifacts Linked"
+        };
+        println!("   • {file_action}    : +{}", files_linked);
     }
+    Ok(())
 }

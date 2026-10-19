@@ -1,6 +1,9 @@
-//! SQLite interaction for CLI conversation database.
+//! SQLite interaction for the Antigravity CLI conversation database.
 
 use serde::Deserialize;
+use std::error::Error;
+use std::io;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -16,58 +19,133 @@ pub struct CliRow {
     pub workspace_uris: Option<String>,
 }
 
-pub fn fetch_cli_rows(db_path: &Path) -> Vec<CliRow> {
+pub fn fetch_cli_rows(db_path: &Path) -> Result<Vec<CliRow>, Box<dyn Error>> {
     if !db_path.exists() {
-        return Vec::new();
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "Antigravity CLI database does not exist: {}",
+                db_path.display()
+            ),
+        )
+        .into());
     }
-    let sql = "SELECT json_group_array(json_object(\
+
+    let sql = "SELECT COALESCE(json_group_array(json_object(\
         'conversation_id', conversation_id,\
         'title', title,\
         'preview', preview,\
         'step_count', step_count,\
         'last_modified_time', last_modified_time,\
         'workspace_uris', workspace_uris\
-    )) FROM conversation_summaries;";
+    )), '[]') FROM conversation_summaries;";
 
-    let Ok(output) = Command::new("sqlite3")
-        .args([db_path.to_str().unwrap(), sql])
-        .output()
-    else {
-        return Vec::new();
-    };
+    let output = Command::new("sqlite3").arg(db_path).arg(sql).output()?;
+    if !output.status.success() {
+        return Err(io::Error::other(format!(
+            "Could not read Antigravity CLI database: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ))
+        .into());
+    }
 
-    let json_str = String::from_utf8_lossy(&output.stdout);
-    serde_json::from_str(&json_str).unwrap_or_default()
+    let rows = serde_json::from_slice::<Vec<CliRow>>(&output.stdout)?;
+    Ok(rows)
 }
 
+/// Parse a SQLite/ISO-8601 date-time into Unix seconds. Values without an
+/// explicit timezone are interpreted as UTC, matching Antigravity's DB data.
 pub fn parse_iso_ts(ts_str: Option<&str>) -> u64 {
-    let Some(s) = ts_str else {
-        return SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
+    let Some(value) = ts_str else {
+        return now_unix_seconds();
     };
-    if let Some(date_time) = s.split('+').next() {
-        let parts: Vec<&str> = date_time.split_whitespace().collect();
-        if parts.len() >= 2 {
-            let d_parts: Vec<i64> = parts[0].split('-').filter_map(|p| p.parse().ok()).collect();
-            let t_parts: Vec<i64> = parts[1].split(':').filter_map(|p| p.parse().ok()).collect();
-            if d_parts.len() == 3 && t_parts.len() >= 2 {
-                let year = d_parts[0];
-                let month = d_parts[1];
-                let day = d_parts[2];
-                let hour = t_parts[0];
-                let min = t_parts[1];
-                let sec = t_parts.get(2).cloned().unwrap_or(0);
-                let days = (year - 1970) * 365 + (year - 1969) / 4 + (month - 1) * 30 + day;
-                return (days * 86400 + hour * 3600 + min * 60 + sec) as u64;
-            }
-        }
+
+    parse_iso_ts_inner(value).unwrap_or_else(now_unix_seconds)
+}
+
+fn parse_iso_ts_inner(value: &str) -> Option<u64> {
+    let value = value.trim();
+    let split = value.find(['T', ' '])?;
+    let date = &value[..split];
+    let time_and_zone = &value[split + 1..];
+
+    let mut date_parts = date.split('-');
+    let year = date_parts.next()?.parse::<i64>().ok()?;
+    let month = date_parts.next()?.parse::<u32>().ok()?;
+    let day = date_parts.next()?.parse::<u32>().ok()?;
+    if date_parts.next().is_some() || !(1..=12).contains(&month) || day == 0 || day > 31 {
+        return None;
     }
+
+    let zone_index = time_and_zone
+        .char_indices()
+        .find_map(|(index, ch)| matches!(ch, 'Z' | '+' | '-').then_some(index));
+    let (clock, zone) = zone_index
+        .map(|index| (&time_and_zone[..index], &time_and_zone[index..]))
+        .unwrap_or((time_and_zone, ""));
+    let mut clock_parts = clock.split(':');
+    let hour = clock_parts.next()?.parse::<i64>().ok()?;
+    let minute = clock_parts.next()?.parse::<i64>().ok()?;
+    let second_text = clock_parts.next()?;
+    let second = second_text.split('.').next()?.parse::<i64>().ok()?;
+    if clock_parts.next().is_some() || hour > 23 || minute > 59 || second > 60 {
+        return None;
+    }
+
+    let timezone_offset = parse_timezone_offset(zone)?;
+    let days = days_from_civil(year, month, day);
+    let unix = days
+        .checked_mul(86_400)?
+        .checked_add(hour * 3_600 + minute * 60 + second)?
+        .checked_sub(timezone_offset)?;
+    u64::try_from(unix.max(0)).ok()
+}
+
+fn parse_timezone_offset(zone: &str) -> Option<i64> {
+    if zone.is_empty() || zone == "Z" || zone == "z" {
+        return Some(0);
+    }
+    let sign = match zone.as_bytes().first()? {
+        b'+' => 1,
+        b'-' => -1,
+        _ => return None,
+    };
+    let mut parts = zone[1..].split(':');
+    let hours = parts.next()?.parse::<i64>().ok()?;
+    let minutes = parts.next()?.parse::<i64>().ok()?;
+    if parts.next().is_some() || hours > 23 || minutes > 59 {
+        return None;
+    }
+    Some(sign * (hours * 3_600 + minutes * 60))
+}
+
+// Howard Hinnant's proleptic Gregorian conversion, returning days from
+// 1970-01-01. Inputs are validated by parse_iso_ts_inner.
+fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
+    let year = year - i64::from(month <= 2);
+    let era = year.div_euclid(400);
+    let year_of_era = year - era * 400;
+    let month = i64::from(month);
+    let day_of_year = (153 * (month + if month > 2 { -3 } else { 9 }) + 2) / 5 + i64::from(day) - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146_097 + day_of_era - 719_468
+}
+
+fn now_unix_seconds() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
+        .map(|duration| duration.as_secs())
+        .unwrap_or_default()
+}
+
+fn sql_quote(value: &str) -> Result<String, io::Error> {
+    if value.contains('\0') {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "SQLite text values cannot contain NUL bytes",
+        ));
+    }
+    Ok(format!("'{}'", value.replace('\'', "''")))
 }
 
 pub fn insert_cli_row(
@@ -75,23 +153,84 @@ pub fn insert_cli_row(
     cid: &str,
     title: &str,
     step_count: u64,
-    created_at_iso: &str,
-    last_mod_iso: &str,
-    ws_uri: &str,
-) {
-    let title_escaped = title.replace('\'', "''");
-    let ws_json = format!("[\"{}\"]", ws_uri.replace('\'', "''"));
-
-    let insert_sql = format!(
+    last_modified_unix: Option<u64>,
+) -> Result<bool, Box<dyn Error>> {
+    let cid = sql_quote(cid)?;
+    let title = sql_quote(title)?;
+    // Workspace context is unknown for an entry imported from the GUI proto.
+    let workspace_uris = sql_quote("[]")?;
+    let step_count = step_count.max(1);
+    let timestamp = last_modified_unix
+        .map(|seconds| format!("strftime('%Y-%m-%d %H:%M:%f+00:00', {seconds}, 'unixepoch')"))
+        .unwrap_or_else(|| "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')".to_owned());
+    let sql = format!(
         "INSERT OR IGNORE INTO conversation_summaries (\
-            conversation_id, created_at, last_modified_time, title, preview, step_count, workspace_uris\
+            conversation_id, title, preview, step_count, last_modified_time, \
+            workspace_uris, last_user_input_time\
         ) VALUES (\
-            '{}', '{}', '{}', '{}', '{}', {}, '{}'\
-        );",
-        cid, created_at_iso, last_mod_iso, title_escaped, title_escaped, step_count.max(1), ws_json
+            {cid}, {title}, {title}, {step_count}, {timestamp}, {workspace_uris}, {timestamp}\
+        ); SELECT changes();"
     );
 
-    let _ = Command::new("sqlite3")
-        .args([db_path.to_str().unwrap(), &insert_sql])
-        .status();
+    let output = Command::new("sqlite3").arg(db_path).arg(sql).output()?;
+    if !output.status.success() {
+        return Err(io::Error::other(format!(
+            "Could not insert Antigravity conversation: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ))
+        .into());
+    }
+    std::fs::set_permissions(db_path, std::fs::Permissions::from_mode(0o600))?;
+    let inserted = String::from_utf8(output.stdout)?.trim().parse::<u64>()?;
+    Ok(inserted == 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_iso_timestamp_and_timezone() {
+        assert_eq!(parse_iso_ts(Some("1970-01-01 00:00:00+00:00")), 0);
+        assert_eq!(parse_iso_ts(Some("1970-01-01T01:00:00+01:00")), 0);
+        assert_eq!(
+            parse_iso_ts(Some("2026-10-19 02:03:04.123456Z")),
+            1_792_375_384
+        );
+    }
+
+    #[test]
+    fn inserts_using_current_cli_schema_and_escapes_text() {
+        let path = std::env::temp_dir().join(format!(
+            "sync-antigravity-test-{}-{}.db",
+            std::process::id(),
+            now_unix_seconds()
+        ));
+        let schema = "CREATE TABLE conversation_summaries (\
+            conversation_id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', \
+            preview TEXT NOT NULL DEFAULT '', step_count INTEGER NOT NULL DEFAULT 0, \
+            last_modified_time DATETIME NOT NULL, workspace_uris TEXT NOT NULL, \
+            last_user_input_time DATETIME NOT NULL\
+        );";
+        let created = Command::new("sqlite3")
+            .arg(&path)
+            .arg(schema)
+            .status()
+            .unwrap();
+        assert!(created.success());
+
+        assert!(insert_cli_row(&path, "id-'quoted", "title ' quoted", 3, Some(0)).unwrap());
+        assert!(!insert_cli_row(&path, "id-'quoted", "duplicate", 4, Some(1)).unwrap());
+        let rows = fetch_cli_rows(&path).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].conversation_id, "id-'quoted");
+        assert_eq!(rows[0].title.as_deref(), Some("title ' quoted"));
+        assert_eq!(rows[0].workspace_uris.as_deref(), Some("[]"));
+        assert_eq!(
+            std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+
+        let _ = std::fs::remove_file(path);
+    }
 }

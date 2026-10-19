@@ -48,6 +48,7 @@ pub fn encode_field(field_num: u32, wire_type: u32, data: &[u8]) -> Vec<u8> {
 pub struct ProtoEntry {
     pub title: String,
     pub step_count: u64,
+    pub last_modified_unix: Option<u64>,
 }
 
 pub fn read_gui_proto(proto_path: &Path) -> (HashMap<String, ProtoEntry>, Vec<u8>) {
@@ -82,6 +83,7 @@ pub fn read_gui_proto(proto_path: &Path) -> (HashMap<String, ProtoEntry>, Vec<u8
         let mut cid = None;
         let mut title = String::new();
         let mut step_count = 0;
+        let mut last_modified_unix = None;
 
         while cpos < chunk.len() {
             let Some((ctag, new_cpos)) = parse_varint(chunk, cpos) else {
@@ -127,6 +129,8 @@ pub fn read_gui_proto(proto_path: &Path) -> (HashMap<String, ProtoEntry>, Vec<u8
                             spos += slen;
                             if sfn == 1 {
                                 title = String::from_utf8_lossy(sval).to_string();
+                            } else if sfn == 3 {
+                                last_modified_unix = parse_timestamp(sval);
                             }
                         } else if swt == 0 {
                             let Some((sval, new_spos)) = parse_varint(cdata, spos) else {
@@ -156,11 +160,80 @@ pub fn read_gui_proto(proto_path: &Path) -> (HashMap<String, ProtoEntry>, Vec<u8
         }
 
         if let Some(id) = cid {
-            convs.insert(id, ProtoEntry { title, step_count });
+            convs.insert(
+                id,
+                ProtoEntry {
+                    title,
+                    step_count,
+                    last_modified_unix,
+                },
+            );
         }
     }
 
     (convs, data)
+}
+
+fn parse_timestamp(data: &[u8]) -> Option<u64> {
+    let mut pos = 0;
+    let mut seconds = None;
+    while pos < data.len() {
+        let (tag, next) = parse_varint(data, pos)?;
+        pos = next;
+        let field = tag >> 3;
+        match tag & 0x7 {
+            0 => {
+                let (value, next) = parse_varint(data, pos)?;
+                pos = next;
+                if field == 1 {
+                    seconds = Some(value);
+                }
+            }
+            1 => {
+                pos = pos.checked_add(8)?;
+                if pos > data.len() {
+                    return None;
+                }
+            }
+            2 => {
+                let (length, next) = parse_varint(data, pos)?;
+                pos = next.checked_add(usize::try_from(length).ok()?)?;
+                if pos > data.len() {
+                    return None;
+                }
+            }
+            5 => {
+                pos = pos.checked_add(4)?;
+                if pos > data.len() {
+                    return None;
+                }
+            }
+            _ => return None,
+        }
+    }
+    seconds
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_timestamp_from_summary_proto_entry() {
+        let path = std::env::temp_dir().join(format!(
+            "sync-antigravity-proto-test-{}.pb",
+            std::process::id()
+        ));
+        let bytes = build_gui_proto_entry("conversation-id", "Example", 7, 1_234_567, "");
+        fs::write(&path, bytes).unwrap();
+        let (entries, _) = read_gui_proto(&path);
+        let _ = fs::remove_file(path);
+
+        let entry = entries.get("conversation-id").unwrap();
+        assert_eq!(entry.title, "Example");
+        assert_eq!(entry.step_count, 7);
+        assert_eq!(entry.last_modified_unix, Some(1_234_567));
+    }
 }
 
 pub fn build_gui_proto_entry(
