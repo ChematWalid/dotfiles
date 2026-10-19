@@ -148,6 +148,7 @@ fn sql_quote(value: &str) -> Result<String, io::Error> {
     Ok(format!("'{}'", value.replace('\'', "''")))
 }
 
+#[cfg(test)]
 pub fn insert_cli_row(
     db_path: &Path,
     cid: &str,
@@ -155,34 +156,77 @@ pub fn insert_cli_row(
     step_count: u64,
     last_modified_unix: Option<u64>,
 ) -> Result<bool, Box<dyn Error>> {
-    let cid = sql_quote(cid)?;
-    let title = sql_quote(title)?;
-    // Workspace context is unknown for an entry imported from the GUI proto.
-    let workspace_uris = sql_quote("[]")?;
-    let step_count = step_count.max(1);
-    let timestamp = last_modified_unix
-        .map(|seconds| format!("strftime('%Y-%m-%d %H:%M:%f+00:00', {seconds}, 'unixepoch')"))
-        .unwrap_or_else(|| "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')".to_owned());
-    let sql = format!(
-        "INSERT OR IGNORE INTO conversation_summaries (\
-            conversation_id, title, preview, step_count, last_modified_time, \
-            workspace_uris, last_user_input_time\
-        ) VALUES (\
-            {cid}, {title}, {title}, {step_count}, {timestamp}, {workspace_uris}, {timestamp}\
-        ); SELECT changes();"
-    );
+    Ok(insert_cli_rows(db_path, &[(cid, title, step_count, last_modified_unix)])? == 1)
+}
 
-    let output = Command::new("sqlite3").arg(db_path).arg(sql).output()?;
+pub fn insert_cli_rows(
+    db_path: &Path,
+    rows: &[(&str, &str, u64, Option<u64>)],
+) -> Result<usize, Box<dyn Error>> {
+    if rows.is_empty() {
+        return Ok(0);
+    }
+
+    let workspace_uris = sql_quote("[]")?;
+    let mut sql = String::from("PRAGMA busy_timeout=5000;\nBEGIN IMMEDIATE;\n");
+    for (cid, title, step_count, last_modified_unix) in rows {
+        let cid = sql_quote(cid)?;
+        let title = sql_quote(title)?;
+        let step_count = step_count.max(&1);
+        let timestamp = last_modified_unix
+            .map(|seconds| format!("strftime('%Y-%m-%d %H:%M:%f+00:00', {seconds}, 'unixepoch')"))
+            .unwrap_or_else(|| "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')".to_owned());
+        sql.push_str(&format!(
+            "INSERT OR IGNORE INTO conversation_summaries (\
+                conversation_id, title, preview, step_count, last_modified_time, \
+                workspace_uris, last_user_input_time\
+            ) VALUES (\
+                {cid}, {title}, {title}, {step_count}, {timestamp}, {workspace_uris}, {timestamp}\
+            ); SELECT changes();\n"
+        ));
+    }
+    sql.push_str("COMMIT;\n");
+
+    let output = Command::new("sqlite3")
+        .arg("-bail")
+        .arg(db_path)
+        .arg(sql)
+        .output()?;
     if !output.status.success() {
         return Err(io::Error::other(format!(
-            "Could not insert Antigravity conversation: {}",
+            "Could not insert Antigravity conversations: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         ))
         .into());
     }
     std::fs::set_permissions(db_path, std::fs::Permissions::from_mode(0o600))?;
-    let inserted = String::from_utf8(output.stdout)?.trim().parse::<u64>()?;
-    Ok(inserted == 1)
+    let changes = String::from_utf8(output.stdout)?;
+    let mut result_lines = changes.lines();
+    if result_lines
+        .next()
+        .and_then(|line| line.parse::<u64>().ok())
+        != Some(5_000)
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "SQLite did not return the configured busy timeout",
+        )
+        .into());
+    }
+    let mut inserted = 0;
+    let mut statements = 0;
+    for line in result_lines {
+        inserted += line.parse::<usize>()?;
+        statements += 1;
+    }
+    if statements != rows.len() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "SQLite returned an unexpected number of insert results",
+        )
+        .into());
+    }
+    Ok(inserted)
 }
 
 #[cfg(test)]

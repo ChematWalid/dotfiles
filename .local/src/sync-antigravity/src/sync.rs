@@ -7,7 +7,7 @@ use std::os::unix::fs::symlink;
 use std::os::unix::fs::PermissionsExt;
 
 use crate::config::SyncPaths;
-use crate::db::{fetch_cli_rows, insert_cli_row, parse_iso_ts};
+use crate::db::{fetch_cli_rows, insert_cli_rows, parse_iso_ts};
 use crate::proto::{build_gui_proto_entry, read_gui_proto};
 
 pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn Error>> {
@@ -49,30 +49,31 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         .map(|row| row.conversation_id.as_str())
         .collect();
 
-    let mut synced_to_cli = 0;
     let mut synced_to_gui = 0;
 
     // 4. GUI -> CLI
-    for (cid, entry) in &gui_entries {
-        if !cli_ids.contains(cid.as_str()) {
+    let imports: Vec<_> = gui_entries
+        .iter()
+        .filter(|(cid, _)| !cli_ids.contains(cid.as_str()))
+        .map(|(cid, entry)| {
             let title = if entry.title.is_empty() {
                 "Untitled Conversation"
             } else {
-                &entry.title
+                entry.title.as_str()
             };
-            if dry_run
-                || insert_cli_row(
-                    &paths.cli_db,
-                    cid,
-                    title,
-                    entry.step_count,
-                    entry.last_modified_unix,
-                )?
-            {
-                synced_to_cli += 1;
-            }
-        }
-    }
+            (
+                cid.as_str(),
+                title,
+                entry.step_count,
+                entry.last_modified_unix,
+            )
+        })
+        .collect();
+    let synced_to_cli = if dry_run {
+        imports.len()
+    } else {
+        insert_cli_rows(&paths.cli_db, &imports)?
+    };
 
     // 5. CLI -> GUI
     for row in &cli_rows {
