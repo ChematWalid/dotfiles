@@ -133,17 +133,24 @@ def close_foliate_if_running():
     """Ask Foliate to quit and wait for its D-Bus name to disappear."""
     import subprocess
 
-    try:
-        check = subprocess.run([
-            "gdbus", "call", "--session",
-            "--dest", "com.github.johnfactotum.Foliate",
-            "--object-path", "/com/github/johnfactotum/Foliate",
-            "--method", "org.freedesktop.DBus.Peer.Ping",
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except OSError:
-        print("Error: Cannot check Foliate state because gdbus is unavailable.", file=sys.stderr)
+    def is_running():
+        try:
+            owner = subprocess.run([
+                "gdbus", "call", "--session",
+                "--dest", "org.freedesktop.DBus",
+                "--object-path", "/org/freedesktop/DBus",
+                "--method", "org.freedesktop.DBus.NameHasOwner",
+                "com.github.johnfactotum.Foliate",
+            ], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, check=True)
+        except (OSError, subprocess.CalledProcessError) as error:
+            print(f"Error: Cannot check Foliate state over D-Bus: {error}", file=sys.stderr)
+            return None
+        return owner.stdout.strip() == "(true,)"
+
+    running = is_running()
+    if running is None:
         return False
-    if check.returncode != 0:
+    if not running:
         return True
 
     try:
@@ -192,6 +199,11 @@ def close_foliate_if_running():
 
     if quit_request.returncode != 0:
         bus.signal_unsubscribe(subscription)
+        running = is_running()
+        if running is False:
+            return True
+        if running is None:
+            return False
         print("Error: Could not ask Foliate to quit; import cancelled.", file=sys.stderr)
         return False
 
