@@ -1,6 +1,5 @@
-//! High-performance card image renderer using ab_glyph and image.
+//! High-performance card image renderer using swash and image.
 
-use ab_glyph::{Font, FontArc, PxScaleFont, ScaleFont};
 use image::imageops::FilterType;
 use image::{Rgba, RgbaImage};
 use std::collections::hash_map::DefaultHasher;
@@ -8,12 +7,20 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use swash::scale::{image::Image, Render, ScaleContext, Scaler, Source};
+use swash::zeno::Format;
+use swash::FontRef;
 
 use crate::theme::{ACCENT_COLOR, BG_COLOR, CARD_H, CARD_W, FG_COLOR, HEADER_BG, MUTED_COLOR};
 
+fn valid_font(data: Vec<u8>) -> Option<Vec<u8>> {
+    let valid = FontRef::from_index(&data, 0).is_some();
+    valid.then_some(data)
+}
+
 pub struct Renderer {
-    font_regular: FontArc,
-    font_bold: FontArc,
+    font_regular: Vec<u8>,
+    font_bold: Vec<u8>,
     cache_dir: PathBuf,
 }
 
@@ -26,11 +33,12 @@ impl Renderer {
             .or_else(|_| fs::read("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"))
             .unwrap_or_default();
 
-        let font_regular = FontArc::try_from_vec(regular_bytes).unwrap_or_else(|_| {
-            FontArc::try_from_slice(include_bytes!("/usr/share/fonts/TTF/DejaVuSans.ttf"))
-                .expect("DejaVuSans font must exist")
+        let font_regular = valid_font(regular_bytes).unwrap_or_else(|| {
+            let fallback = fs::read("/usr/share/fonts/TTF/DejaVuSans.ttf")
+                .expect("DejaVuSans font must exist");
+            valid_font(fallback).expect("DejaVuSans font must be valid")
         });
-        let font_bold = FontArc::try_from_vec(bold_bytes).unwrap_or_else(|_| font_regular.clone());
+        let font_bold = valid_font(bold_bytes).unwrap_or_else(|| font_regular.clone());
 
         Renderer {
             font_regular,
@@ -41,60 +49,85 @@ impl Renderer {
 
     fn draw_char(
         img: &mut RgbaImage,
-        font: &PxScaleFont<&FontArc>,
-        c: char,
-        x: &mut f32,
-        y: f32,
+        scaler: &mut Scaler<'_>,
+        glyph_id: u16,
+        position: (f32, f32),
         color: Rgba<u8>,
     ) {
-        let glyph = font.scaled_glyph(c);
-        let h_advance = font.h_advance(glyph.id);
-        let mut g = glyph;
-        g.position.x = *x;
-        g.position.y = y;
-
-        if let Some(outlined) = font.outline_glyph(g) {
-            let bounds = outlined.px_bounds();
-            outlined.draw(|gx, gy, c_val| {
-                let px = bounds.min.x as i32 + gx as i32;
-                let py = bounds.min.y as i32 + gy as i32;
-                if px >= 0 && (px as u32) < img.width() && py >= 0 && (py as u32) < img.height() {
-                    let px = px as u32;
-                    let py = py as u32;
-                    let alpha = (c_val * 255.0) as u8;
-                    if alpha > 0 {
-                        let mut p = *img.get_pixel(px, py);
-                        let a = alpha as f32 / 255.0;
-                        p[0] = ((1.0 - a) * p[0] as f32 + a * color[0] as f32) as u8;
-                        p[1] = ((1.0 - a) * p[1] as f32 + a * color[1] as f32) as u8;
-                        p[2] = ((1.0 - a) * p[2] as f32 + a * color[2] as f32) as u8;
-                        p[3] = 255;
-                        img.put_pixel(px, py, p);
-                    }
-                }
-            });
+        if let Some(glyph) = Render::new(&[Source::Outline])
+            .format(Format::Alpha)
+            .render(scaler, glyph_id)
+        {
+            Self::draw_glyph(img, &glyph, position.0, position.1, color);
         }
-        *x += h_advance;
     }
 
     fn draw_str(
         img: &mut RgbaImage,
-        font: &FontArc,
+        font_data: &[u8],
         scale: f32,
         s: &str,
         start_x: f32,
         y: f32,
         color: Rgba<u8>,
     ) {
-        let scaled_font = font.as_scaled(scale);
-        let mut x = start_x;
+        let Some(font) = FontRef::from_index(font_data, 0) else {
+            return;
+        };
+        let charmap = font.charmap();
+        let metrics = font.glyph_metrics(&[]);
+        let advance_scale = scale / font.metrics(&[]).units_per_em.max(1) as f32;
+        let mut context = ScaleContext::new();
+        let mut scaler = context.builder(font).size(scale).build();
+        let mut position = (start_x, y);
         for c in s.chars() {
-            Self::draw_char(img, &scaled_font, c, &mut x, y, color);
+            let glyph_id = charmap.map(c);
+            Self::draw_char(img, &mut scaler, glyph_id, position, color);
+            position.0 += metrics.advance_width(glyph_id) * advance_scale;
+        }
+    }
+
+    fn draw_glyph(img: &mut RgbaImage, glyph: &Image, x: f32, baseline: f32, color: Rgba<u8>) {
+        let width = glyph.placement.width as usize;
+        let height = glyph.placement.height as usize;
+        let left = x.floor() as i32 + glyph.placement.left;
+        let top = baseline.ceil() as i32 - glyph.placement.top;
+
+        for gy in 0..height {
+            let py = top + gy as i32;
+            if py < 0 || py as u32 >= img.height() {
+                continue;
+            }
+            for gx in 0..width {
+                let px = left + gx as i32;
+                if px < 0 || px as u32 >= img.width() {
+                    continue;
+                }
+                let alpha = glyph.data[gy * width + gx];
+                if alpha == 0 {
+                    continue;
+                }
+
+                let (px, py) = (px as u32, py as u32);
+                let mut pixel = *img.get_pixel(px, py);
+                let a = alpha as f32 / 255.0;
+                for channel in 0..3 {
+                    pixel[channel] =
+                        ((1.0 - a) * pixel[channel] as f32 + a * color[channel] as f32) as u8;
+                }
+                pixel[3] = 255;
+                img.put_pixel(px, py, pixel);
+            }
         }
     }
 
     fn wrap_text(&self, text: &str, scale: f32, max_w: f32) -> Vec<String> {
-        let font = self.font_regular.as_scaled(scale);
+        let Some(font) = FontRef::from_index(&self.font_regular, 0) else {
+            return vec![text.to_owned()];
+        };
+        let charmap = font.charmap();
+        let metrics = font.glyph_metrics(&[]);
+        let advance_scale = scale / font.metrics(&[]).units_per_em.max(1) as f32;
         let mut lines = Vec::new();
 
         for block in text.lines() {
@@ -108,7 +141,7 @@ impl Renderer {
             for word in block.split_inclusive(' ') {
                 let word_w: f32 = word
                     .chars()
-                    .map(|c| font.h_advance(font.scaled_glyph(c).id))
+                    .map(|c| metrics.advance_width(charmap.map(c)) * advance_scale)
                     .sum();
                 if current_w + word_w > max_w && !current.is_empty() {
                     lines.push(current);
@@ -255,5 +288,29 @@ impl Renderer {
             }
         }
         path.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn renders_text_with_loaded_font() {
+        let cache_dir =
+            std::env::temp_dir().join(format!("rofi-clipboard-card-test-{}", std::process::id()));
+        fs::create_dir_all(&cache_dir).unwrap();
+
+        let renderer = Renderer::new(cache_dir.clone());
+        let path =
+            renderer.render_text_card("󰆍", "Renderer test", "font migration", "A rendered body");
+        let image = image::open(&path).unwrap().to_rgba8();
+
+        assert_eq!(image.dimensions(), (CARD_W, CARD_H));
+        assert!(image
+            .pixels()
+            .any(|pixel| { pixel[0] > 150 && pixel[2] > 150 && pixel[3] == 255 }));
+
+        fs::remove_dir_all(cache_dir).unwrap();
     }
 }
