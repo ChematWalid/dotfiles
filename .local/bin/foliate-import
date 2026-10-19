@@ -5,13 +5,18 @@ Supports CBZ, CBR, EPUB, PDF, MOBI, AZW, AZW3, FB2.
 Generates metadata and cover thumbnails matching Foliate's exact storage format.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import json
 import hashlib
 import zipfile
 import urllib.parse
-from PIL import Image
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from PIL import Image
 
 FOLIATE_DATA_DIR = os.path.expanduser("~/.local/share/com.github.johnfactotum.Foliate")
 FOLIATE_CACHE_DIR = os.path.expanduser("~/.cache/com.github.johnfactotum.Foliate")
@@ -24,6 +29,8 @@ IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 
 def read_archive_image(archive: zipfile.ZipFile, name: str) -> Image.Image:
     """Decode an archive member directly, avoiding a full compressed bytes copy."""
+    from PIL import Image
+
     with archive.open(name) as image_stream:
         image = Image.open(image_stream)
         image.load()
@@ -88,6 +95,8 @@ def extract_epub_cover(epub_path: str) -> Image.Image | None:
 def save_cover_thumbnail(img: Image.Image, output_path: str, target_width: int = 256):
     """Saves a scaled cover thumbnail matching Foliate's 256px bilinear PNG."""
     try:
+        from PIL import Image
+
         # Convert RGBA / P to RGB if needed, or keep RGB/RGBA
         if img.mode not in ("RGB", "RGBA"):
             img = img.convert("RGB")
