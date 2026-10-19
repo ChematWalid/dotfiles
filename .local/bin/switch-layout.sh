@@ -40,12 +40,12 @@ fi
 
 if [[ -d "${HOME}/.config/xkb" ]]; then
     if ! setxkbmap -I"${HOME}/.config/xkb" -layout "$layouts" \
-        -option "grp:win_space_toggle" -print \
+        -option "" -option "grp:win_space_toggle" -print \
         | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}"; then
         report_error "could not apply the $layout_name layout"
         exit 1
     fi
-elif ! setxkbmap -layout "$layouts" -option "grp:win_space_toggle"; then
+elif ! setxkbmap -layout "$layouts" -option "" -option "grp:win_space_toggle"; then
     report_error "could not apply the $layout_name layout"
     exit 1
 fi
