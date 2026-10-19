@@ -52,13 +52,19 @@ tree_info=$(i3-msg -t get_tree 2>/dev/null || echo "{}")
 
 current_ws=$(i3-msg -t get_workspaces 2>/dev/null | jq -r '.[] | select(.focused == true) | .name' || echo "")
 
-scratch_ws=$(echo "$tree_info" | jq -r '
-  [.. | select(.type? == "workspace") | select(.. | .window_properties?.instance? == "'"$CLASS_NAME"'")] | .[0]?.name // ""
-' 2>/dev/null || echo "")
-
-fullscreen_id=$(echo "$tree_info" | jq -r '
-  [.. | select(.focused? == true and .fullscreen_mode? == 1)] | .[0]?.id // 0
-' 2>/dev/null || echo "0")
+# Derive both tree facts in one jq invocation instead of starting jq twice.
+# Keep the workspace lookup scoped to nodes containing our scratchpad,
+# including the hidden __i3_scratch workspace.
+mapfile -t tree_state < <(jq -r --arg instance "$CLASS_NAME" '
+  [
+    (first(.. | objects | select(.type? == "workspace")
+      | select(.. | .window_properties?.instance? == $instance) | .name) // ""),
+    (first(.. | objects | select(.focused? == true and .fullscreen_mode? == 1)
+      | .id) // 0)
+  ][]
+' <<< "$tree_info")
+scratch_ws="${tree_state[0]:-}"
+fullscreen_id="${tree_state[1]:-0}"
 
 # 4. Handle scratchpad state
 if [[ -z "$scratch_ws" ]]; then
@@ -91,9 +97,11 @@ if [[ -z "$scratch_ws" ]]; then
         fi
 
         # The window event is emitted once i3 has reparented the new client.
-        if jq -e '.change == "new"' <<< "$event" >/dev/null 2>&1; then
-            window_id=$(find_scratchpad_id || true)
-        fi
+        window_id=$(jq -r --arg instance "$CLASS_NAME" '
+            select(.change == "new"
+              and .container.window_properties?.instance? == $instance)
+            | .container.id // empty
+        ' <<< "$event" 2>/dev/null || true)
     done
 
     cleanup_event_listener
