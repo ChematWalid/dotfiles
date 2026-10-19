@@ -1,5 +1,4 @@
 require 'cairo'
-require 'cairo_xlib'
 
 local function hex_to_rgba(hex, alpha)
     hex = hex:gsub("#", "")

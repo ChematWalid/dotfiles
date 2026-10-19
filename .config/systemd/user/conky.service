@@ -9,7 +9,7 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/conky -c %h/.config/conky/conky.conf -q
+ExecStart=%h/.local/opt/conky-1.25.3/bin/conky -c %h/.config/conky/conky.conf -q
 Restart=always
 RestartSec=1
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
