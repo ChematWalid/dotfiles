@@ -4,19 +4,23 @@
 
 set -euo pipefail
 
-# Query i3 for focused container
-focused_json=$(i3-msg -t get_tree 2>/dev/null | jq -r 'recurse(.nodes[]?, .floating_nodes[]?) | select(.focused == true)' 2>/dev/null || true)
+# Query i3 once and extract every field in one jq process. @tsv keeps unusual
+# tabs/newlines in window titles escaped so they cannot shift the fields.
+window_info=$(i3-msg -t get_tree 2>/dev/null | jq -r '
+    first(recurse(.nodes[]?, .floating_nodes[]?) | select(.focused == true))
+    | [ .window_properties.class // "",
+        .window_properties.instance // "",
+        .window_properties.title // .name // "",
+        .window // "" ]
+    | @tsv
+' 2>/dev/null || true)
 
 win_class=""
 win_instance=""
 win_title=""
 win_xid=""
-
-if [[ -n "$focused_json" ]]; then
-    win_class=$(echo "$focused_json" | jq -r '.window_properties.class // empty' 2>/dev/null || true)
-    win_instance=$(echo "$focused_json" | jq -r '.window_properties.instance // empty' 2>/dev/null || true)
-    win_title=$(echo "$focused_json" | jq -r '.window_properties.title // .name // empty' 2>/dev/null || true)
-    win_xid=$(echo "$focused_json" | jq -r '.window // empty' 2>/dev/null || true)
+if [[ -n "$window_info" ]]; then
+    IFS=$'\t' read -r win_class win_instance win_title win_xid <<< "$window_info"
 fi
 
 # Fallback to xdotool / xprop if i3 didn't yield properties
