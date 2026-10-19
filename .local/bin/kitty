@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Bound Mesa's software renderer for Kitty on systems without DRI3 acceleration.
+# Keep an explicit user override when one is already configured.
+export LP_NUM_THREADS="${LP_NUM_THREADS:-2}"
+exec /usr/bin/kitty "$@"
