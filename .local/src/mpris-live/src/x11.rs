@@ -2,18 +2,14 @@
 //! Event-driven hover detection: zero polling, zero idle CPU.
 
 use crate::config::{HOVER_X_MAX, HOVER_X_MIN, HOVER_Y_MIN};
-use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
-use std::sync::Arc;
+use crate::UiEvent;
 use std::thread;
+use tokio::sync::mpsc::UnboundedSender;
 use x11rb::connection::Connection as X11Connection;
 use x11rb::protocol::xproto::{ChangeWindowAttributesAux, ConnectionExt, EventMask};
 use x11rb::protocol::Event as X11Event;
 
-pub fn spawn_hover_thread(
-    hovering: Arc<AtomicBool>,
-    mouse_x: Arc<AtomicI32>,
-    mouse_y: Arc<AtomicI32>,
-) {
+pub fn spawn_hover_thread(event_tx: UnboundedSender<UiEvent>) {
     thread::spawn(move || {
         let Ok((conn, screen_num)) = x11rb::connect(None) else {
             return;
@@ -28,15 +24,30 @@ pub fn spawn_hover_thread(
         );
         let _ = conn.flush();
 
+        let mut last_hovering = conn
+            .query_pointer(root)
+            .ok()
+            .and_then(|cookie| cookie.reply().ok())
+            .map(|pointer| {
+                pointer.root_y >= HOVER_Y_MIN
+                    && (HOVER_X_MIN..=HOVER_X_MAX).contains(&pointer.root_x)
+            });
+        if let Some(is_hovering) = last_hovering {
+            let _ = event_tx.send(UiEvent::HoverChanged(is_hovering));
+        }
+
         loop {
             match conn.wait_for_event() {
                 Ok(X11Event::MotionNotify(ev)) => {
                     let x = ev.root_x;
                     let y = ev.root_y;
-                    mouse_x.store(x as i32, Ordering::Relaxed);
-                    mouse_y.store(y as i32, Ordering::Relaxed);
                     let is_hover = y >= HOVER_Y_MIN && (HOVER_X_MIN..=HOVER_X_MAX).contains(&x);
-                    hovering.store(is_hover, Ordering::Relaxed);
+                    if last_hovering != Some(is_hover) {
+                        if event_tx.send(UiEvent::HoverChanged(is_hover)).is_err() {
+                            break;
+                        }
+                        last_hovering = Some(is_hover);
+                    }
                 }
                 Err(_) => break,
                 _ => {}

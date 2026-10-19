@@ -1,7 +1,5 @@
-//! Media state representation, querying, and Conky desktop synchronization.
+//! Media state representation and querying.
 
-use crate::config::{CONKY_FILE, CONKY_TMP, ICON_CONKY_PAUSE, ICON_CONKY_PLAY};
-use std::fs;
 use std::process::{Command as SyncCommand, Stdio};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -9,17 +7,6 @@ pub struct MediaState {
     pub player: String,
     pub status: String,
     pub full_text: String,
-}
-
-pub fn write_conky(status: &str, full_text: &str) {
-    let text = if status == "Playing" && !full_text.is_empty() {
-        format!("{} {}", ICON_CONKY_PLAY, full_text)
-    } else if status == "Paused" && !full_text.is_empty() {
-        format!("{} {}", ICON_CONKY_PAUSE, full_text)
-    } else {
-        String::new()
-    };
-    let _ = fs::write(CONKY_TMP, text.trim()).and_then(|_| fs::rename(CONKY_TMP, CONKY_FILE));
 }
 
 pub fn query_current_state() -> MediaState {

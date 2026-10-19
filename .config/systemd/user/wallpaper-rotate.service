@@ -4,7 +4,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/home/walid/.local/bin/wallpaper-rotate.sh
+ExecStart=%h/.local/bin/wallpaper-rotate.sh
 Restart=always
 RestartSec=3
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus

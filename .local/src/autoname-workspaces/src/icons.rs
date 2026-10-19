@@ -2,87 +2,75 @@
 //! Grouped by category for ease of future additions and edits.
 
 use crate::config::{DEFAULT_ICON, IGNORE_CLASSES};
-use std::collections::HashMap;
-use std::sync::LazyLock;
-
-static ICON_MAP: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
-    let mut m = HashMap::new();
-
-    // ── Terminals ────────────────────────────────────────────────────────────
-    m.insert("kitty", "");
-    m.insert("alacritty", "");
-    m.insert("xterm", "");
-    m.insert("urxvt", "");
-    m.insert("gnome-terminal", "");
-    m.insert("terminator", "");
-
-    // ── Browsers ─────────────────────────────────────────────────────────────
-    m.insert("google-chrome", "󰊯");
-    m.insert("chromium", "󰊯");
-    m.insert("firefox", "󰈹");
-    m.insert("librewolf", "󰈹");
-    m.insert("zen-browser", "󰈹");
-    m.insert("brave-browser", "󰊯");
-
-    // ── Chat & Communication ─────────────────────────────────────────────────
-    m.insert("telegramdesktop", "");
-    m.insert("telegram-desktop", "");
-    m.insert("telegram", "");
-    m.insert("ayugram", "");
-    m.insert("64gram", "");
-    m.insert("discord", "󰙯");
-    m.insert("webcord", "󰙯");
-    m.insert("vesktop", "󰙯");
-    m.insert("slack", "󰒱");
-
-    // ── Code, Editors & IDEs ─────────────────────────────────────────────────
-    m.insert("antigravity", "󰘦");
-    m.insert("code", "󰨞");
-    m.insert("vscodium", "󰨞");
-    m.insert("code-oss", "󰨞");
-    m.insert("cursor", "󰨞");
-    m.insert("jetbrains-idea", "");
-    m.insert("jetbrains-pycharm", "");
-    m.insert("jetbrains-clion", "");
-    m.insert("jetbrains-webstorm", "");
-    m.insert("subl", "󰅪");
-    m.insert("sublime_text", "󰅪");
-    m.insert("emacs", "");
-    m.insert("neovim", "");
-
-    // ── Media & Entertainment ────────────────────────────────────────────────
-    m.insert("spotify", "");
-    m.insert("vlc", "󰕼");
-    m.insert("mpv", "󰕼");
-    m.insert("gimp", "");
-    m.insert("inkscape", "");
-    m.insert("obs", "󰑋");
-    m.insert("obs-studio", "󰑋");
-    m.insert("steam", "󰓓");
-
-    // ── Utilities & File Managers ────────────────────────────────────────────
-    m.insert("thunar", "");
-    m.insert("nautilus", "");
-    m.insert("dolphin", "");
-    m.insert("pcmanfm", "");
-    m.insert("pavucontrol", "󰕾");
-    m.insert("blueman-manager", "󰂯");
-    m.insert("lxappearance", "󰔎");
-    m.insert("postman", "󱂛");
-    m.insert("dbeaver", "󰆼");
-    m.insert("qbittorrent", "󰇚");
-
-    // ── Mathematics & Science ────────────────────────────────────────────────
-    m.insert("kmplot", "");
-    m.insert("kig", "");
-    m.insert("labplot", "");
-    m.insert("cantor", "");
-    m.insert("geogebra", "");
-    m.insert("maxima", "");
-    m.insert("wxmaxima", "");
-
-    m
-});
+// An ordered registry keeps substring fallback deterministic. Exact matches are
+// always considered first, so short names such as `code` cannot steal a longer
+// application match.
+const ICON_MAP: &[(&[&str], &str)] = &[
+    // Terminals
+    (&["kitty"], "󰆍"),
+    (
+        &[
+            "alacritty",
+            "xterm",
+            "urxvt",
+            "gnome-terminal",
+            "terminator",
+        ],
+        "",
+    ),
+    // Browsers
+    (&["google-chrome", "chromium", "brave-browser"], "󰊯"),
+    (&["firefox", "librewolf", "zen-browser"], "󰈹"),
+    // Chat and communication
+    (
+        &[
+            "telegramdesktop",
+            "telegram-desktop",
+            "telegram",
+            "ayugram",
+            "64gram",
+        ],
+        "",
+    ),
+    (&["discord", "webcord", "vesktop"], "󰙯"),
+    (&["slack"], "󰒱"),
+    // Code, editors, and IDEs
+    (&["antigravity"], "󰘦"),
+    (&["vscodium", "code-oss", "cursor", "code"], "󰨞"),
+    (
+        &[
+            "jetbrains-idea",
+            "jetbrains-pycharm",
+            "jetbrains-clion",
+            "jetbrains-webstorm",
+        ],
+        "",
+    ),
+    (&["sublime_text", "subl"], "󰅪"),
+    (&["neovim"], ""),
+    (&["emacs"], ""),
+    // Media and entertainment
+    (&["spotify"], ""),
+    (&["vlc", "mpv"], "󰕼"),
+    (&["gimp", "inkscape"], ""),
+    (&["obs-studio", "obs"], "󰑋"),
+    (&["steam"], "󰓓"),
+    // Utilities and file managers
+    (&["thunar", "nautilus", "dolphin", "pcmanfm"], ""),
+    (&["pavucontrol"], "󰕾"),
+    (&["blueman-manager"], "󰂯"),
+    (&["lxappearance"], "󰔎"),
+    (&["postman"], "󱂛"),
+    (&["dbeaver"], "󰆼"),
+    (&["qbittorrent"], "󰇚"),
+    // Mathematics and science
+    (
+        &[
+            "kmplot", "kig", "labplot", "cantor", "geogebra", "maxima", "wxmaxima",
+        ],
+        "",
+    ),
+];
 
 pub fn is_ignored(cls: &str, inst: &str, name: &str) -> bool {
     let lower_cls = cls.to_lowercase();
@@ -98,13 +86,23 @@ pub fn is_ignored(cls: &str, inst: &str, name: &str) -> bool {
 }
 
 pub fn get_icon(cls: &str, inst: &str, name: &str) -> &'static str {
-    let lower_cls = cls.to_lowercase();
-    let lower_inst = inst.to_lowercase();
-    let lower_name = name.to_lowercase();
+    let fields = [cls, inst, name].map(|field| field.to_lowercase());
 
-    for (&key, &icon) in ICON_MAP.iter() {
-        if lower_cls.contains(key) || lower_inst.contains(key) || lower_name.contains(key) {
-            return icon;
+    // Window class and instance are stable identifiers; titles are only a
+    // fallback because they are user content and can contain incidental names.
+    for exact in [&fields[0], &fields[1]] {
+        for &(aliases, icon) in ICON_MAP {
+            if aliases.iter().any(|alias| exact == alias) {
+                return icon;
+            }
+        }
+    }
+
+    for field in &fields {
+        for &(aliases, icon) in ICON_MAP {
+            if aliases.iter().any(|alias| field.contains(alias)) {
+                return icon;
+            }
         }
     }
     DEFAULT_ICON
@@ -116,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_icon_lookup_terminals() {
-        assert_eq!(get_icon("kitty", "kitty", "kitty"), "");
+        assert_eq!(get_icon("kitty", "kitty", "kitty"), "󰆍");
         assert_eq!(get_icon("Alacritty", "alacritty", ""), "");
     }
 
@@ -131,6 +129,21 @@ mod tests {
     fn test_icon_lookup_editors() {
         assert_eq!(get_icon("Code", "code", "Visual Studio Code"), "󰨞");
         assert_eq!(get_icon("antigravity", "antigravity", "Antigravity"), "󰘦");
+    }
+
+    #[test]
+    fn test_icon_lookup_prefers_exact_app_class() {
+        assert_eq!(
+            get_icon("Code", "code", "Firefox - Visual Studio Code"),
+            "󰨞"
+        );
+        assert_eq!(get_icon("kitty", "kitty", "Firefox documentation"), "󰆍");
+    }
+
+    #[test]
+    fn test_icon_lookup_is_stable_for_overlapping_names() {
+        assert_eq!(get_icon("obs-studio", "obs", "OBS"), "󰑋");
+        assert_eq!(get_icon("vscodium", "code", "Code"), "󰨞");
     }
 
     #[test]

@@ -104,7 +104,9 @@ function conky_gradient_overlay()
         local date_text = conky_parse("${time %A, %B %d}")
         
         local music_text = ""
-        local f = io.open("/tmp/conky-music.txt", "r")
+        local home = os.getenv("HOME") or "."
+        local runtime_dir = os.getenv("XDG_RUNTIME_DIR") or (home .. "/.cache")
+        local f = io.open(runtime_dir .. "/conky-music.txt", "r")
         if f then
             music_text = f:read("*all") or ""
             f:close()

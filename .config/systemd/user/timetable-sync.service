@@ -5,6 +5,6 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/home/walid/.local/bin/timetable-sync
+ExecStart=%h/.local/bin/timetable-sync
 StandardOutput=journal
 StandardError=journal

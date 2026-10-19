@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec "${HOME}/.config/polybar/mpris-live"
+exec "${HOME}/.local/bin/mpris-live"

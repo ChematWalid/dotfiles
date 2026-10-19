@@ -2,7 +2,6 @@
 //! Zero polling, event-driven architecture using zbus 5.
 
 mod config;
-mod instance;
 mod mpris;
 mod writer;
 
@@ -12,8 +11,6 @@ use zbus::Connection;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    instance::ensure_single_instance();
-
     // Write initial state immediately
     writer::write_output_atomic(&mpris::query_current_state());
 

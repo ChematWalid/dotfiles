@@ -4,7 +4,7 @@ After=graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/home/walid/.local/bin/autoname-workspaces
+ExecStart=%h/.local/bin/autoname-workspaces
 Restart=always
 RestartSec=2
 Environment=DISPLAY=:0

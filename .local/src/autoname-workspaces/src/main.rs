@@ -8,7 +8,6 @@ mod workspace;
 
 use regex::Regex;
 use std::io::Read;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -23,23 +22,10 @@ fn main() {
     }
 
     let re_ws = Regex::new(r"^(\d+)").expect("Valid regex");
-    let client = Arc::new(Mutex::new(I3Client::new(sock_path.clone())));
+    let mut client = I3Client::new(sock_path.clone());
 
     // Initial update
-    {
-        let mut c = client.lock().unwrap();
-        update_workspaces(&mut c, &re_ws);
-    }
-
-    // Periodic sync thread (fallback safety net every 2s)
-    let client_periodic = Arc::clone(&client);
-    let re_ws_periodic = re_ws.clone();
-    thread::spawn(move || loop {
-        thread::sleep(Duration::from_secs(2));
-        if let Ok(mut c) = client_periodic.lock() {
-            update_workspaces(&mut c, &re_ws_periodic);
-        }
-    });
+    update_workspaces(&mut client, &re_ws);
 
     // Event listener subscription loop
     loop {
@@ -57,9 +43,7 @@ fn main() {
                     }
 
                     // On any window/workspace/mode event, update immediately
-                    if let Ok(mut c) = client.lock() {
-                        update_workspaces(&mut c, &re_ws);
-                    }
+                    update_workspaces(&mut client, &re_ws);
                 }
             }
             Err(_) => {

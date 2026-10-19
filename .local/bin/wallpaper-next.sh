@@ -6,7 +6,9 @@ set -euo pipefail
 
 readonly CONFIG_FILE="${HOME}/.config/wallpaper-dir"
 readonly DEFAULT_DIR="${HOME}/Pictures/walls-catppuccin-mocha"
-readonly LOCK_FILE="/tmp/.wallpaper-current"
+readonly RUNTIME_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache/dotfiles}"
+readonly STATE_FILE="${RUNTIME_DIR}/wallpaper-current"
+mkdir -p "$RUNTIME_DIR"
 
 get_wall_dir() {
     local dir="$DEFAULT_DIR"
@@ -19,7 +21,7 @@ get_wall_dir() {
 }
 
 wallpaper_dir=$(get_wall_dir)
-current=$(cat "$LOCK_FILE" 2>/dev/null || true)
+current=$(cat "$STATE_FILE" 2>/dev/null || true)
 
 mapfile -t walls < <(
     find -L "$wallpaper_dir" -maxdepth 3 -type f \
@@ -39,7 +41,7 @@ else
     wall="${walls[0]}"
 fi
 
-echo "$wall" > "$LOCK_FILE"
+echo "$wall" > "$STATE_FILE"
 feh --bg-fill "$wall"
 
 # Reset systemd rotation timer

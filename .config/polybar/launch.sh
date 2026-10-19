@@ -4,11 +4,26 @@
 
 set -euo pipefail
 
+# i3 can start Polybar before HOME has been imported into the session
+# environment. Resolve it from passwd so Polybar's ${env:HOME} commands never
+# collapse to paths such as /.config/polybar/mpris-live.sh.
+if [[ -z "${HOME:-}" ]]; then
+    HOME=$(getent passwd "$(id -u)" | cut -d: -f6)
+fi
+: "${HOME:?Could not determine home directory}"
+export HOME
+
+for module_script in mpris-live.sh datetime-tail.sh; do
+    if [[ ! -x "${HOME}/.config/polybar/${module_script}" ]]; then
+        printf 'Polybar module script is missing or not executable: %s\n' \
+            "${HOME}/.config/polybar/${module_script}" >&2
+        exit 1
+    fi
+done
+
 # Terminate existing Polybar and child module instances gracefully
 killall polybar 2>/dev/null || true
 pkill -x "mpris-live" 2>/dev/null || true
-pkill -f "datetime-tail.sh" 2>/dev/null || true
-pkill -f "network-tail.sh" 2>/dev/null || true
 
 # Wait until all polybar processes have shut down (max 1s)
 for _ in {1..10}; do

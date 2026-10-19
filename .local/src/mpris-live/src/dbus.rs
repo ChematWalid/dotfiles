@@ -1,13 +1,12 @@
 //! D-Bus connection and signal listener for MPRIS media players.
 
-use crate::state::{query_current_state, write_conky, MediaState};
+use crate::state::{query_current_state, MediaState};
 use anyhow::{Context, Result};
 use futures_lite::StreamExt;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::watch;
 use zbus::{message::Type as MsgType, Connection, MatchRule, MessageStream};
 
-pub async fn start_dbus_listener(state: Arc<Mutex<MediaState>>) -> Result<()> {
+pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()> {
     let conn = Connection::session()
         .await
         .context("Failed to connect to D-Bus session bus")?;
@@ -34,8 +33,7 @@ pub async fn start_dbus_listener(state: Arc<Mutex<MediaState>>) -> Result<()> {
             tokio::select! {
                 Some(_) = props_stream.next() => {
                     let latest = query_current_state();
-                    write_conky(&latest.status, &latest.full_text);
-                    *state.lock().await = latest;
+                    state.send_replace(latest);
                 }
                 Some(msg_result) = name_stream.next() => {
                     if let Ok(msg) = msg_result {
@@ -43,8 +41,7 @@ pub async fn start_dbus_listener(state: Arc<Mutex<MediaState>>) -> Result<()> {
                         if let Ok((name, _old, _new)) = body {
                             if name.starts_with("org.mpris.") {
                                 let latest = query_current_state();
-                                write_conky(&latest.status, &latest.full_text);
-                                *state.lock().await = latest;
+                                state.send_replace(latest);
                             }
                         }
                     }

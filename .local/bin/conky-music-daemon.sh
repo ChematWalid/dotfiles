@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Real-time event-driven music listener for Conky using playerctl DBus events
-OUTPUT_FILE="/tmp/conky-music.txt"
+OUTPUT_FILE="${XDG_RUNTIME_DIR:-$HOME/.cache}/conky-music.txt"
+mkdir -p "$(dirname "$OUTPUT_FILE")"
 
 update_music() {
     local status title artist mpc_track
