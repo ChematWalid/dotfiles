@@ -22,12 +22,13 @@ apply_input() {
     xset m 0 0 2>/dev/null || true
 
     # 5. Mouse Libinput Raw Input (Flat Profile: 0, 1, 0) & Speed (-0.25)
-    for id in $(xinput list --id-only 2>/dev/null || true); do
-        if xinput list-props "$id" 2>/dev/null | grep -q "libinput Accel Profile Enabled"; then
-            xinput set-prop "$id" "libinput Accel Profile Enabled" 0, 1, 0 2>/dev/null || true
-            xinput set-prop "$id" "libinput Accel Speed" -0.25 2>/dev/null || true
-        fi
-    done
+    while IFS= read -r id; do
+        [[ "$id" =~ ^[0-9]+$ ]] || continue
+        properties=$(xinput list-props "$id" 2>/dev/null) || continue
+        [[ "$properties" == *"libinput Accel Profile Enabled"* ]] || continue
+        xinput set-prop "$id" "libinput Accel Profile Enabled" 0, 1, 0 2>/dev/null || true
+        xinput set-prop "$id" "libinput Accel Speed" -0.25 2>/dev/null || true
+    done < <(xinput list --id-only 2>/dev/null || true)
 }
 
 apply_input
