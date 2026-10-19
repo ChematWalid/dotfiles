@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
+TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
+mkdir -p "$STATE_DIR"
+
 MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
     | awk '$2 ~ /^"polybar-main_/ && !found { window = $1; found = 1 } END { if (found) print window }')
 
@@ -16,7 +20,9 @@ if [[ -z "$TRAY_PID" ]]; then
     # Wait for Polybar's IPC queue, then arm the watcher before showing the bar.
     for _ in {1..20}; do
         if polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1; then
-            setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" >/dev/null 2>&1 &
+            setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" "$TRAY_STATE" >/dev/null 2>&1 &
+            printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
+            mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
             polybar-msg -p "$TRAY_PID" cmd show >/dev/null
             exit 0
         fi
@@ -44,9 +50,13 @@ fi
 if [[ "$TRAY_INFO" == *"Map State: IsViewable"* ]]; then
     # Tray is currently visible -> hide it
     polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
+    printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
+    mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
 else
     # Tray is hidden -> arm click-outside handling before showing it.
-    setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" >/dev/null 2>&1 &
+    setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" "$TRAY_STATE" >/dev/null 2>&1 &
+    printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
+    mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
     polybar-msg -p "$TRAY_PID" cmd show >/dev/null
 fi
 

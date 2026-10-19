@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <spawn.h>
 #include <signal.h>
 #include <X11/Xlib.h>
@@ -12,6 +13,7 @@
 static Display *ctrl_disp = NULL;
 static Display *data_disp = NULL;
 static char tray_pid[32] = {0};
+static char state_path[4096] = {0};
 static Window toggle_window = None;
 extern char **environ;
 
@@ -23,6 +25,13 @@ static void hide_tray_and_exit(void) {
     char *const args[] = {"polybar-msg", "-p", tray_pid, "cmd", "hide", NULL};
     pid_t child;
     int result = posix_spawnp(&child, args[0], NULL, NULL, args, environ);
+    if (result == 0 && state_path[0] != '\0') {
+        int fd = open(state_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+        if (fd >= 0) {
+            (void)write(fd, "hidden\n", 7);
+            close(fd);
+        }
+    }
     _exit(result == 0 ? 0 : 1);
 }
 
@@ -53,6 +62,9 @@ int main(int argc, char *argv[]) {
     }
     if (argc >= 3) {
         toggle_window = (Window)strtoul(argv[2], NULL, 0);
+    }
+    if (argc >= 4) {
+        snprintf(state_path, sizeof(state_path), "%s", argv[3]);
     }
 
     ctrl_disp = XOpenDisplay(NULL);

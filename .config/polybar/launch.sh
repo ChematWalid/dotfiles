@@ -15,7 +15,13 @@ export HOME
 
 readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
 readonly VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
+readonly TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
 mkdir -p "$STATE_DIR"
+
+# Snapshot the popup state before killing the old bars. The tray watcher writes
+# this state when it closes the popup after an outside click.
+TRAY_WAS_VISIBLE=false
+[[ "$(cat "$TRAY_STATE" 2>/dev/null || true)" == visible ]] && TRAY_WAS_VISIBLE=true
 
 for module_script in mpris-live.sh datetime-tail.sh; do
     if [[ ! -x "${HOME}/.config/polybar/${module_script}" ]]; then
@@ -93,10 +99,21 @@ else
 fi
 mv -f "${VISIBILITY_STATE}.tmp.$$" "$VISIBILITY_STATE"
 
-# Always hide tray popup bar by default on launch
+# Restore the tray popup state and re-arm its outside-click watcher if it was
+# open before the reload.
 for _ in {1..20}; do
     TRAY_PID=$(pgrep -n -f "polybar tray" || true)
-    if [[ -n "$TRAY_PID" ]] && polybar-msg -p "$TRAY_PID" cmd hide 2>/dev/null; then
+    if [[ -n "$TRAY_PID" ]] && polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1; then
+        if [[ "$TRAY_WAS_VISIBLE" == true ]]; then
+            MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
+                | awk '$2 ~ /^"polybar-main_/ && !found { print $1; found = 1 }')
+            setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" "$TRAY_STATE" >/dev/null 2>&1 &
+            printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
+            polybar-msg -p "$TRAY_PID" cmd show >/dev/null 2>&1
+        else
+            printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
+        fi
+        mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
         break
     fi
     sleep 0.05

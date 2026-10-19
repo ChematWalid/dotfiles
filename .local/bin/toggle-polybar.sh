@@ -12,6 +12,7 @@ MAIN_PID=$(pgrep -n -f "polybar main" || true)
 TRAY_PID=$(pgrep -n -f "polybar tray" || true)
 STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
 VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
+TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
 mkdir -p "$STATE_DIR"
 
 if [[ -z "$MAIN_PID" ]]; then
@@ -39,5 +40,7 @@ else
     if [[ -n "$TRAY_PID" ]]; then
         timeout --signal=TERM --kill-after=1s 2s \
             polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
+        printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
+        mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
     fi
 fi
