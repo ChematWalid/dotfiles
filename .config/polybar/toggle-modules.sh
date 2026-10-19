@@ -59,5 +59,5 @@ if [[ -n "$choice" ]]; then
     new_modules_string="${new_modules[*]}"
     sed -i.bak "s/^modules-right.*/modules-right = ${new_modules_string}/g" "$CONFIG"
     rm -f "${CONFIG}.bak"
-    "${HOME}/.config/polybar/launch.sh"
+    systemctl --user restart polybar.service
 fi

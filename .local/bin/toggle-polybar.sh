@@ -8,11 +8,11 @@ MAIN_PID=$(pgrep -o -f "polybar main" || true)
 TRAY_PID=$(pgrep -o -f "polybar tray" || true)
 
 if [[ -z "$MAIN_PID" ]]; then
-    "${HOME}/.config/polybar/launch.sh" --show
+    systemctl --user restart polybar.service
 else
     pkill -x "tray-autohide" 2>/dev/null || true
     if ! polybar-msg -p "$MAIN_PID" cmd toggle >/dev/null 2>&1; then
-        "${HOME}/.config/polybar/launch.sh" --show
+        systemctl --user restart polybar.service
         exit 0
     fi
 
