@@ -75,8 +75,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    range->device_events.first = ButtonPress;
-    range->device_events.last  = ButtonRelease;
+    // Polybar tray clicks are core X11 events delivered to windows. The
+    // device_events range covers XInput events and misses ordinary clicks.
+    range->delivered_events.first = ButtonPress;
+    range->delivered_events.last  = ButtonRelease;
 
     XRecordClientSpec client_spec = XRecordAllClients;
     XRecordContext ctx = XRecordCreateContext(ctrl_disp, 0, &client_spec, 1, &range, 1);
