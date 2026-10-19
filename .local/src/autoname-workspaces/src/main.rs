@@ -11,7 +11,7 @@ use std::io::Read;
 use std::time::Duration;
 
 use ipc::{
-    event_changes_workspace_icons, get_i3_socket_path, subscribe_events,
+    event_changes_workspace_icons, get_i3_socket_path, is_stream_disconnect, subscribe_events,
     wait_for_i3_socket_after_failure, I3Client,
 };
 use workspace::update_workspaces;
@@ -55,14 +55,18 @@ fn main() {
         loop {
             let mut ev_header = [0u8; 14];
             if let Err(error) = event_stream.read_exact(&mut ev_header) {
-                eprintln!("autoname-workspaces: i3 event stream ended: {error}");
+                if !is_stream_disconnect(&error) {
+                    eprintln!("autoname-workspaces: could not read i3 event header: {error}");
+                }
                 break;
             }
             let ev_len = u32::from_ne_bytes(ev_header[6..10].try_into().unwrap()) as usize;
             let ev_type = u32::from_ne_bytes(ev_header[10..14].try_into().unwrap());
             ev_body.resize(ev_len, 0);
             if let Err(error) = event_stream.read_exact(&mut ev_body) {
-                eprintln!("autoname-workspaces: could not read i3 event: {error}");
+                if !is_stream_disconnect(&error) {
+                    eprintln!("autoname-workspaces: could not read i3 event: {error}");
+                }
                 break;
             }
 

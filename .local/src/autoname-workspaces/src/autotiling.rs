@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde_json::Value;
 
 use crate::ipc::{
-    event_change, get_i3_socket_path, subscribe_events_with_payload,
+    event_change, get_i3_socket_path, is_stream_disconnect, subscribe_events_with_payload,
     wait_for_i3_socket_after_failure, I3Client,
 };
 
@@ -40,7 +40,9 @@ pub fn run() {
         loop {
             let mut header = [0u8; 14];
             if let Err(error) = events.read_exact(&mut header) {
-                eprintln!("autotiling: i3 event stream ended: {error}");
+                if !is_stream_disconnect(&error) {
+                    eprintln!("autotiling: could not read i3 event header: {error}");
+                }
                 break;
             }
 
@@ -48,7 +50,9 @@ pub fn run() {
             let event_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
             body.resize(body_len, 0);
             if let Err(error) = events.read_exact(&mut body) {
-                eprintln!("autotiling: could not read i3 event: {error}");
+                if !is_stream_disconnect(&error) {
+                    eprintln!("autotiling: could not read i3 event: {error}");
+                }
                 break;
             }
 

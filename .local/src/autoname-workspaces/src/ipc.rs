@@ -36,6 +36,20 @@ pub fn event_change(body: &[u8]) -> Option<&str> {
         .and_then(|event| event.change)
 }
 
+/// i3 closes subscribed event sockets while restarting or reloading. Treat
+/// those normal stream shutdowns as reconnect signals instead of user-facing
+/// errors; other I/O failures remain reportable.
+pub fn is_stream_disconnect(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::UnexpectedEof
+            | io::ErrorKind::ConnectionReset
+            | io::ErrorKind::ConnectionAborted
+            | io::ErrorKind::BrokenPipe
+            | io::ErrorKind::NotConnected
+    )
+}
+
 #[repr(C)]
 struct InotifyEvent {
     wd: i32,
