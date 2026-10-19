@@ -56,13 +56,25 @@ apply_input() {
     fi
 
     # 5. Mouse Libinput Raw Input (Flat Profile: 0, 1, 0) & Speed (-0.25)
-    local input_ids id properties
-    if ! input_ids=$(xinput list --id-only 2>/dev/null); then
+    local devices id properties device_class="" device_line
+    if ! devices=$(xinput list --short 2>/dev/null); then
         printf 'apply-input-settings: could not enumerate X11 input devices\n' >&2
         return
     fi
-    while IFS= read -r id; do
-        [[ "$id" =~ ^[0-9]+$ ]] || continue
+    local -a pointer_ids=()
+    while IFS= read -r device_line; do
+        case "$device_line" in
+            *"Virtual core pointer"*) device_class=pointer ;;
+            *"Virtual core keyboard"*) device_class=keyboard ;;
+        esac
+        if [[ "$device_class" == pointer \
+            && "$device_line" != *"[master pointer"* \
+            && "$device_line" =~ id=([0-9]+) ]]; then
+            pointer_ids+=("${BASH_REMATCH[1]}")
+        fi
+    done <<< "$devices"
+
+    for id in "${pointer_ids[@]}"; do
         properties=$(xinput list-props "$id" 2>/dev/null) || continue
         [[ "$properties" == *"libinput Accel Profile Enabled"* ]] || continue
 
@@ -88,7 +100,7 @@ apply_input() {
         [[ "$speed_matches" == true ]] || \
             xinput set-prop "$id" "libinput Accel Speed" -0.25 2>/dev/null \
                 || printf 'apply-input-settings: could not set acceleration speed for device %s\n' "$id" >&2
-    done <<< "$input_ids"
+    done
 }
 
 apply_input
