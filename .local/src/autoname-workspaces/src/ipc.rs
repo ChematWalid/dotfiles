@@ -1,5 +1,6 @@
 //! i3 IPC protocol connection and message serialization.
 
+use serde::Deserialize;
 use serde_json::Value;
 use std::env;
 use std::ffi::CString;
@@ -22,6 +23,18 @@ const IN_MOVED_TO: u32 = 0x0000_0080;
 const IN_DELETE_SELF: u32 = 0x0000_0400;
 const IN_MOVE_SELF: u32 = 0x0000_0800;
 const IN_Q_OVERFLOW: u32 = 0x0000_4000;
+
+#[derive(Deserialize)]
+struct EventChange<'a> {
+    #[serde(borrow)]
+    change: Option<&'a str>,
+}
+
+pub fn event_change(body: &[u8]) -> Option<&str> {
+    serde_json::from_slice::<EventChange<'_>>(body)
+        .ok()
+        .and_then(|event| event.change)
+}
 
 #[repr(C)]
 struct InotifyEvent {
@@ -254,11 +267,8 @@ pub fn event_changes_workspace_icons(event_type: u32, body: &[u8]) -> bool {
     const WORKSPACE_EVENT: u32 = 0x8000_0000;
     const WINDOW_EVENT: u32 = 0x8000_0003;
 
-    let Ok(event) = serde_json::from_slice::<serde_json::Value>(body) else {
+    let Some(change) = event_change(body) else {
         // Unknown payloads should trigger a refresh to preserve correctness.
-        return true;
-    };
-    let Some(change) = event.get("change").and_then(|v| v.as_str()) else {
         return true;
     };
 

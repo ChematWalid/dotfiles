@@ -6,7 +6,9 @@ use std::io::Read;
 
 use serde_json::Value;
 
-use crate::ipc::{get_i3_socket_path, subscribe_events_with_payload, wait_for_i3_socket, I3Client};
+use crate::ipc::{
+    event_change, get_i3_socket_path, subscribe_events_with_payload, wait_for_i3_socket, I3Client,
+};
 
 const WINDOW_EVENT: u32 = 0x8000_0003;
 const MODE_EVENT: u32 = 0x8000_0002;
@@ -55,10 +57,7 @@ fn event_requires_autotile(event_type: u32, body: &[u8]) -> bool {
         return false;
     }
 
-    let Ok(event) = serde_json::from_slice::<Value>(body) else {
-        return true;
-    };
-    let Some(change) = event.get("change").and_then(Value::as_str) else {
+    let Some(change) = event_change(body) else {
         return true;
     };
 
