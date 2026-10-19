@@ -13,13 +13,13 @@ use tokio::sync::watch;
 use tokio::time::{interval, Duration, MissedTickBehavior};
 
 use config::{MAX_CHARS, SCROLL_MS, SEPARATOR};
-use state::query_current_state;
+use state::MediaState;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    let current = query_current_state().await;
-
-    let (state_tx, mut state_rx) = watch::channel(current);
+    // The listener queries current MPRIS state after installing its D-Bus
+    // match rules, avoiding a redundant playerctl process and the startup race.
+    let (state_tx, mut state_rx) = watch::channel(MediaState::default());
     let (hover_tx, mut hover_rx) = watch::channel(false);
 
     // Keep the listener alive if the X11 connection cannot be established.
