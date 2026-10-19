@@ -22,6 +22,7 @@ pub fn run() {
     let mut client = I3Client::new(socket_path.clone());
     loop {
         if let Ok(mut events) = subscribe_events_with_payload(&socket_path, EVENT_SUBSCRIPTION) {
+            let mut body = Vec::new();
             loop {
                 let mut header = [0u8; 14];
                 if events.read_exact(&mut header).is_err() {
@@ -30,7 +31,7 @@ pub fn run() {
 
                 let body_len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
                 let event_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
-                let mut body = vec![0u8; body_len];
+                body.resize(body_len, 0);
                 if events.read_exact(&mut body).is_err() {
                     break;
                 }

@@ -35,6 +35,7 @@ fn main() {
     // Event listener subscription loop
     loop {
         if let Ok(mut event_stream) = subscribe_events(&sock_path) {
+            let mut ev_body = Vec::new();
             loop {
                 let mut ev_header = [0u8; 14];
                 if event_stream.read_exact(&mut ev_header).is_err() {
@@ -42,7 +43,7 @@ fn main() {
                 }
                 let ev_len = u32::from_ne_bytes(ev_header[6..10].try_into().unwrap()) as usize;
                 let ev_type = u32::from_ne_bytes(ev_header[10..14].try_into().unwrap());
-                let mut ev_body = vec![0u8; ev_len];
+                ev_body.resize(ev_len, 0);
                 if event_stream.read_exact(&mut ev_body).is_err() {
                     break;
                 }
