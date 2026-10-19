@@ -1,0 +1,8 @@
+[Unit]
+Description=Event-driven i3 autotiling
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/autotiling -sr 1.0
+Restart=on-failure
+RestartSec=1
