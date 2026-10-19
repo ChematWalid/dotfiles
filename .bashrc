@@ -35,13 +35,38 @@ alias grep='rg'
 alias find='fd'
 alias cd='z'
 
-# === Starship & Zoxide Init ===
-if command -v starship >/dev/null 2>&1; then
-    eval "$(starship init bash)"
-fi
-if command -v zoxide >/dev/null 2>&1; then
-    eval "$(zoxide init bash)"
-fi
+# Source generated shell integrations from cache; regenerate only after upgrades.
+_source_cached_bash_init() {
+    local tool="$1" cache="$2" binary temporary
+    shift 2
+
+    hash "$tool" 2>/dev/null || return 0
+    binary=${BASH_CMDS["$tool"]:-}
+    [[ -n "$binary" ]] || return 0
+
+    if [[ ! -f "$cache" || "$cache" -ot "$binary" ]]; then
+        mkdir -p "${cache%/*}" || return 1
+        temporary=$(mktemp "${cache}.XXXXXX") || return 1
+        if ! "$@" > "$temporary" 2>/dev/null; then
+            rm -f -- "$temporary"
+            return 1
+        fi
+        if ! mv -f -- "$temporary" "$cache"; then
+            rm -f -- "$temporary"
+            return 1
+        fi
+    fi
+
+    source "$cache"
+}
+
+_source_cached_bash_init starship \
+    "${XDG_CACHE_HOME:-$HOME/.cache}/bash/starship/init.bash" \
+    starship init bash || :
+_source_cached_bash_init zoxide \
+    "${XDG_CACHE_HOME:-$HOME/.cache}/bash/zoxide/init.bash" \
+    zoxide init bash || :
+unset -f _source_cached_bash_init
 
 export PATH=$PATH:/home/walid/.spicetify
 export QT_QPA_PLATFORMTHEME=xdgdesktopportal
