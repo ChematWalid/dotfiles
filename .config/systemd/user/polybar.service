@@ -9,6 +9,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=oneshot
 ExecStart=%h/.config/polybar/launch.sh
+ExecStop=%h/.config/polybar/launch.sh --stop
 RemainAfterExit=yes
 Restart=on-failure
 RestartSec=5s

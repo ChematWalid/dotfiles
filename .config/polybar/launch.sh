@@ -13,6 +13,26 @@ fi
 : "${HOME:?Could not determine home directory}"
 export HOME
 
+stop_polybar() {
+    # Stop bars before systemd signals the remaining module processes. This
+    # gives Polybar time to close its IPC and terminate its own module group.
+    killall polybar 2>/dev/null || true
+
+    for _ in {1..10}; do
+        if ! pgrep -u "${UID:-$(id -u)}" -x polybar >/dev/null; then
+            break
+        fi
+        sleep 0.1
+    done
+
+    killall -9 polybar 2>/dev/null || true
+}
+
+if [[ "${1:-}" == --stop ]]; then
+    stop_polybar
+    exit 0
+fi
+
 readonly STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
 readonly VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
 readonly TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
@@ -63,20 +83,9 @@ if [[ ! -x "${HOME}/.local/bin/polybar-datetime" ]]; then
     exit 1
 fi
 
-# Terminate existing Polybar and child module instances gracefully
-killall polybar 2>/dev/null || true
+# Terminate an existing Polybar instance and its module processes.
+stop_polybar
 pkill -x "mpris-live" 2>/dev/null || true
-
-# Wait until all polybar processes have shut down (max 1s)
-for _ in {1..10}; do
-    if ! pgrep -u "${UID:-$(id -u)}" -x polybar >/dev/null; then
-        break
-    fi
-    sleep 0.1
-done
-
-# Force kill any lingering processes if still alive
-killall -9 polybar 2>/dev/null || true
 
 # Launch main polybar
 DISPLAY="${DISPLAY:-:0}" setsid polybar main -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar.log 2>&1 &
