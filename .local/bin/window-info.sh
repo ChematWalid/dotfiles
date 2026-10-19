@@ -29,8 +29,16 @@ if [[ -z "$win_class" ]]; then
     if [[ -n "$active_xid" ]]; then
         win_xid="$active_xid"
         wm_class=$(xprop -id "$win_xid" WM_CLASS 2>/dev/null || true)
-        win_instance=$(echo "$wm_class" | awk -F '"' '{print $2}')
-        win_class=$(echo "$wm_class" | awk -F '"' '{print $4}')
+        # WM_CLASS is printed as: WM_CLASS(STRING) = "instance", "class".
+        # Split and remove the quotes in Bash instead of starting awk twice.
+        if [[ "$wm_class" == *' = '* ]]; then
+            wm_class=${wm_class#*= }
+            IFS=, read -r win_instance win_class <<< "$wm_class"
+            win_instance=${win_instance//\"/}
+            win_class=${win_class//\"/}
+            win_instance=${win_instance# }
+            win_class=${win_class# }
+        fi
         win_title=$(xdotool getwindowname "$win_xid" 2>/dev/null || true)
     fi
 fi
@@ -43,8 +51,9 @@ fi
 proc_name="N/A"
 pid="N/A"
 if [[ -n "$win_xid" ]]; then
-    extracted_pid=$(xprop -id "$win_xid" _NET_WM_PID 2>/dev/null | awk '{print $3}' || true)
-    if [[ -n "$extracted_pid" ]]; then
+    pid_line=$(xprop -id "$win_xid" _NET_WM_PID 2>/dev/null || true)
+    extracted_pid=${pid_line##*= }
+    if [[ "$extracted_pid" =~ ^[0-9]+$ ]]; then
         pid="$extracted_pid"
         proc_name=$(ps -p "$pid" -o comm= 2>/dev/null || echo "N/A")
     fi
