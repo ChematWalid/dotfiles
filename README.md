@@ -83,6 +83,12 @@ rclone config                          # credentials stay in ~/.config/rclone (p
 # open localhost:8384 for Syncthing pairing
 ```
 
+Build the Conky version used by the desktop clock service:
+
+```bash
+~/.local/src/conky/build.sh
+```
+
 > **Machine-specific storage:** `etc/fstab` contains device UUIDs for this machine.
 > The installer does not install it; verify every UUID with `blkid` before using it elsewhere.
 
