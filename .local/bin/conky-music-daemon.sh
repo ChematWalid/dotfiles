@@ -4,43 +4,38 @@ OUTPUT_FILE="${XDG_RUNTIME_DIR:-$HOME/.cache}/conky-music.txt"
 mkdir -p "$(dirname "$OUTPUT_FILE")"
 
 update_music() {
-    local status title artist mpc_track
-    status=$(playerctl status 2>/dev/null)
+    local status="${1:-}" title="${2:-}" artist="${3:-}" mpc_track prefix=""
+    title=${title:0:38}
+    artist=${artist:0:30}
 
-    if [ "$status" = "Playing" ]; then
-        title=$(playerctl metadata title 2>/dev/null | cut -c1-38)
-        artist=$(playerctl metadata artist 2>/dev/null | cut -c1-30)
+    if [ "$status" = "Playing" ] || [ "$status" = "Paused" ]; then
+        [ "$status" = "Paused" ] && prefix="[Paused] "
         if [ -n "$artist" ] && [ -n "$title" ]; then
-            echo "${title} — ${artist}" > "$OUTPUT_FILE"
+            printf '%s%s — %s\n' "$prefix" "$title" "$artist" > "$OUTPUT_FILE"
         elif [ -n "$title" ]; then
-            echo "${title}" > "$OUTPUT_FILE"
+            printf '%s%s\n' "$prefix" "$title" > "$OUTPUT_FILE"
         else
-            echo "" > "$OUTPUT_FILE"
-        fi
-    elif [ "$status" = "Paused" ]; then
-        title=$(playerctl metadata title 2>/dev/null | cut -c1-38)
-        artist=$(playerctl metadata artist 2>/dev/null | cut -c1-30)
-        if [ -n "$artist" ] && [ -n "$title" ]; then
-            echo "[Paused] ${title} — ${artist}" > "$OUTPUT_FILE"
-        elif [ -n "$title" ]; then
-            echo "[Paused] ${title}" > "$OUTPUT_FILE"
-        else
-            echo "" > "$OUTPUT_FILE"
+            : > "$OUTPUT_FILE"
         fi
     else
         mpc_track=$(mpc current 2>/dev/null)
         if [ -n "$mpc_track" ]; then
-            echo "${mpc_track}" > "$OUTPUT_FILE"
+            printf '%s\n' "$mpc_track" > "$OUTPUT_FILE"
         else
-            echo "" > "$OUTPUT_FILE"
+            : > "$OUTPUT_FILE"
         fi
     fi
 }
 
-# Initial update
-update_music
+readonly FORMAT=$'{{status}}\x1f{{title}}\x1f{{artist}}'
+
+# Initial update, then keep one playerctl event stream instead of spawning
+# separate status/title/artist queries for every metadata change.
+initial=$(playerctl metadata --format "$FORMAT" 2>/dev/null || true)
+IFS=$'\x1f' read -r status title artist <<< "$initial"
+update_music "$status" "$title" "$artist"
 
 # Listen for DBus MPRIS playback events in real-time
-playerctl metadata --follow --format '{{status}}:{{artist}}:{{title}}' 2>/dev/null | while read -r line; do
-    update_music
+playerctl metadata --follow --format "$FORMAT" 2>/dev/null | while IFS=$'\x1f' read -r status title artist; do
+    update_music "$status" "$title" "$artist"
 done
