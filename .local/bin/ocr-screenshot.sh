@@ -8,13 +8,21 @@ set -euo pipefail
 
 readonly TESS_DIR="${HOME}/.local/share/tessdata"
 
-if ! command -v tesseract >/dev/null 2>&1; then
+notify_user() {
+    local urgency="$1" title="$2" body="$3" icon="${4:-}"
     if command -v notify-send >/dev/null 2>&1; then
-        notify-send -u critical -a "OCR" "OCR unavailable" \
-            "Tesseract is not installed or not on PATH." || true
+        if [[ -n "$icon" ]]; then
+            notify-send -u "$urgency" -a "OCR" -i "$icon" "$title" "$body" || true
+        else
+            notify-send -u "$urgency" -a "OCR" "$title" "$body" || true
+        fi
     else
-        printf 'ocr-screenshot: Tesseract is not installed or not on PATH\n' >&2
+        printf 'ocr-screenshot: %s: %s\n' "$title" "$body" >&2
     fi
+}
+
+if ! command -v tesseract >/dev/null 2>&1; then
+    notify_user critical "OCR unavailable" "Tesseract is not installed or not on PATH."
     exit 127
 fi
 
@@ -23,8 +31,17 @@ TMP_OPT=$(mktemp /tmp/ocr_opt_XXXXXX.png)
 trap 'rm -f "$TMP_RAW" "$TMP_OPT"' EXIT
 
 # 1. Capture screen region: Try Flameshot raw output first
+if ! command -v flameshot >/dev/null 2>&1 && ! command -v maim >/dev/null 2>&1; then
+    notify_user critical "OCR capture unavailable" "Install Flameshot or maim to select a screen region."
+    exit 127
+fi
+
 if ! flameshot gui -r > "$TMP_RAW" 2>/dev/null || [[ ! -s "$TMP_RAW" ]]; then
     # Fallback to maim interactive region selector (click and drag)
+    if ! command -v maim >/dev/null 2>&1; then
+        notify_user critical "OCR capture failed" "Flameshot did not return a selected image and maim is unavailable."
+        exit 1
+    fi
     if ! maim -s "$TMP_RAW" 2>/dev/null || [[ ! -s "$TMP_RAW" ]]; then
         # User aborted capture (e.g. pressed Escape or right-clicked)
         exit 0
@@ -41,16 +58,23 @@ fi
 
 # 3. Execute Tesseract OCR (with fallback chain: eng+ara -> eng -> system default)
 OCR_TEXT=""
+OCR_RAN=false
 if [[ -d "$TESS_DIR" ]]; then
-    OCR_TEXT=$(tesseract --tessdata-dir "$TESS_DIR" "$TMP_OPT" stdout -l eng+ara 2>/dev/null || true)
+    if OCR_TEXT=$(tesseract --tessdata-dir "$TESS_DIR" "$TMP_OPT" stdout -l eng+ara 2>/dev/null); then
+        OCR_RAN=true
+    fi
     if [[ -z "$OCR_TEXT" ]]; then
-        OCR_TEXT=$(tesseract --tessdata-dir "$TESS_DIR" "$TMP_OPT" stdout -l eng 2>/dev/null || true)
+        if OCR_TEXT=$(tesseract --tessdata-dir "$TESS_DIR" "$TMP_OPT" stdout -l eng 2>/dev/null); then
+            OCR_RAN=true
+        fi
     fi
 fi
 
 if [[ -z "$OCR_TEXT" ]]; then
     # Keep the system-data fallback independent from the shell's custom prefix.
-    OCR_TEXT=$(env -u TESSDATA_PREFIX tesseract "$TMP_OPT" stdout 2>/dev/null || true)
+    if OCR_TEXT=$(env -u TESSDATA_PREFIX tesseract "$TMP_OPT" stdout 2>/dev/null); then
+        OCR_RAN=true
+    fi
 fi
 
 # 4. Clean up recognized text
@@ -58,18 +82,29 @@ CLEAN_TEXT="${OCR_TEXT#"${OCR_TEXT%%[![:space:]]*}"}"
 CLEAN_TEXT="${CLEAN_TEXT%"${CLEAN_TEXT##*[![:space:]]}"}"
 
 if [[ -z "$CLEAN_TEXT" ]]; then
-    notify-send -u low -a "OCR" -i "dialog-information" "🔍 OCR Capture" "No text recognized in selected area."
+    if [[ "$OCR_RAN" == false ]]; then
+        notify_user critical "OCR failed" "Tesseract could not load usable language data or process the selected image."
+        exit 1
+    fi
+    notify_user low "🔍 OCR Capture" "No text recognized in selected area." "dialog-information"
     exit 0
 fi
 
 # 5. Copy to X11 clipboards & CopyQ history
+COPIED=false
 if command -v xclip >/dev/null 2>&1; then
-    printf "%s" "$CLEAN_TEXT" | xclip -selection clipboard 2>/dev/null || true
-    printf "%s" "$CLEAN_TEXT" | xclip -selection primary 2>/dev/null || true
+    if printf '%s' "$CLEAN_TEXT" | xclip -selection clipboard 2>/dev/null; then
+        COPIED=true
+    fi
+    if printf '%s' "$CLEAN_TEXT" | xclip -selection primary 2>/dev/null; then
+        COPIED=true
+    fi
 fi
 
 if command -v copyq >/dev/null 2>&1; then
-    copyq add "$CLEAN_TEXT" 2>/dev/null || true
+    if copyq add "$CLEAN_TEXT" 2>/dev/null; then
+        COPIED=true
+    fi
 fi
 
 # 6. Notification with snippet preview
@@ -82,6 +117,10 @@ for line in "${PREVIEW_LINES[@]}"; do
 done
 [[ ${#CLEAN_TEXT} -gt 120 ]] && PREVIEW+="..."
 
-notify-send -a "OCR" -i "accessories-character-map" \
-    "📋 Text Copied (${CHAR_COUNT} chars)" \
-    "$PREVIEW"
+if [[ "$COPIED" == true ]]; then
+    notify_user normal "📋 Text Copied (${CHAR_COUNT} chars)" "$PREVIEW" \
+        "accessories-character-map"
+else
+    notify_user critical "OCR text not copied (${CHAR_COUNT} chars)" \
+        "Clipboard backends failed or are unavailable. Text starts with: ${PREVIEW}"
+fi
