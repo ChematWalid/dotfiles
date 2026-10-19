@@ -10,10 +10,11 @@ if [[ -z "$TRAY_PID" ]]; then
     DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar-tray.log 2>&1 &
     TRAY_PID=$!
 
-    # Wait for Polybar's IPC queue so the new popup can be watched immediately.
+    # Wait for Polybar's IPC queue, then arm the watcher before showing the bar.
     for _ in {1..20}; do
-        if polybar-msg -p "$TRAY_PID" cmd show >/dev/null 2>&1; then
+        if polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1; then
             setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" >/dev/null 2>&1 &
+            polybar-msg -p "$TRAY_PID" cmd show >/dev/null
             exit 0
         fi
         if ! kill -0 "$TRAY_PID" 2>/dev/null; then
@@ -37,9 +38,9 @@ if [[ -n "$TRAY_WINDOW" ]] \
     # Tray is currently visible -> hide it
     polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
 else
-    # Tray is hidden -> show it and launch click-outside watcher (native C binary)
-    polybar-msg -p "$TRAY_PID" cmd show >/dev/null 2>&1 || true
+    # Tray is hidden -> arm click-outside handling before showing it.
     setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" >/dev/null 2>&1 &
+    polybar-msg -p "$TRAY_PID" cmd show >/dev/null
 fi
 
 
