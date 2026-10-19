@@ -39,7 +39,7 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
     }
 
     // 2. Read GUI proto
-    let (gui_entries, mut raw_proto) = read_gui_proto(&paths.gui_proto);
+    let (gui_entries, mut raw_proto) = read_gui_proto(&paths.gui_proto)?;
 
     // 3. Read CLI SQLite db
     let cli_rows = fetch_cli_rows(&paths.cli_db)?;
