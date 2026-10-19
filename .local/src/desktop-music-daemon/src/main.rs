@@ -11,9 +11,7 @@ use zbus::Connection;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    // Write initial state immediately
     let mut output = writer::OutputWriter::new().context("initialize Conky music output")?;
-    report_write_error(output.write(&mpris::query_current_state().await));
 
     // Connect to session D-Bus
     let conn = Connection::session()
