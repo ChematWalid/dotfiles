@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 
+static char *last_saved_directory = NULL;
+
 static void update_qt_project_conf(const char *path) {
     const char *home = g_get_home_dir();
     if (!path) return;
@@ -48,6 +50,7 @@ static void save_last_dir(const char *dir) {
     if (!dir || dir[0] != '/') return;
     struct stat st;
     if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) return;
+    if (g_strcmp0(last_saved_directory, dir) == 0) return;
 
     const char *home = g_get_home_dir();
     char *cache_path = g_build_filename(g_get_user_cache_dir(), "last_used_directory", NULL);
@@ -60,6 +63,9 @@ static void save_last_dir(const char *dir) {
     g_free(fdm_cache);
 
     update_qt_project_conf(dir);
+
+    g_free(last_saved_directory);
+    last_saved_directory = g_strdup(dir);
 }
 
 static char* load_last_dir(void) {
