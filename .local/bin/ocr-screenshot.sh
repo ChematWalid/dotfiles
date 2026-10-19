@@ -44,7 +44,8 @@ if [[ -z "$OCR_TEXT" ]]; then
 fi
 
 # 4. Clean up recognized text
-CLEAN_TEXT=$(echo "$OCR_TEXT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+CLEAN_TEXT="${OCR_TEXT#"${OCR_TEXT%%[![:space:]]*}"}"
+CLEAN_TEXT="${CLEAN_TEXT%"${CLEAN_TEXT##*[![:space:]]}"}"
 
 if [[ -z "$CLEAN_TEXT" ]]; then
     notify-send -u low -a "OCR" -i "dialog-information" "🔍 OCR Capture" "No text recognized in selected area."
@@ -63,7 +64,12 @@ fi
 
 # 6. Notification with snippet preview
 CHAR_COUNT=${#CLEAN_TEXT}
-PREVIEW=$(echo "$CLEAN_TEXT" | head -n 3 | cut -c 1-120)
+mapfile -tn 3 PREVIEW_LINES <<< "$CLEAN_TEXT"
+PREVIEW=""
+for line in "${PREVIEW_LINES[@]}"; do
+    [[ -n "$PREVIEW" ]] && PREVIEW+=$'\n'
+    PREVIEW+="${line:0:120}"
+done
 [[ ${#CLEAN_TEXT} -gt 120 ]] && PREVIEW+="..."
 
 notify-send -a "OCR" -i "accessories-character-map" \
