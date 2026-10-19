@@ -12,9 +12,20 @@ run_module() {
     if prompt_yn "Install bundled fonts and update font cache?" "y"; then
       mkdir -p "$font_dst"
       info "Copying bundled fonts..."
-      cp -rn "$DOTFILES_DIR/.local/share/fonts/." "$font_dst/" 2>/dev/null || true
-      fc-cache -fv "$font_dst" &>/dev/null || true
-      log "Fonts installed and cache updated"
+      local install_failed=false
+      if ! cp -rn "$DOTFILES_DIR/.local/share/fonts/." "$font_dst/"; then
+        warn "Some bundled fonts could not be copied"
+        install_failed=true
+      fi
+      if ! fc-cache -f "$font_dst" >/dev/null; then
+        warn "Font cache update failed"
+        install_failed=true
+      fi
+      if [[ "$install_failed" == false ]]; then
+        log "Fonts installed and cache updated"
+      else
+        warn "Font setup finished with errors; review the messages above and rerun this module"
+      fi
     else
       warn "Skipped fonts installation"
     fi

@@ -10,8 +10,15 @@ run_module() {
   if prompt_yn "Install Oh-My-Zsh and custom zsh plugins?" "y"; then
     if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
       info "Installing Oh-My-Zsh..."
-      RUNZSH=no CHSH=no \
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+      local installer_script
+      if ! installer_script=$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh); then
+        warn "Could not download the Oh-My-Zsh installer"
+        return 0
+      fi
+      if ! RUNZSH=no CHSH=no sh -c "$installer_script"; then
+        warn "Oh-My-Zsh installation failed; review the installer output"
+        return 0
+      fi
       log "Oh-My-Zsh installed"
     else
       log "Oh-My-Zsh is already present"
@@ -27,7 +34,9 @@ run_module() {
         git clone --depth=1 "$url" "$dest"
       else
         info "Updating zsh plugin: $name"
-        git -C "$dest" pull --ff-only 2>/dev/null || true
+        if ! git -C "$dest" pull --ff-only; then
+          warn "Could not update $name; keeping the installed version"
+        fi
       fi
     }
 
