@@ -11,8 +11,17 @@ readonly APPLY_SCRIPT="${HOME}/.local/bin/apply-input-settings.sh"
 "$APPLY_SCRIPT"
 
 # Stream udev input subsystem events
-udevadm monitor --subsystem-match=input --udev 2>/dev/null | while read -r line; do
+coproc UDEV_MONITOR {
+    exec udevadm monitor --subsystem-match=input --udev 2>/dev/null
+}
+udev_pid=$UDEV_MONITOR_PID
+
+while IFS= read -r -u "${UDEV_MONITOR[0]}" line; do
     if [[ "$line" =~ ^UDEV.*[[:space:]](add|bind|change)[[:space:]]/ ]]; then
         "$APPLY_SCRIPT"
     fi
 done
+
+# Preserve the old pipeline's failure behavior so systemd restarts a dead
+# udev monitor instead of leaving an inactive watcher process behind.
+wait "$udev_pid"
