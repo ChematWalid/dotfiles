@@ -70,7 +70,12 @@ get_description() {
     # Check .desktop entries first (safest and best descriptions)
     for d in "$HOME/.local/share/applications/${clean}.desktop" "/usr/share/applications/${clean}.desktop" "/usr/share/applications/${clean,,}.desktop"; do
         if [[ -f "$d" ]]; then
-            desc=$(grep -E '^Comment=' "$d" | head -n 1 | cut -d'=' -f2- || true)
+            while IFS= read -r line; do
+                if [[ "$line" == Comment=* ]]; then
+                    desc=${line#Comment=}
+                    break
+                fi
+            done < "$d"
             [[ -n "$desc" ]] && break
         fi
     done
@@ -78,13 +83,37 @@ get_description() {
     # Check script comments
     if [[ -z "$desc" && -f "$target" && -r "$target" ]]; then
         if file "$target" | grep -qE 'text|script'; then
-            desc=$(head -n 25 "$target" 2>/dev/null | grep -E '^#(\s*──)?\s*([a-zA-Z0-9_-]+\s*—|Description:|Features:)?' | grep -v '^#!' | grep -v '^# ──' | grep -v '^# ══' | head -n 1 | sed -E 's/^#+\s*//' | tr -d '`' || true)
+            local line_count=0
+            local comment
+            while IFS= read -r comment && (( line_count < 25 )); do
+                ((line_count += 1))
+                if [[ "$comment" =~ ^#([[:space:]]*──)?[[:space:]]*([a-zA-Z0-9_-]+[[:space:]]*—|Description:|Features:)? ]] \
+                    && [[ "$comment" != '#!'* ]] \
+                    && [[ "$comment" != '# ──'* ]] \
+                    && [[ "$comment" != '# ══'* ]]; then
+                    desc="$comment"
+                    while [[ "$desc" == \#* ]]; do
+                        desc=${desc#\#}
+                    done
+                    desc=${desc#"${desc%%[![:space:]]*}"}
+                    local backtick='`'
+                    desc=${desc//"$backtick"/}
+                    break
+                fi
+            done < "$target"
         fi
     fi
     
     # Fast guarded --help fallback (only for non-GUI binaries)
     if [[ -z "$desc" && -x "$target" ]]; then
-        desc=$(timeout 0.3s "$target" --help 2>&1 | grep -v '^Usage:' | grep -v '^[[:space:]]*$' | head -n 1 | sed -E 's/^[[:space:]]*//' | tr -d '`' || true)
+        local line
+        while IFS= read -r line; do
+            [[ "$line" == Usage:* || "$line" =~ ^[[:space:]]*$ ]] && continue
+            desc=${line#"${line%%[![:space:]]*}"}
+            local backtick='`'
+            desc=${desc//"$backtick"/}
+            break
+        done < <(timeout 0.3s "$target" --help 2>&1)
     fi
     
     if [[ -z "$desc" ]]; then
