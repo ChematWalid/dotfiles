@@ -9,31 +9,42 @@ readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
 readonly STATE_FILE="${STATE_DIR}/polybar-network-state"
 mkdir -p "$STATE_DIR"
 
+STATUS=""
+LAST_STATUS=""
+
 update() {
     if [[ -f "$STATE_FILE" ]]; then
         local ip
         ip=$(ip -4 -o addr show scope global 2>/dev/null \
             | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' || true)
         if [[ -z "$ip" ]]; then
-            echo "󰤭 Disconnected"
+            STATUS="󰤭 Disconnected"
         else
-            echo "󰤨 $ip"
+            STATUS="󰤨 $ip"
         fi
     else
         local ssid
         ssid=$(iwgetid -r 2>/dev/null || true)
         if [[ -z "$ssid" ]]; then
-            echo "󰤭 Disconnected"
+            STATUS="󰤭 Disconnected"
         else
-            echo "󰤨 $ssid"
+            STATUS="󰤨 $ssid"
         fi
     fi
 }
 
-trap "update" USR1
+refresh_if_changed() {
+    update
+    if [[ "$STATUS" != "$LAST_STATUS" ]]; then
+        printf '%s\n' "$STATUS"
+        LAST_STATUS="$STATUS"
+    fi
+}
+
+trap refresh_if_changed USR1
 
 # Emit initial status
-update
+refresh_if_changed
 
 # Stream NetworkManager events asynchronously and trigger update on changes.
 # Track nmcli itself so a Polybar restart cannot leave its monitor orphaned.
@@ -52,7 +63,7 @@ trap 'exit 0' INT TERM
 while IFS= read -r -u "${NM_MONITOR[0]}" line; do
     case "$line" in
         *"connected"*|*"disconnected"*|*"connecting"*|*"activated"*|*"deactivated"*)
-            update
+            refresh_if_changed
             ;;
     esac
 done
