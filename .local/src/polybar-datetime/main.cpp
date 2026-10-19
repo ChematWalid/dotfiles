@@ -78,8 +78,8 @@ std::string format_output(int mode) {
     return "%{F" + std::string{color} + "}" + std::string{icon} + "%{F-} " + buffer.data();
 }
 
-void emit_if_changed(std::string& previous) {
-    std::string output = format_output(read_mode());
+void emit_if_changed(int mode, std::string& previous) {
+    std::string output = format_output(mode);
     if (!output.empty() && output != previous) {
         std::cout << output << '\n' << std::flush;
         previous = std::move(output);
@@ -160,8 +160,9 @@ int main() {
     try {
         const FileDescriptor timer_fd = make_second_timer();
         const FileDescriptor inotify_fd = make_state_watcher();
+        int mode = read_mode();
         std::string previous;
-        emit_if_changed(previous);
+        emit_if_changed(mode, previous);
 
         std::array<pollfd, 2> watched_fds{{
             {timer_fd.get(), POLLIN, 0},
@@ -177,15 +178,22 @@ int main() {
                 throw std::system_error(errno, std::generic_category(), "wait for clock events");
             }
 
-            if ((watched_fds[0].revents & POLLIN) != 0) {
+            const bool state_changed =
+                (watched_fds[1].revents & POLLIN) != 0 && state_file_changed(inotify_fd.get());
+            if (state_changed) {
+                mode = read_mode();
+            }
+
+            const bool timer_expired = (watched_fds[0].revents & POLLIN) != 0;
+            if (timer_expired) {
                 std::uint64_t expirations{};
                 if (read(timer_fd.get(), &expirations, sizeof(expirations)) < 0 && errno != EINTR) {
                     throw std::system_error(errno, std::generic_category(), "read clock timer");
                 }
-                emit_if_changed(previous);
+                emit_if_changed(mode, previous);
             }
-            if ((watched_fds[1].revents & POLLIN) != 0 && state_file_changed(inotify_fd.get())) {
-                emit_if_changed(previous);
+            if (state_changed && !timer_expired) {
+                emit_if_changed(mode, previous);
             }
         }
     } catch (const std::exception& error) {
