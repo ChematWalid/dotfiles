@@ -1,6 +1,8 @@
 [Unit]
 Description=Wallpaper Rotation Daemon (30-min cycle)
 After=graphical-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 
 [Service]
 Type=simple

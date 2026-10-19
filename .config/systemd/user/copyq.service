@@ -1,6 +1,8 @@
 [Unit]
 Description=CopyQ Clipboard Manager
 After=graphical-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 
 [Service]
 Type=forking

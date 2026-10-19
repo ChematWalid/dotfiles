@@ -1,6 +1,8 @@
 [Unit]
 Description=Reapply X11 input settings when input devices change
 After=graphical-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 
 [Service]
 Type=simple

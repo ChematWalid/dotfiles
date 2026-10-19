@@ -2,6 +2,8 @@
 Description=Conky Desktop Clock and Song Display
 Requires=picom.service
 After=picom.service graphical-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 StartLimitIntervalSec=0
 
 [Service]

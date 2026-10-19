@@ -1,5 +1,7 @@
 [Unit]
 Description=Native event-driven i3 autotiling
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 
 [Service]
 Type=simple

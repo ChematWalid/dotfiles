@@ -1,6 +1,8 @@
 [Unit]
 Description=Picom X11 compositor
 After=graphical-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 
 [Service]
 Type=simple

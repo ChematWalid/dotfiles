@@ -1,13 +1,11 @@
 [Unit]
 Description=i3 Autoname Workspaces Daemon
 After=graphical-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
 
 [Service]
 Type=simple
 ExecStart=%h/.local/bin/autoname-workspaces
 Restart=always
 RestartSec=2
-Environment=DISPLAY=:0
-
-[Install]
-WantedBy=default.target
