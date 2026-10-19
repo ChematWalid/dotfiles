@@ -73,7 +73,17 @@ fn parse_iso_ts_inner(value: &str) -> Option<u64> {
     let year = date_parts.next()?.parse::<i64>().ok()?;
     let month = date_parts.next()?.parse::<u32>().ok()?;
     let day = date_parts.next()?.parse::<u32>().ok()?;
-    if date_parts.next().is_some() || !(1..=12).contains(&month) || day == 0 || day > 31 {
+    if date_parts.next().is_some() || !(1..=9999).contains(&year) || !(1..=12).contains(&month) {
+        return None;
+    }
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        2 if leap_year => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    if day == 0 || day > days_in_month {
         return None;
     }
 
@@ -87,8 +97,15 @@ fn parse_iso_ts_inner(value: &str) -> Option<u64> {
     let hour = clock_parts.next()?.parse::<i64>().ok()?;
     let minute = clock_parts.next()?.parse::<i64>().ok()?;
     let second_text = clock_parts.next()?;
-    let second = second_text.split('.').next()?.parse::<i64>().ok()?;
-    if clock_parts.next().is_some() || hour > 23 || minute > 59 || second > 60 {
+    let (whole_second, fraction) = second_text.split_once('.').unwrap_or((second_text, ""));
+    let second = whole_second.parse::<i64>().ok()?;
+    if clock_parts.next().is_some()
+        || !(0..=23).contains(&hour)
+        || !(0..=59).contains(&minute)
+        || !(0..=60).contains(&second)
+        || (second_text.contains('.')
+            && (fraction.is_empty() || !fraction.bytes().all(|b| b.is_ascii_digit())))
+    {
         return None;
     }
 
@@ -113,7 +130,7 @@ fn parse_timezone_offset(zone: &str) -> Option<i64> {
     let mut parts = zone[1..].split(':');
     let hours = parts.next()?.parse::<i64>().ok()?;
     let minutes = parts.next()?.parse::<i64>().ok()?;
-    if parts.next().is_some() || hours > 23 || minutes > 59 {
+    if parts.next().is_some() || !(0..=23).contains(&hours) || !(0..=59).contains(&minutes) {
         return None;
     }
     Some(sign * (hours * 3_600 + minutes * 60))
