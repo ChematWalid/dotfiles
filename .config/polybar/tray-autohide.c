@@ -32,7 +32,7 @@ static void event_callback(XPointer priv, XRecordInterceptData *data) {
 
     if (data->category == XRecordFromServer) {
         xEvent *event = (xEvent *)data->data;
-        if (event && ((event->u.u.type & 0x7f) == ButtonRelease)) {
+        if (event && (((unsigned char)event->u.u.type & 0x7fU) == ButtonRelease)) {
             // Ignore the click on the main bar that opened the popup. The
             // XRecord connection can receive its release after the watcher
             // starts, which otherwise closes the popup immediately.

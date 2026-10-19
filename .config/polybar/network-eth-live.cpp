@@ -20,7 +20,7 @@
 namespace {
 
 constexpr std::string_view default_interface = "enp4s0";
-constexpr std::size_t receive_buffer_size = 64U * 1024U;
+constexpr std::size_t receive_buffer_size = std::size_t{64} * 1024U;
 
 class UniqueFd {
 public:

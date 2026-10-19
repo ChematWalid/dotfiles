@@ -56,7 +56,7 @@ static void update_qt_project_conf(const char *path) {
     if (!found) g_string_append_printf(updated, "\nlastVisited=%s\n", uri);
     GError *error = NULL;
     if (!g_file_set_contents(conf_path, updated->str, -1, &error)) {
-        g_warning("Could not update the GTK file chooser location preference: %s",
+        g_warning("Could not update the Qt file chooser location preference: %s",
                   error->message);
         g_error_free(error);
     }
