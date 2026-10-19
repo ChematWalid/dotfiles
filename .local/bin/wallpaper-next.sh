@@ -15,7 +15,11 @@ get_wall_dir() {
     if [[ -f "$CONFIG_FILE" ]]; then
         local cfg
         cfg=$(<"$CONFIG_FILE")
-        [[ -d "$cfg" ]] && dir="$cfg"
+        if [[ -d "$cfg" ]]; then
+            dir="$cfg"
+        else
+            printf 'wallpaper-next: configured directory is unavailable: %s\n' "$cfg" >&2
+        fi
     fi
     echo "$dir"
 }
@@ -28,7 +32,7 @@ fi
 
 mapfile -t walls < <(
     find -L "$wallpaper_dir" -maxdepth 3 -type f \
-         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null
+         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \)
 )
 count=${#walls[@]}
 
@@ -63,4 +67,4 @@ echo "$wall" > "$STATE_FILE"
 feh --bg-fill "$wall"
 
 # Reset systemd rotation timer
-systemctl --user restart wallpaper-rotate.service 2>/dev/null || true
+systemctl --user restart wallpaper-rotate.service

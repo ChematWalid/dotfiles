@@ -17,7 +17,11 @@ get_wall_dir() {
     if [[ -f "$CONFIG_FILE" ]]; then
         local cfg
         cfg=$(<"$CONFIG_FILE")
-        [[ -d "$cfg" ]] && dir="$cfg"
+        if [[ -d "$cfg" ]]; then
+            dir="$cfg"
+        else
+            printf 'wallpaper-rotate: configured directory is unavailable: %s\n' "$cfg" >&2
+        fi
     fi
     echo "$dir"
 }
@@ -33,7 +37,7 @@ pick_and_apply_wallpaper() {
     local walls=()
     mapfile -t walls < <(
         find -L "$wallpaper_dir" -maxdepth 3 -type f \
-             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null
+             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \)
     )
     local count=${#walls[@]}
 
@@ -64,6 +68,8 @@ pick_and_apply_wallpaper() {
         fi
         echo "$wall" > "$STATE_FILE"
         feh --bg-fill "$wall"
+    else
+        printf 'wallpaper-rotate: no wallpaper images found in %s\n' "$wallpaper_dir" >&2
     fi
 }
 
