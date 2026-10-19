@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # vaultwarden — Open self-hosted Vaultwarden in browser
 
-PORT=8222
+readonly PORT=8222
 
-# Check if container is running
-if ! docker ps --format '{{.Names}}' | grep -q "^vaultwarden$"; then
+# Inspect once instead of starting a Docker listing and grep pipeline.
+container_state=$(docker inspect --format '{{.State.Status}}' vaultwarden 2>/dev/null || true)
+if [[ "$container_state" != "running" ]]; then
     echo "Starting Vaultwarden container..."
     docker start vaultwarden >/dev/null 2>&1 || sudo docker start vaultwarden >/dev/null 2>&1
     sleep 1
