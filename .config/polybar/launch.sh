@@ -13,7 +13,7 @@ fi
 : "${HOME:?Could not determine home directory}"
 export HOME
 
-readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
+readonly STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
 readonly VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
 readonly TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
 mkdir -p "$STATE_DIR"
