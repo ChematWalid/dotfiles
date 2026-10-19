@@ -313,9 +313,9 @@ def main():
     for target in target_dirs:
         target_path = os.path.expanduser(target)
         if os.path.isfile(target_path):
-            total_found += 1
-            print(f"Importing: {os.path.basename(target_path)}")
             if os.path.splitext(target_path)[1].lower() in SUPPORTED_EXTS:
+                total_found += 1
+                print(f"Importing: {os.path.basename(target_path)}")
                 close_before_first_import()
                 if import_book(target_path, uri_entries, uri_index):
                     imported_count += 1
