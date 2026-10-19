@@ -42,6 +42,8 @@ local gradient_sin_45 = math.sin(math.pi / 4.0)
 local home = os.getenv("HOME") or "."
 local runtime_dir = os.getenv("XDG_RUNTIME_DIR") or (home .. "/.cache")
 local music_path = runtime_dir .. "/conky-music.txt"
+local last_time_text, last_date_text, last_music_text
+local last_window_width, last_window_height
 
 local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x, y, align, color_stops, stroke_width, shadow_ox, shadow_oy)
     if not text or text == "" then return end
@@ -101,6 +103,26 @@ end
 function conky_gradient_overlay()
     if conky_window == nil then return end
 
+    local time_text = conky_parse("${time %H:%M}")
+    local date_text = conky_parse("${time %A, %B %d}")
+    local music_text = ""
+    local f = io.open(music_path, "r")
+    if f then
+        music_text = f:read("*all") or ""
+        f:close()
+        music_text = music_text:gsub("^%s*(.-)%s*$", "%1")
+    end
+
+    local window_width = conky_window.width
+    local window_height = conky_window.height
+    if time_text == last_time_text
+        and date_text == last_date_text
+        and music_text == last_music_text
+        and window_width == last_window_width
+        and window_height == last_window_height then
+        return
+    end
+
     local ok, err = pcall(function()
         local cs = cairo_xlib_surface_create(
             conky_window.display,
@@ -112,17 +134,6 @@ function conky_gradient_overlay()
         local cr = cairo_create(cs)
 
         local center_x = conky_window.width / 2.0
-
-        local time_text = conky_parse("${time %H:%M}")
-        local date_text = conky_parse("${time %A, %B %d}")
-
-        local music_text = ""
-        local f = io.open(music_path, "r")
-        if f then
-            music_text = f:read("*all") or ""
-            f:close()
-            music_text = music_text:gsub("^%s*(.-)%s*$", "%1")
-        end
 
         -- 1. Clock (98pt Bold)
         draw_gradient_text(
@@ -152,7 +163,13 @@ function conky_gradient_overlay()
         cairo_surface_destroy(cs)
     end)
 
-    if not ok then
+    if ok then
+        last_time_text = time_text
+        last_date_text = date_text
+        last_music_text = music_text
+        last_window_width = window_width
+        last_window_height = window_height
+    else
         io.stderr:write("Conky Cairo Gradient Error: " .. tostring(err) .. "\n")
     end
 end
