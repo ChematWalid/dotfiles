@@ -44,7 +44,7 @@ if command -v zoxide >/dev/null 2>&1; then
 fi
 
 export PATH=$PATH:/home/walid/.spicetify
-export QT_QPA_PLATFORMTHEME=qt6ct
+export QT_QPA_PLATFORMTHEME=xdgdesktopportal
 export QT_STYLE_OVERRIDE=kvantum
 
 source /home/walid/.config/broot/launcher/bash/br
@@ -58,3 +58,28 @@ export FZF_DEFAULT_OPTS=" \
 --height 40% --layout=reverse --border rounded --inline-info"
 
 export MANPATH="/home/walid/.local/share/man:$MANPATH"
+
+# Bash has no unique-path attribute like zsh; deduplicate without subprocesses.
+_dotfiles_dedupe_path() {
+    local entry seen_empty=0
+    local -a entries=() unique_entries=()
+    local -A seen_entries=()
+
+    IFS=: read -r -a entries <<< "$PATH"
+    for entry in "${entries[@]}"; do
+        if [[ -z "$entry" ]]; then
+            ((seen_empty)) && continue
+            seen_empty=1
+        else
+            [[ ${seen_entries["$entry"]+present} ]] && continue
+            seen_entries["$entry"]=1
+        fi
+        unique_entries+=("$entry")
+    done
+
+    local IFS=:
+    PATH="${unique_entries[*]}"
+    export PATH
+}
+_dotfiles_dedupe_path
+unset -f _dotfiles_dedupe_path

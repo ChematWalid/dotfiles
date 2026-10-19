@@ -1,7 +1,7 @@
 # ── Theming Defaults (Catppuccin Mocha) ──────────────────────────────────────
 export BAT_THEME="Catppuccin Mocha"
 export GLOW_STYLE="dark"
-export QT_QPA_PLATFORMTHEME=qt6ct
+export QT_QPA_PLATFORMTHEME=xdgdesktopportal
 export QT_STYLE_OVERRIDE=kvantum
 
 # FZF Catppuccin Mocha Colors & Defaults
