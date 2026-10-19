@@ -305,14 +305,19 @@ impl Renderer {
             return opt_path;
         }
 
+        let Ok((w, h)) = image::image_dimensions(path) else {
+            return path.to_owned();
+        };
+        if w <= 1400 && h <= 1400 {
+            return path.to_owned();
+        }
+
         if let Ok(img) = image::open(path) {
-            let (w, h) = (img.width(), img.height());
-            if w > 1400 || h > 1400 {
-                let ratio = (1400.0 / w as f32).min(1400.0 / h as f32);
-                let nw = (w as f32 * ratio) as u32;
-                let nh = (h as f32 * ratio) as u32;
-                let resized = img.resize_exact(nw, nh, FilterType::Triangle);
-                let _ = resized.save(&opt_path);
+            let ratio = (1400.0 / w as f32).min(1400.0 / h as f32);
+            let nw = (w as f32 * ratio) as u32;
+            let nh = (h as f32 * ratio) as u32;
+            let resized = img.resize_exact(nw, nh, FilterType::Triangle);
+            if resized.save(&opt_path).is_ok() {
                 return opt_path;
             }
         }
