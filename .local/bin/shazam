@@ -167,7 +167,6 @@ if [[ -n "$TARGET_FILE" ]]; then
     if ! $QUIET && ! $OUTPUT_JSON; then
         echo -e "${C_SUBTEXT}🔍 Analyzing file:${C_RESET} ${C_BLUE}${TARGET_FILE}${C_RESET}..."
     fi
-    raw_output=$(songrec audio-file-to-recognized-song "$TARGET_FILE" 2>/dev/null || true)
     raw_json=$(songrec audio-file-to-fingerprint "$TARGET_FILE" 2>/dev/null | songrec fingerprint-to-recognized-song -j 2>/dev/null || true)
 else
     device="${CUSTOM_DEVICE:-$(get_monitor_device)}"
@@ -194,9 +193,23 @@ if $OUTPUT_JSON; then
     exit 0
 fi
 
-# Parse track details
-title=$(echo "$raw_json" | jq -r '.track.title // ""' 2>/dev/null || echo "")
-artist=$(echo "$raw_json" | jq -r '.track.subtitle // ""' 2>/dev/null || echo "")
+# Parse all track details in one jq process instead of launching jq once per field.
+mapfile -d '' -t track_fields < <(
+    jq -j '
+        .track as $track |
+        [
+            ($track.title // ""),
+            ($track.subtitle // ""),
+            ([$track.sections[]? | select(.type == "SONG") | .metadata[]? | select(.title == "Album") | .text][0] // "Single / Unknown Album"),
+            ([$track.sections[]? | select(.type == "SONG") | .metadata[]? | select(.title == "Released") | .text][0] // ""),
+            ($track.genres.primary // "Music"),
+            ($track.images.coverarthq // $track.images.coverart // ""),
+            ($track.url // $track.share.href // "")
+        ][] | tostring, "\u0000"
+    ' <<< "$raw_json" 2>/dev/null
+)
+title="${track_fields[0]:-}"
+artist="${track_fields[1]:-}"
 
 if [[ -z "$title" || -z "$artist" || "$title" == "null" ]]; then
     if ! $QUIET; then
@@ -208,20 +221,14 @@ if [[ -z "$title" || -z "$artist" || "$title" == "null" ]]; then
     exit 1
 fi
 
-album=$(echo "$raw_json" | jq -r '
-  [.track.sections[]? | select(.type=="SONG") | .metadata[]? | select(.title=="Album") | .text] | .[0] // "Single / Unknown Album"
-' 2>/dev/null || echo "Unknown Album")
-
-year=$(echo "$raw_json" | jq -r '
-  [.track.sections[]? | select(.type=="SONG") | .metadata[]? | select(.title=="Released") | .text] | .[0] // ""
-' 2>/dev/null || echo "")
-
-genre=$(echo "$raw_json" | jq -r '.track.genres.primary // "Music"' 2>/dev/null || echo "Music")
-cover_url=$(echo "$raw_json" | jq -r '.track.images.coverarthq // .track.images.coverart // ""' 2>/dev/null || echo "")
-shazam_url=$(echo "$raw_json" | jq -r '.track.url // .track.share.href // ""' 2>/dev/null || echo "")
+album="${track_fields[2]:-Single / Unknown Album}"
+year="${track_fields[3]:-}"
+genre="${track_fields[4]:-Music}"
+cover_url="${track_fields[5]:-}"
+shazam_url="${track_fields[6]:-}"
 
 # Encode search URLs
-encoded_query=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$artist $title'''))" 2>/dev/null || echo "")
+encoded_query=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$artist $title" 2>/dev/null || echo "")
 spotify_url="https://open.spotify.com/search/${encoded_query}"
 ytm_url="https://music.youtube.com/search?q=${encoded_query}"
 
