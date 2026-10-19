@@ -1,5 +1,7 @@
 return {
     "nvim-treesitter/nvim-treesitter",
+    event = { "BufReadPre", "BufNewFile" },
+    cmd = { "TSInstall", "TSUpdate", "TSModuleInfo" },
     build = ":TSUpdate",
     config = function()
         local ok, ts_configs = pcall(require, "nvim-treesitter.configs")

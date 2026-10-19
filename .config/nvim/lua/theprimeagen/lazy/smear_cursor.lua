@@ -1,5 +1,6 @@
 return {
     "sphamba/smear-cursor.nvim",
+    event = "VeryLazy",
     cond = function()
         -- Only enable in terminal Neovim (Neovide has its own native GPU cursor)
         return not vim.g.neovide and not vim.g.vscode
