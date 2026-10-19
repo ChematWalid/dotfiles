@@ -229,18 +229,24 @@ static orig_get_filename_fn orig_get_filename = NULL;
 static orig_get_filenames_fn orig_get_filenames = NULL;
 static orig_widget_show_fn orig_widget_show = NULL;
 
+#define RESOLVE_NEXT(target, symbol_name)                 \
+    do {                                                  \
+        void *symbol = dlsym(RTLD_NEXT, (symbol_name));   \
+        memcpy(&(target), &symbol, sizeof(target));       \
+    } while (0)
+
 __attribute__((constructor))
 static void init(void) {
-    orig_set_current_folder = (orig_set_current_folder_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_set_current_folder");
-    orig_get_uris = (orig_get_uris_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_get_uris");
-    orig_get_filename = (orig_get_filename_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_get_filename");
-    orig_get_filenames = (orig_get_filenames_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_get_filenames");
-    orig_widget_show = (orig_widget_show_fn)dlsym(RTLD_NEXT, "gtk_widget_show");
+    RESOLVE_NEXT(orig_set_current_folder, "gtk_file_chooser_set_current_folder");
+    RESOLVE_NEXT(orig_get_uris, "gtk_file_chooser_get_uris");
+    RESOLVE_NEXT(orig_get_filename, "gtk_file_chooser_get_filename");
+    RESOLVE_NEXT(orig_get_filenames, "gtk_file_chooser_get_filenames");
+    RESOLVE_NEXT(orig_widget_show, "gtk_widget_show");
 }
 
 gboolean gtk_file_chooser_set_current_folder(GtkFileChooser *chooser, const gchar *filename) {
     if (!orig_set_current_folder) {
-        orig_set_current_folder = (orig_set_current_folder_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_set_current_folder");
+        RESOLVE_NEXT(orig_set_current_folder, "gtk_file_chooser_set_current_folder");
     }
 
     gpointer initialized = g_object_get_data(G_OBJECT(chooser), "remember_dir_initialized");
@@ -264,7 +270,7 @@ gboolean gtk_file_chooser_set_current_folder(GtkFileChooser *chooser, const gcha
 
 void gtk_widget_show(GtkWidget *widget) {
     if (!orig_widget_show) {
-        orig_widget_show = (orig_widget_show_fn)dlsym(RTLD_NEXT, "gtk_widget_show");
+        RESOLVE_NEXT(orig_widget_show, "gtk_widget_show");
     }
 
     if (GTK_IS_FILE_CHOOSER(widget)) {
@@ -295,7 +301,7 @@ void gtk_widget_show(GtkWidget *widget) {
 
 GSList* gtk_file_chooser_get_uris(GtkFileChooser *chooser) {
     if (!orig_get_uris) {
-        orig_get_uris = (orig_get_uris_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_get_uris");
+        RESOLVE_NEXT(orig_get_uris, "gtk_file_chooser_get_uris");
     }
 
     GSList *uris = orig_get_uris ? orig_get_uris(chooser) : NULL;
@@ -320,7 +326,7 @@ GSList* gtk_file_chooser_get_uris(GtkFileChooser *chooser) {
 
 gchar* gtk_file_chooser_get_filename(GtkFileChooser *chooser) {
     if (!orig_get_filename) {
-        orig_get_filename = (orig_get_filename_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_get_filename");
+        RESOLVE_NEXT(orig_get_filename, "gtk_file_chooser_get_filename");
     }
 
     gchar *filename = orig_get_filename ? orig_get_filename(chooser) : NULL;
@@ -340,7 +346,7 @@ gchar* gtk_file_chooser_get_filename(GtkFileChooser *chooser) {
 
 GSList* gtk_file_chooser_get_filenames(GtkFileChooser *chooser) {
     if (!orig_get_filenames) {
-        orig_get_filenames = (orig_get_filenames_fn)dlsym(RTLD_NEXT, "gtk_file_chooser_get_filenames");
+        RESOLVE_NEXT(orig_get_filenames, "gtk_file_chooser_get_filenames");
     }
 
     GSList *filenames = orig_get_filenames ? orig_get_filenames(chooser) : NULL;
