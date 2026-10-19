@@ -98,6 +98,11 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -m|--module)
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        error "Option '$1' requires a module ID or number."
+        echo "Run './install.sh --list' to see available modules."
+        exit 2
+      fi
       TARGET_MODULE="$2"
       INSTALL_MODE="module"
       shift 2
