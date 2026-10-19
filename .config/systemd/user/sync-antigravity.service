@@ -1,6 +1,5 @@
 [Unit]
 Description=Antigravity Bidirectional Conversation Synchronizer
-After=default.target
 
 [Service]
 Type=oneshot
