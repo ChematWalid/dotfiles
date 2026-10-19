@@ -3,6 +3,7 @@
 use crate::icons::{get_icon, is_ignored};
 use crate::ipc::I3Client;
 use serde_json::Value;
+use std::io;
 
 pub fn get_workspace_number(name: &str) -> &str {
     let digits = name.bytes().take_while(u8::is_ascii_digit).count();
@@ -76,15 +77,13 @@ fn collect_icons(node: &Value, icons: &mut Vec<&'static str>) {
     }
 }
 
-pub fn update_workspaces(client: &mut I3Client) {
-    let tree = match client.get_tree() {
-        Ok(tree) => tree,
-        Err(_) => return,
-    };
+pub fn update_workspaces(client: &mut I3Client) -> io::Result<()> {
+    let tree = client.get_tree()?;
 
     let mut workspaces = Vec::new();
     find_workspaces(&tree, &mut workspaces);
 
+    let mut first_error = None;
     for workspace in workspaces {
         let Some(workspace_name) = workspace.get("name").and_then(Value::as_str) else {
             continue;
@@ -102,9 +101,13 @@ pub fn update_workspaces(client: &mut I3Client) {
 
         if workspace_name != new_name {
             let command = format!("rename workspace \"{workspace_name}\" to \"{new_name}\"");
-            let _ = client.run_command(&command);
+            if let Err(error) = client.run_command(&command) {
+                first_error.get_or_insert(error);
+            }
         }
     }
+
+    first_error.map_or(Ok(()), Err)
 }
 
 #[cfg(test)]

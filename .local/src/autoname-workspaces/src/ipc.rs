@@ -227,6 +227,22 @@ impl I3Client {
             return Err(e);
         }
 
+        if &header[..6] != b"i3-ipc" {
+            self.stream = None;
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "invalid i3 IPC response magic",
+            ));
+        }
+        let reply_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
+        if reply_type != msg_type {
+            self.stream = None;
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("unexpected i3 IPC reply type {reply_type} for request {msg_type}"),
+            ));
+        }
+
         let len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
         let mut body = vec![0u8; len];
         if let Err(e) = stream.read_exact(&mut body) {
@@ -244,7 +260,21 @@ impl I3Client {
     }
 
     pub fn run_command(&mut self, cmd: &str) -> Result<(), std::io::Error> {
-        let _ = self.send_message(0, cmd)?;
+        let body = self.send_message(0, cmd)?;
+        let replies: Vec<Value> = serde_json::from_slice(&body)
+            .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
+        for reply in replies {
+            if reply.get("success").and_then(Value::as_bool) != Some(true) {
+                let detail = reply
+                    .get("error")
+                    .or_else(|| reply.get("parse_error"))
+                    .unwrap_or(&reply);
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    format!("i3 rejected command: {detail}"),
+                ));
+            }
+        }
         Ok(())
     }
 }

@@ -54,7 +54,9 @@ pub fn run() {
 
             retry_delay = Duration::from_millis(50);
             if event_requires_autotile(event_type, &body) {
-                autotile_focused(&mut client);
+                if let Err(error) = autotile_focused(&mut client) {
+                    eprintln!("autotiling: failed to apply layout: {error}");
+                }
             }
         }
 
@@ -78,22 +80,21 @@ fn event_requires_autotile(event_type: u32, body: &[u8]) -> bool {
     !matches!(change, "title" | "urgent" | "mark")
 }
 
-fn autotile_focused(client: &mut I3Client) {
-    let Ok(tree) = client.get_tree() else {
-        return;
-    };
+fn autotile_focused(client: &mut I3Client) -> std::io::Result<()> {
+    let tree = client.get_tree()?;
     let Some((focused, parent)) = find_focused(&tree) else {
-        return;
+        return Ok(());
     };
 
     let parent_layout = parent.get("layout").and_then(Value::as_str).unwrap_or("");
     let Some(wanted_layout) = desired_layout(focused, parent) else {
-        return;
+        return Ok(());
     };
 
     if parent_layout != wanted_layout {
-        let _ = client.run_command(wanted_layout);
+        client.run_command(wanted_layout)?;
     }
+    Ok(())
 }
 
 fn find_focused(root: &Value) -> Option<(&Value, &Value)> {

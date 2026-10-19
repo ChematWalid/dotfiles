@@ -31,7 +31,9 @@ fn main() {
     let mut client = I3Client::new(sock_path.clone());
 
     // Initial update
-    update_workspaces(&mut client);
+    if let Err(error) = update_workspaces(&mut client) {
+        eprintln!("autoname-workspaces: initial workspace update failed: {error}");
+    }
 
     // Event listener subscription loop
     let mut retry_delay = Duration::from_millis(50);
@@ -42,7 +44,9 @@ fn main() {
                 eprintln!("autoname-workspaces: i3 event subscription failed: {error}");
                 sock_path = wait_for_i3_socket_after_failure(&sock_path, &mut retry_delay);
                 client = I3Client::new(sock_path.clone());
-                update_workspaces(&mut client);
+                if let Err(error) = update_workspaces(&mut client) {
+                    eprintln!("autoname-workspaces: workspace update failed: {error}");
+                }
                 continue;
             }
         };
@@ -64,12 +68,16 @@ fn main() {
 
             retry_delay = Duration::from_millis(50);
             if event_changes_workspace_icons(ev_type, &ev_body) {
-                update_workspaces(&mut client);
+                if let Err(error) = update_workspaces(&mut client) {
+                    eprintln!("autoname-workspaces: workspace update failed: {error}");
+                }
             }
         }
 
         sock_path = wait_for_i3_socket_after_failure(&sock_path, &mut retry_delay);
         client = I3Client::new(sock_path.clone());
-        update_workspaces(&mut client);
+        if let Err(error) = update_workspaces(&mut client) {
+            eprintln!("autoname-workspaces: workspace update failed: {error}");
+        }
     }
 }
