@@ -109,9 +109,11 @@ lazygit
 lf
 lib32-mesa
 lib32-vulkan-nouveau
+libgepub
 libgsf
 libpulse
 libreoffice-fresh
+libopenraw
 libva-intel-driver
 lightdm
 lightdm-gtk-greeter
