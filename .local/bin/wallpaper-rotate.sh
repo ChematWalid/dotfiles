@@ -16,7 +16,7 @@ get_wall_dir() {
     local dir="$DEFAULT_DIR"
     if [[ -f "$CONFIG_FILE" ]]; then
         local cfg
-        cfg=$(tr -d '\n' < "$CONFIG_FILE" 2>/dev/null || true)
+        cfg=$(<"$CONFIG_FILE")
         [[ -d "$cfg" ]] && dir="$cfg"
     fi
     echo "$dir"
@@ -25,13 +25,15 @@ get_wall_dir() {
 pick_and_apply_wallpaper() {
     local wallpaper_dir
     wallpaper_dir=$(get_wall_dir)
-    local current
-    current=$(cat "$STATE_FILE" 2>/dev/null || true)
+    local current=""
+    if [[ -r "$STATE_FILE" ]]; then
+        IFS= read -r current < "$STATE_FILE" || true
+    fi
 
     local walls=()
     mapfile -t walls < <(
         find -L "$wallpaper_dir" -maxdepth 3 -type f \
-             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort
+             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null
     )
     local count=${#walls[@]}
 
@@ -49,7 +51,10 @@ pick_and_apply_wallpaper() {
 }
 
 # Initial restoration or random pick on service start
-current_wall=$(cat "$STATE_FILE" 2>/dev/null || true)
+current_wall=""
+if [[ -r "$STATE_FILE" ]]; then
+    IFS= read -r current_wall < "$STATE_FILE" || true
+fi
 if [[ -n "$current_wall" && -f "$current_wall" ]]; then
     feh --bg-fill "$current_wall"
 else

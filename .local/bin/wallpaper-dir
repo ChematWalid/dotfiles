@@ -13,7 +13,7 @@ DEFAULT_DIR="$HOME/Pictures/walls-catppuccin-mocha"
 get_current_dir() {
     local dir
     if [ -f "$CONFIG_FILE" ]; then
-        dir=$(cat "$CONFIG_FILE" 2>/dev/null | tr -d '\n')
+        dir=$(<"$CONFIG_FILE")
     fi
     if [ -z "$dir" ] || [ ! -d "$dir" ]; then
         dir="$DEFAULT_DIR"

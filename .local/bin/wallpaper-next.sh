@@ -14,18 +14,21 @@ get_wall_dir() {
     local dir="$DEFAULT_DIR"
     if [[ -f "$CONFIG_FILE" ]]; then
         local cfg
-        cfg=$(tr -d '\n' < "$CONFIG_FILE" 2>/dev/null || true)
+        cfg=$(<"$CONFIG_FILE")
         [[ -d "$cfg" ]] && dir="$cfg"
     fi
     echo "$dir"
 }
 
 wallpaper_dir=$(get_wall_dir)
-current=$(cat "$STATE_FILE" 2>/dev/null || true)
+current=""
+if [[ -r "$STATE_FILE" ]]; then
+    IFS= read -r current < "$STATE_FILE" || true
+fi
 
 mapfile -t walls < <(
     find -L "$wallpaper_dir" -maxdepth 3 -type f \
-         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | sort
+         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null
 )
 count=${#walls[@]}
 
