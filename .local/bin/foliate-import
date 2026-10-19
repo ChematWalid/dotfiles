@@ -119,10 +119,12 @@ def normalize_store_path(abs_path: str) -> str:
     home = os.path.expanduser("~")
     drive3_prefix = "/mnt/drive3"
     
-    if os.path.exists(os.path.join(home, "E")) and abs_path.startswith(drive3_prefix):
+    if os.path.exists(os.path.join(home, "E")) and (
+        abs_path == drive3_prefix or abs_path.startswith(drive3_prefix + os.sep)
+    ):
         rel = abs_path[len(drive3_prefix):].lstrip("/")
         return f"~/E/{rel}"
-    elif abs_path.startswith(home):
+    elif abs_path == home or abs_path.startswith(home + os.sep):
         return "~" + abs_path[len(home):]
     return abs_path
 
@@ -313,9 +315,10 @@ def main():
         if os.path.isfile(target_path):
             total_found += 1
             print(f"Importing: {os.path.basename(target_path)}")
-            close_before_first_import()
-            if import_book(target_path, uri_entries, uri_index):
-                imported_count += 1
+            if os.path.splitext(target_path)[1].lower() in SUPPORTED_EXTS:
+                close_before_first_import()
+                if import_book(target_path, uri_entries, uri_index):
+                    imported_count += 1
         elif os.path.isdir(target_path):
             for root, _, files in os.walk(target_path):
                 for f in sorted(files):
