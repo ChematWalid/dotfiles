@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <spawn.h>
 #include <signal.h>
 #include <time.h>
 #include <X11/Xlib.h>
@@ -14,6 +15,7 @@ static Display *data_disp = NULL;
 static char tray_pid[32] = {0};
 static int safe_x1 = 1160, safe_y1 = 670, safe_x2 = 1366, safe_y2 = 768;
 static struct timespec start_time;
+extern char **environ;
 
 static long long get_elapsed_ms(void) {
     struct timespec now;
@@ -22,15 +24,14 @@ static long long get_elapsed_ms(void) {
 }
 
 static void hide_tray_and_exit(void) {
-    char cmd[128];
-    if (tray_pid[0] != '\0') {
-        snprintf(cmd, sizeof(cmd), "polybar-msg -p %s cmd hide >/dev/null 2>&1", tray_pid);
-    } else {
-        snprintf(cmd, sizeof(cmd), "polybar-msg -p $(pgrep -f 'polybar tray' | head -1) cmd hide >/dev/null 2>&1");
+    if (tray_pid[0] == '\0') {
+        _exit(1);
     }
-    int ret = system(cmd);
-    (void)ret;
-    _exit(0);
+
+    char *const args[] = {"polybar-msg", "-p", tray_pid, "cmd", "hide", NULL};
+    pid_t child;
+    int result = posix_spawnp(&child, args[0], NULL, NULL, args, environ);
+    _exit(result == 0 ? 0 : 1);
 }
 
 static void event_callback(XPointer priv, XRecordInterceptData *data) {
@@ -45,7 +46,8 @@ static void event_callback(XPointer priv, XRecordInterceptData *data) {
             int root_y = event->u.keyButtonPointer.rootY;
 
             // Debounce: ignore clicks within the first 80ms if inside the toggle button
-            if (get_elapsed_ms() < 80 && (root_x >= safe_x1 && root_y >= safe_y1)) {
+            if (get_elapsed_ms() < 80 && root_x >= safe_x1 && root_x <= safe_x2 &&
+                root_y >= safe_y1 && root_y <= safe_y2) {
                 XRecordFreeData(data);
                 return;
             }
