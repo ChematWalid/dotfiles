@@ -9,7 +9,7 @@ Type=simple
 ExecStart=%h/.local/bin/wallpaper-rotate.sh
 Restart=always
 RestartSec=3
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
 
 [Install]
 # Started from i3 after the X display is ready.
