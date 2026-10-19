@@ -16,8 +16,14 @@ case "$action" in
         ;;
 esac
 
-# Extract current brightness percentage
-bright=$(brightnessctl 2>/dev/null | grep -Po '[0-9]+(?=%)' | head -1 || echo "50")
+# Machine-readable output includes the current percentage directly, avoiding
+# the grep and head processes previously used to parse brightnessctl's text.
+bright="50"
+if brightness_info=$(brightnessctl -m 2>/dev/null); then
+    IFS=, read -r _ _ _ bright _ <<< "$brightness_info"
+    bright="${bright%%%}"
+    [[ "$bright" =~ ^[0-9]+$ ]] || bright="50"
+fi
 
 if command -v dunstify >/dev/null 2>&1; then
     dunstify -a "brightness" \
