@@ -22,6 +22,10 @@ namespace {
 
 constexpr std::string_view state_filename = "polybar-datetime-state";
 
+[[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
+    return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
+}
+
 struct StatePaths {
     std::string directory;
     std::string file;
@@ -208,12 +212,12 @@ int main() {
             }
 
             const bool state_changed =
-                (watched_fds[1].revents & POLLIN) != 0 && state_file_changed(inotify_fd.get());
+                has_event(watched_fds[1].revents, POLLIN) && state_file_changed(inotify_fd.get());
             if (state_changed) {
                 mode = read_mode(state_paths.file);
             }
 
-            const bool timer_expired = (watched_fds[0].revents & POLLIN) != 0;
+            const bool timer_expired = has_event(watched_fds[0].revents, POLLIN);
             if (timer_expired) {
                 std::uint64_t expirations{};
                 if (read(timer_fd.get(), &expirations, sizeof(expirations)) < 0 && errno != EINTR) {
