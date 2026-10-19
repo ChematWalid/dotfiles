@@ -48,20 +48,38 @@ readonly FS_STATE_FILE="${RUNTIME_DIR}/scratchpad-fullscreen.state"
 
 find_scratchpad_id() {
     local tree
-    tree=$(i3-msg -t get_tree 2>/dev/null) || return 1
+    tree=$(i3-msg -t get_tree) || return 1
     jq -r --arg instance "$CLASS_NAME" \
         'first(.. | objects | select(.window_properties?.instance? == $instance) | .id) // empty' \
         <<< "$tree"
 }
 
+run_i3_command() {
+    local command="$1"
+    local response
+    if ! response=$(i3-msg "$command" 2>&1); then
+        printf 'toggle-scratchpad: i3 command failed: %s\n' "$response" >&2
+        return 1
+    fi
+    if ! jq -e 'type == "array" and length > 0 and all(.[]; .success == true)' \
+        >/dev/null <<< "$response"; then
+        printf 'toggle-scratchpad: i3 rejected command (%s): %s\n' \
+            "$command" "$response" >&2
+        return 1
+    fi
+}
+
 # 3. Query i3 state once; the focused workspace is present in the same tree.
-tree_info=$(i3-msg -t get_tree 2>/dev/null || echo "{}")
+if ! tree_info=$(i3-msg -t get_tree 2>&1); then
+    printf 'toggle-scratchpad: could not read i3 window tree: %s\n' "$tree_info" >&2
+    exit 1
+fi
 
 # Derive the scratchpad workspace, focused workspace, and fullscreen window in
 # one jq invocation instead of making a second IPC request and parser process.
 # Keep the workspace lookup scoped to nodes containing our scratchpad,
 # including the hidden __i3_scratch workspace.
-mapfile -t tree_state < <(jq -r --arg instance "$CLASS_NAME" '
+if ! tree_state_output=$(jq -er --arg instance "$CLASS_NAME" '
   [
     (first(.. | objects | select(.type? == "workspace")
       | select(.. | .window_properties?.instance? == $instance) | .name) // ""),
@@ -70,7 +88,11 @@ mapfile -t tree_state < <(jq -r --arg instance "$CLASS_NAME" '
     (first(.. | objects | select(.focused? == true and .fullscreen_mode? == 1)
       | .id) // 0)
   ][]
-' <<< "$tree_info")
+' <<< "$tree_info"); then
+    printf 'toggle-scratchpad: could not parse i3 window tree\n' >&2
+    exit 1
+fi
+mapfile -t tree_state <<< "$tree_state_output"
 scratch_ws="${tree_state[0]:-}"
 current_ws="${tree_state[1]:-}"
 fullscreen_id="${tree_state[2]:-0}"
@@ -84,7 +106,10 @@ if [[ -z "$scratch_ws" ]]; then
 
     # Subscribe before launching Kitty; query once after launch to cover the
     # small interval before the event connection is ready, then wait on i3 events.
-    coproc I3_EVENTS { i3-msg -t subscribe -m '["window"]'; }
+    coproc I3_EVENTS {
+        exec 200>&-
+        exec i3-msg -t subscribe -m '["window"]'
+    }
     event_fd="${I3_EVENTS[0]}"
     event_pid="$I3_EVENTS_PID"
     cleanup_event_listener() {
@@ -94,11 +119,14 @@ if [[ -z "$scratch_ws" ]]; then
     trap cleanup_event_listener EXIT
 
     # Spawn kitty via i3 so it is properly managed and detached
-    i3-msg "exec --no-startup-id kitty --class $CLASS_NAME --title $TITLE" >/dev/null 2>&1
+    run_i3_command "exec --no-startup-id kitty --class $CLASS_NAME --title $TITLE"
 
     window_id=""
     while [[ -z "$window_id" ]]; do
-        window_id=$(find_scratchpad_id || true)
+        if ! window_id=$(find_scratchpad_id); then
+            printf 'toggle-scratchpad: could not query for the new Kitty window\n' >&2
+            exit 1
+        fi
         [[ -n "$window_id" ]] && break
 
         if ! IFS= read -r -t 5 event <&"$event_fd"; then
@@ -120,13 +148,13 @@ if [[ -z "$scratch_ws" ]]; then
         exit 1
     fi
 
-    i3-msg "[id=\"$window_id\"] scratchpad show, floating enable, resize set 900 550, move position center, focus" >/dev/null 2>&1 || true
+    run_i3_command "[id=\"$window_id\"] scratchpad show, floating enable, resize set 900 550, move position center, focus"
     exit 0
 fi
 
 if [[ -n "$current_ws" && "$scratch_ws" == "$current_ws" ]]; then
     # Scratchpad is currently visible on the current workspace -> HIDE IT
-    i3-msg '[instance="'"$CLASS_NAME"'"] move to scratchpad' >/dev/null 2>&1 || true
+    run_i3_command "[instance=\"$CLASS_NAME\"] move to scratchpad"
 
     # Restore fullscreen if a window was fullscreen before scratchpad opened
     if [[ -f "$FS_STATE_FILE" ]]; then
@@ -135,7 +163,7 @@ if [[ -n "$current_ws" && "$scratch_ws" == "$current_ws" ]]; then
         [[ "$fs_id" =~ ^[0-9]+$ ]] || fs_id=0
         rm -f "$FS_STATE_FILE"
         if [[ -n "$fs_id" && "$fs_id" != "0" ]]; then
-            i3-msg "[id=\"$fs_id\"] fullscreen enable" >/dev/null 2>&1 || true
+            run_i3_command "[id=\"$fs_id\"] fullscreen enable"
         fi
     fi
 else
@@ -146,5 +174,5 @@ else
         rm -f "$FS_STATE_FILE"
     fi
 
-    i3-msg '[instance="'"$CLASS_NAME"'"] scratchpad show, floating enable, resize set 900 550, move position center, focus' >/dev/null 2>&1 || true
+    run_i3_command "[instance=\"$CLASS_NAME\"] scratchpad show, floating enable, resize set 900 550, move position center, focus"
 fi
