@@ -13,7 +13,6 @@
 static Display *ctrl_disp = NULL;
 static Display *data_disp = NULL;
 static char tray_pid[32] = {0};
-static int safe_x1 = 1160, safe_y1 = 670, safe_x2 = 1366, safe_y2 = 768;
 static struct timespec start_time;
 extern char **environ;
 
@@ -40,23 +39,18 @@ static void event_callback(XPointer priv, XRecordInterceptData *data) {
 
     if (data->category == XRecordFromServer) {
         xEvent *event = (xEvent *)data->data;
-        if (event && ((event->u.u.type & 0x7f) == ButtonPress)) {
-            // Read root coordinates directly from the wire event structure
-            int root_x = event->u.keyButtonPointer.rootX;
-            int root_y = event->u.keyButtonPointer.rootY;
-
-            // Debounce: ignore clicks within the first 80ms if inside the toggle button
-            if (get_elapsed_ms() < 80 && root_x >= safe_x1 && root_x <= safe_x2 &&
-                root_y >= safe_y1 && root_y <= safe_y2) {
+        if (event && ((event->u.u.type & 0x7f) == ButtonRelease)) {
+            // The toggle's opening click can still be in flight when this
+            // watcher starts. Ignore that release; hide on the next click.
+            if (get_elapsed_ms() < 80) {
                 XRecordFreeData(data);
                 return;
             }
 
-            // If click is OUTSIDE the safe bounds of the popup tray and chevron:
-            if (root_x < safe_x1 || root_x > safe_x2 || root_y < safe_y1 || root_y > safe_y2) {
-                XRecordFreeData(data);
-                hide_tray_and_exit();
-            }
+            // Close after any completed click. This also lets tray icons
+            // receive the press before the popup is unmapped on release.
+            XRecordFreeData(data);
+            hide_tray_and_exit();
         }
     }
     XRecordFreeData(data);
@@ -67,13 +61,6 @@ int main(int argc, char *argv[]) {
 
     if (argc >= 2) {
         snprintf(tray_pid, sizeof(tray_pid), "%s", argv[1]);
-    }
-
-    if (argc >= 6) {
-        safe_x1 = atoi(argv[2]);
-        safe_y1 = atoi(argv[3]);
-        safe_x2 = atoi(argv[4]);
-        safe_y2 = atoi(argv[5]);
     }
 
     ctrl_disp = XOpenDisplay(NULL);
@@ -89,7 +76,7 @@ int main(int argc, char *argv[]) {
     }
 
     range->device_events.first = ButtonPress;
-    range->device_events.last  = ButtonPress;
+    range->device_events.last  = ButtonRelease;
 
     XRecordClientSpec client_spec = XRecordAllClients;
     XRecordContext ctx = XRecordCreateContext(ctrl_disp, 0, &client_spec, 1, &range, 1);
