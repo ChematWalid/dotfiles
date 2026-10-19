@@ -185,7 +185,11 @@ def import_book(file_path: str, uri_entries: list, uri_index: dict) -> bool:
 
 
 def main():
-    target_dirs = sys.argv[1:]
+    args = sys.argv[1:]
+    notify_after_import = bool(args and args[0] == "--notify")
+    if notify_after_import:
+        args = args[1:]
+    target_dirs = args
     if not target_dirs:
         # Default to Entertainement/Manga
         default_path = os.path.expanduser("~/E/Entertainement/Manga")
@@ -197,7 +201,13 @@ def main():
     os.makedirs(FOLIATE_CACHE_DIR, exist_ok=True)
     os.makedirs(FOLIATE_LIB_DIR, exist_ok=True)
 
-    close_foliate_if_running()
+    foliate_closed = False
+
+    def close_before_first_import():
+        nonlocal foliate_closed
+        if not foliate_closed:
+            close_foliate_if_running()
+            foliate_closed = True
 
     # Load existing uri-store.json
     uri_entries = []
@@ -224,6 +234,7 @@ def main():
         if os.path.isfile(target_path):
             total_found += 1
             print(f"Importing: {os.path.basename(target_path)}")
+            close_before_first_import()
             if import_book(target_path, uri_entries, uri_index):
                 imported_count += 1
         elif os.path.isdir(target_path):
@@ -234,10 +245,16 @@ def main():
                     if ext in SUPPORTED_EXTS:
                         total_found += 1
                         print(f"Importing: {f}")
+                        close_before_first_import()
                         if import_book(file_path, uri_entries, uri_index):
                             imported_count += 1
         else:
             print(f"Path not found: {target_path}", file=sys.stderr)
+
+    if notify_after_import and total_found == 0:
+        for target in target_dirs:
+            print(f"No supported ebook/manga files found in '{os.path.expanduser(target)}'.")
+        return
 
     # Save updated uri-store.json
     with open(URI_STORE_PATH, "w", encoding="utf-8") as f:
@@ -245,6 +262,18 @@ def main():
 
     print(f"\nSuccessfully imported {imported_count}/{total_found} books into Foliate!")
     print(f"Total books now in Foliate library: {len(uri_entries)}")
+    if notify_after_import and total_found:
+        import subprocess
+        try:
+            subprocess.run([
+                "notify-send", "-u", "normal", "-t", "4000",
+                "-i", "com.github.johnfactotum.Foliate",
+                "Foliate Library Updated",
+                f"Imported {total_found} book(s) from "
+                f"{os.path.basename(os.path.normpath(os.path.expanduser(target_dirs[0])))}",
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

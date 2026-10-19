@@ -135,11 +135,17 @@ for RAW_DIR in "${TARGET_DIRS[@]}"; do
     fi
 
     echo "==> Scanning directory: $TARGET_DIR"
+
+    if [[ "$MODE" == "fast" ]]; then
+        echo "==> Running fast direct import..."
+        foliate-import --notify "$TARGET_DIR"
+        continue
+    fi
     
     # Count matching files
     TOTAL_BOOKS=$(find "$TARGET_DIR" -type f \( \
-        -name "*.cbz" -o -name "*.cbr" -o -name "*.epub" -o -name "*.pdf" -o \
-        -name "*.mobi" -o -name "*.azw" -o -name "*.azw3" -o -name "*.fb2" \
+        -iname "*.cbz" -o -iname "*.cbr" -o -iname "*.epub" -o -iname "*.pdf" -o \
+        -iname "*.mobi" -o -iname "*.azw" -o -iname "*.azw3" -o -iname "*.fb2" \
     \) 2>/dev/null | wc -l)
 
     if [[ "$TOTAL_BOOKS" -eq 0 ]]; then
@@ -149,28 +155,23 @@ for RAW_DIR in "${TARGET_DIRS[@]}"; do
 
     echo "Found $TOTAL_BOOKS book(s)/volume(s)."
 
-    if [[ "$MODE" == "fast" ]]; then
-        echo "==> Running fast direct import..."
-        foliate-import "$TARGET_DIR"
-    else
-        echo "==> Running classic GUI import loop for $TOTAL_BOOKS books..."
-        COUNT=0
-        find "$TARGET_DIR" -type f \( \
-            -name "*.cbz" -o -name "*.cbr" -o -name "*.epub" -o -name "*.pdf" -o \
-            -name "*.mobi" -o -name "*.azw" -o -name "*.azw3" -o -name "*.fb2" \
-        \) | while read -r book; do
-            COUNT=$((COUNT + 1))
-            echo "[$COUNT/$TOTAL_BOOKS] Importing: $(basename "$book")"
-            foliate "$book" >/dev/null 2>&1 &
-            BG_PID=$!
-            sleep 2
-            # Close via DBus quit action if possible, fallback to kill
-            gdbus call --session --dest com.github.johnfactotum.Foliate \
-                --object-path /com/github/johnfactotum/Foliate \
-                --method org.gtk.Actions.Activate "quit" "[]" "{}" >/dev/null 2>&1 || kill "$BG_PID" 2>/dev/null || true
-        done
-        echo "Classic loop complete!"
-    fi
+    echo "==> Running classic GUI import loop for $TOTAL_BOOKS books..."
+    COUNT=0
+    find "$TARGET_DIR" -type f \( \
+        -iname "*.cbz" -o -iname "*.cbr" -o -iname "*.epub" -o -iname "*.pdf" -o \
+        -iname "*.mobi" -o -iname "*.azw" -o -iname "*.azw3" -o -iname "*.fb2" \
+    \) | while read -r book; do
+        COUNT=$((COUNT + 1))
+        echo "[$COUNT/$TOTAL_BOOKS] Importing: $(basename "$book")"
+        foliate "$book" >/dev/null 2>&1 &
+        BG_PID=$!
+        sleep 2
+        # Close via DBus quit action if possible, fallback to kill
+        gdbus call --session --dest com.github.johnfactotum.Foliate \
+            --object-path /com/github/johnfactotum/Foliate \
+            --method org.gtk.Actions.Activate "quit" "[]" "{}" >/dev/null 2>&1 || kill "$BG_PID" 2>/dev/null || true
+    done
+    echo "Classic loop complete!"
 
     notify_user "normal" "Foliate Library Updated" "Imported $TOTAL_BOOKS book(s) from $(basename "$TARGET_DIR")"
 done
