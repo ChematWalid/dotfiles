@@ -1,5 +1,6 @@
 #include <array>
 #include <cerrno>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -72,16 +73,25 @@ private:
 }
 
 [[nodiscard]] bool has_relevant_route_event(const char* buffer, std::size_t size) {
-    auto* header = reinterpret_cast<const nlmsghdr*>(buffer);
-    auto remaining = static_cast<int>(size);
-    while (NLMSG_OK(header, remaining)) {
+    const char* cursor = buffer;
+    std::size_t remaining = size;
+    while (remaining >= sizeof(nlmsghdr)) {
+        const auto* header = reinterpret_cast<const nlmsghdr*>(cursor);
+        if (header->nlmsg_len < sizeof(nlmsghdr) || header->nlmsg_len > remaining) {
+            break;
+        }
         if (header->nlmsg_type == RTM_NEWLINK || header->nlmsg_type == RTM_DELLINK ||
             header->nlmsg_type == RTM_NEWADDR || header->nlmsg_type == RTM_DELADDR ||
             header->nlmsg_type == RTM_NEWROUTE || header->nlmsg_type == RTM_DELROUTE ||
             header->nlmsg_type == NLMSG_OVERRUN) {
             return true;
         }
-        header = NLMSG_NEXT(header, remaining);
+        const auto message_size = static_cast<std::size_t>(NLMSG_ALIGN(header->nlmsg_len));
+        if (message_size > remaining) {
+            break;
+        }
+        cursor += message_size;
+        remaining -= message_size;
     }
     return false;
 }
@@ -142,7 +152,7 @@ int main() {
         {inotify_fd.get(), POLLIN, 0},
         {route_fd.get(), POLLIN, 0},
     }};
-    std::array<char, 4096> buffer{};
+    alignas(std::max_align_t) std::array<char, 4096> buffer{};
     while (true) {
         const int result = ::poll(descriptors.data(), descriptors.size(), -1);
         if (result < 0) {
