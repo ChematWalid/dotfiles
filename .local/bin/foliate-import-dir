@@ -60,6 +60,15 @@ EOF
 MODE="fast"
 REOPEN_FOLIATE=true
 TARGET_DIRS=()
+BOOK_LIST=""
+
+cleanup_book_list() {
+    if [[ -n "$BOOK_LIST" ]]; then
+        rm -f -- "$BOOK_LIST"
+        BOOK_LIST=""
+    fi
+}
+trap cleanup_book_list EXIT
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -142,13 +151,24 @@ for RAW_DIR in "${TARGET_DIRS[@]}"; do
         continue
     fi
     
-    # Count matching files
-    TOTAL_BOOKS=$(find "$TARGET_DIR" -type f \( \
+    # Discover matching files once, then reuse the NUL-separated list for the
+    # progress count and import loop instead of traversing large trees twice.
+    BOOK_LIST=$(mktemp "${TMPDIR:-/tmp}/foliate-import.XXXXXX")
+    if ! find "$TARGET_DIR" -type f \( \
         -iname "*.cbz" -o -iname "*.cbr" -o -iname "*.epub" -o -iname "*.pdf" -o \
         -iname "*.mobi" -o -iname "*.azw" -o -iname "*.azw3" -o -iname "*.fb2" \
-    \) 2>/dev/null | wc -l)
+    \) -print0 > "$BOOK_LIST" 2>/dev/null; then
+        echo "Error: Could not scan directory '$TARGET_DIR'." >&2
+        cleanup_book_list
+        continue
+    fi
+    TOTAL_BOOKS=0
+    while IFS= read -r -d '' _; do
+        TOTAL_BOOKS=$((TOTAL_BOOKS + 1))
+    done < "$BOOK_LIST"
 
     if [[ "$TOTAL_BOOKS" -eq 0 ]]; then
+        cleanup_book_list
         echo "No supported ebook/manga files found in '$TARGET_DIR'."
         continue
     fi
@@ -157,10 +177,7 @@ for RAW_DIR in "${TARGET_DIRS[@]}"; do
 
     echo "==> Running classic GUI import loop for $TOTAL_BOOKS books..."
     COUNT=0
-    find "$TARGET_DIR" -type f \( \
-        -iname "*.cbz" -o -iname "*.cbr" -o -iname "*.epub" -o -iname "*.pdf" -o \
-        -iname "*.mobi" -o -iname "*.azw" -o -iname "*.azw3" -o -iname "*.fb2" \
-    \) | while read -r book; do
+    while IFS= read -r -d '' book; do
         COUNT=$((COUNT + 1))
         echo "[$COUNT/$TOTAL_BOOKS] Importing: $(basename "$book")"
         foliate "$book" >/dev/null 2>&1 &
@@ -170,7 +187,8 @@ for RAW_DIR in "${TARGET_DIRS[@]}"; do
         gdbus call --session --dest com.github.johnfactotum.Foliate \
             --object-path /com/github/johnfactotum/Foliate \
             --method org.gtk.Actions.Activate "quit" "[]" "{}" >/dev/null 2>&1 || kill "$BG_PID" 2>/dev/null || true
-    done
+    done < "$BOOK_LIST"
+    cleanup_book_list
     echo "Classic loop complete!"
 
     notify_user "normal" "Foliate Library Updated" "Imported $TOTAL_BOOKS book(s) from $(basename "$TARGET_DIR")"
