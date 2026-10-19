@@ -329,6 +329,7 @@ impl Renderer {
             }
             Ok(output) => {
                 let stderr = String::from_utf8_lossy(&output.stderr);
+                let _ = fs::remove_file(&out_png);
                 if stderr.trim().is_empty() {
                     eprintln!(
                         "rofi-clipboard: pdftoppm failed with status {}",
