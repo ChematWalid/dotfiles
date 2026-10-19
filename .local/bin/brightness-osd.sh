@@ -5,27 +5,35 @@
 set -euo pipefail
 
 readonly NOTIFICATION_ID=9994
+readonly STEP=10
 action="${1:-}"
 
-case "$action" in
-    up)
-        brightnessctl set 10%+ >/dev/null 2>&1 || true
-        ;;
-    down)
-        brightnessctl set 10%- >/dev/null 2>&1 || true
-        ;;
-esac
-
-# Machine-readable output includes the current percentage directly, avoiding
-# the grep and head processes previously used to parse brightnessctl's text.
-bright="50"
-if brightness_info=$(brightnessctl -m 2>/dev/null); then
-    IFS=, read -r _ _ _ bright _ <<< "$brightness_info"
-    bright="${bright%%%}"
-    [[ "$bright" =~ ^[0-9]+$ ]] || bright="50"
+brightness_info=""
+backlight_devices=(/sys/class/backlight/*)
+if [[ -e "${backlight_devices[0]}" ]]; then
+    # Do not let brightnessctl select unrelated LEDs (keyboard, NIC, etc.).
+    case "$action" in
+        up) brightnessctl --class backlight set "${STEP}%+" >/dev/null 2>&1 || true ;;
+        down) brightnessctl --class backlight set "${STEP}%-" >/dev/null 2>&1 || true ;;
+    esac
+    brightness_info=$(brightnessctl --class backlight -m 2>/dev/null || true)
+    if [[ -n "$brightness_info" ]]; then
+        IFS=, read -r _ _ _ bright _ <<< "$brightness_info"
+        bright="${bright%%%}"
+    fi
+elif command -v ddcutil >/dev/null 2>&1; then
+    # Desktop monitor: use DDC/CI VCP feature 0x10 (brightness).
+    case "$action" in
+        up) ddcutil --display 1 setvcp 10 + "$STEP" >/dev/null 2>&1 || true ;;
+        down) ddcutil --display 1 setvcp 10 - "$STEP" >/dev/null 2>&1 || true ;;
+    esac
+    brightness_info=$(ddcutil --display 1 getvcp 10 --brief 2>/dev/null || true)
+    if [[ -n "$brightness_info" ]]; then
+        read -r _ _ _ bright _ <<< "$brightness_info"
+    fi
 fi
 
-if command -v dunstify >/dev/null 2>&1; then
+if [[ "${bright:-}" =~ ^[0-9]+$ ]] && command -v dunstify >/dev/null 2>&1; then
     dunstify -a "brightness" \
              -u low \
              -r "$NOTIFICATION_ID" \
