@@ -176,6 +176,21 @@ run_audit() {
     while IFS= read -r line; do
         bins+=("$line")
     done < <(printf '%s\n' "${raw_bins[@]}" | sort -u)
+
+    # Load the Tealdeer cache once. Spawning tldr once or twice per executable
+    # made this audit repeatedly reload the same cache.
+    local -A tldr_pages=()
+    while IFS= read -r page; do
+        [[ -n "$page" ]] && tldr_pages["$page"]=1
+    done < <(tldr --list --platform linux --platform common --no-auto-update --quiet 2>/dev/null || true)
+
+    # Read the cheat registry once instead of reopening each file per tool.
+    local navi_contents=""
+    local cheat_file
+    for cheat_file in "$NAVI_DOT_DIR"/*.cheat; do
+        [[ -f "$cheat_file" ]] || continue
+        navi_contents+=$(<"$cheat_file")$'\n'
+    done
     
     for tool in "${bins[@]}"; do
         (( total_tools++ )) || true
@@ -183,7 +198,7 @@ run_audit() {
         clean="${clean%.AppImage}"
         
         # Check tldr
-        if [[ -f "${TEALDEER_DOT_DIR}/${tool}.page.md" ]] || [[ -f "${TEALDEER_DOT_DIR}/${clean}.page.md" ]] || tldr "$tool" >/dev/null 2>&1 || tldr "$clean" >/dev/null 2>&1; then
+        if [[ -f "${TEALDEER_DOT_DIR}/${tool}.page.md" ]] || [[ -f "${TEALDEER_DOT_DIR}/${clean}.page.md" ]] || [[ -n "${tldr_pages[$tool]:-}" ]] || [[ -n "${tldr_pages[$clean]:-}" ]]; then
             (( has_tldr++ )) || true
         else
             missing_tldr+=("$tool")
@@ -193,7 +208,7 @@ run_audit() {
         fi
         
         # Check navi
-        if grep -rqE "\b${tool}\b" "$NAVI_DOT_DIR" 2>/dev/null || grep -rqE "\b${clean}\b" "$NAVI_DOT_DIR" 2>/dev/null; then
+        if grep -qE "\b${tool}\b" <<< "$navi_contents" || grep -qE "\b${clean}\b" <<< "$navi_contents"; then
             (( has_navi++ )) || true
         else
             missing_navi+=("$tool")
