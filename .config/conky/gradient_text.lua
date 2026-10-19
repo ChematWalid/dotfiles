@@ -111,13 +111,10 @@ function conky_gradient_overlay()
     end
 
     local ok, err = pcall(function()
-        local cs = cairo_xlib_surface_create(
-            conky_window.display,
-            conky_window.drawable,
-            conky_window.visual,
-            conky_window.width,
-            conky_window.height
-        )
+        -- Use Conky's active draw buffer so Cairo output participates in
+        -- double-buffer presentation instead of writing around it.
+        local cs = conky_surface()
+        if not cs then return end
         local cr = cairo_create(cs)
 
         local center_x = conky_window.width / 2.0
@@ -147,7 +144,6 @@ function conky_gradient_overlay()
 
         cairo_surface_flush(cs)
         cairo_destroy(cr)
-        cairo_surface_destroy(cs)
     end)
 
     if not ok then
