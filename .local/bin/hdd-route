@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # ══════════════════════════════════════════════════════════════════════════════
 #  hdd-route — Move large app & cache data from SSD to HDD and symlink back
 #  Repo: https://github.com/ChematWalid/dotfiles
@@ -11,20 +12,38 @@ if [[ -f "$HOME/.config/dotfiles-storage.env" ]]; then
 fi
 
 HDD="${HDD_MOUNT:-/mnt/drive2}"
-DATA="${DATA_MOUNT:-/mnt/drive3}"
+if [[ -v DATA_MOUNT ]]; then
+    DATA="${DATA_MOUNT:-$HDD}"
+else
+    DATA="/mnt/drive3"
+fi
 HOME_SHARE="$HDD/.local/share"
 CACHE="$HDD/.cache/home"
 
-# Verify HDD is mounted
-if [ ! -d "$HDD" ]; then
-    echo "❌ Error: Secondary storage mount point '$HDD' is not available or not mounted."
-    echo "   Configure your mount path in ~/.config/dotfiles-storage.env (export HDD_MOUNT='/path/to/drive')"
-    exit 1
-fi
-
 DRY_RUN=0
-if [[ "$*" == *"--dry-run"* ]] || [[ "$*" == *"-n"* ]]; then
-    DRY_RUN=1
+TARGET="help"
+target_set=0
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run|-n)
+            DRY_RUN=1
+            ;;
+        -* )
+            echo "Unknown option: $arg" >&2
+            exit 2
+            ;;
+        *)
+            if (( target_set )); then
+                echo "Unexpected argument: $arg" >&2
+                exit 2
+            fi
+            TARGET="$arg"
+            target_set=1
+            ;;
+    esac
+done
+
+if (( DRY_RUN )); then
     echo "🔍 DRY RUN MODE: No files will be moved or modified."
 fi
 
@@ -54,18 +73,36 @@ move_and_link() {
 
     echo "  📦 Moving $src → $dst..."
     mkdir -p "$dst"
-    rsync -a --info=progress2 "$src/" "$dst/"
-    if [ $? -eq 0 ]; then
-        rm -rf "$src"
-        ln -sfn "$dst" "$src"
+    if rsync -a --info=progress2 "$src/" "$dst/"; then
+        rm -rf -- "$src"
+        ln -sfn -- "$dst" "$src"
         echo "  ✓ $name → HDD (symlinked successfully)"
     else
-        echo "  ✗ Failed to move $name"
+        echo "  ✗ Failed to move $name" >&2
+        return 1
     fi
 }
 
-TARGET="${1:-help}"
-[[ "$TARGET" == "--dry-run" || "$TARGET" == "-n" ]] && TARGET="${2:-help}"
+require_mountpoint() {
+    local mount_path="$1"
+    local label="$2"
+
+    if ! mountpoint -q -- "$mount_path"; then
+        echo "❌ Error: $label '$mount_path' is not a mounted filesystem." >&2
+        echo "   Check ~/.config/dotfiles-storage.env and mount the drive before routing data." >&2
+        exit 1
+    fi
+}
+
+case "$TARGET" in
+    status|help) ;;
+    pictures) require_mountpoint "$DATA" "Data drive" ;;
+    all)
+        require_mountpoint "$HDD" "Secondary drive"
+        require_mountpoint "$DATA" "Data drive"
+        ;;
+    *) require_mountpoint "$HDD" "Secondary drive" ;;
+esac
 
 case "$TARGET" in
 
@@ -163,7 +200,11 @@ case "$TARGET" in
     else
         sudo systemctl stop docker 2>/dev/null || true
         sudo mkdir -p "$HDD/.docker"
-        sudo rsync -a /var/lib/docker/ "$HDD/.docker/"
+        if ! sudo rsync -a /var/lib/docker/ "$HDD/.docker/"; then
+            echo "  ✗ Docker copy failed; original data was kept." >&2
+            sudo systemctl start docker 2>/dev/null || true
+            exit 1
+        fi
         sudo rm -rf /var/lib/docker
         sudo ln -sfn "$HDD/.docker" /var/lib/docker
         sudo systemctl start docker 2>/dev/null || true
@@ -176,7 +217,10 @@ case "$TARGET" in
     if [ "$DRY_RUN" -eq 1 ]; then
         echo "  [dry-run] Would move /var/lib/flatpak → $HDD/.flatpak"
     else
-        sudo rsync -a /var/lib/flatpak/ "$HDD/.flatpak/"
+        if ! sudo rsync -a /var/lib/flatpak/ "$HDD/.flatpak/"; then
+            echo "  ✗ Flatpak copy failed; original data was kept." >&2
+            exit 1
+        fi
         sudo rm -rf /var/lib/flatpak
         sudo ln -sfn "$HDD/.flatpak" /var/lib/flatpak
         echo "  ✓ Flatpak → HDD"
@@ -198,20 +242,26 @@ case "$TARGET" in
 
   all)
     echo "=== Routing all large app and cache data to HDD ==="
-    $0 telegram
-    $0 rust
-    $0 flutter
-    $0 python
-    $0 dev-caches
-    $0 toolchains
-    $0 downloaders
-    $0 browsers
-    $0 pictures
-    $0 steam
-    $0 vscode
-    $0 jetbrains
+    route_args=()
+    (( DRY_RUN )) && route_args+=(--dry-run)
+    "$0" "${route_args[@]}" telegram
+    "$0" "${route_args[@]}" rust
+    "$0" "${route_args[@]}" flutter
+    "$0" "${route_args[@]}" python
+    "$0" "${route_args[@]}" dev-caches
+    "$0" "${route_args[@]}" toolchains
+    "$0" "${route_args[@]}" downloaders
+    "$0" "${route_args[@]}" browsers
+    "$0" "${route_args[@]}" pictures
+    "$0" "${route_args[@]}" steam
+    "$0" "${route_args[@]}" vscode
+    "$0" "${route_args[@]}" jetbrains
     echo ""
-    echo "🎉 All heavy folders successfully routed to HDD and symlinked back!"
+    if (( DRY_RUN )); then
+        echo "Dry run complete. No files were moved or linked."
+    else
+        echo "🎉 All heavy folders successfully routed to HDD and symlinked back!"
+    fi
     ;;
 
   status)

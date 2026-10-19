@@ -14,7 +14,9 @@
 set -euo pipefail
 
 # 1. Non-blocking concurrency lock (never leak fd to child processes)
-readonly LOCK_FILE="/tmp/.scratchpad-toggle.lock"
+readonly RUNTIME_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache/dotfiles}"
+mkdir -p "$RUNTIME_DIR"
+readonly LOCK_FILE="${RUNTIME_DIR}/scratchpad-toggle.lock"
 exec 200>"$LOCK_FILE"
 if ! flock -n 200; then
     exit 0
@@ -22,7 +24,7 @@ fi
 trap 'exec 200>&-' EXIT
 
 # 2. Key-repeat debounce (200ms threshold matching X11 key repeat)
-readonly STAMP_FILE="/tmp/.scratchpad-toggle.stamp"
+readonly STAMP_FILE="${RUNTIME_DIR}/scratchpad-toggle.stamp"
 now=$(date +%s%3N 2>/dev/null || date +%s)
 if [[ -f "$STAMP_FILE" ]]; then
     last=$(cat "$STAMP_FILE" 2>/dev/null || echo 0)
@@ -35,7 +37,7 @@ echo "$now" > "$STAMP_FILE"
 
 readonly CLASS_NAME="scratchpad_term"
 readonly TITLE="__scratchpad_term__"
-readonly FS_STATE_FILE="/tmp/.scratchpad-fs.state"
+readonly FS_STATE_FILE="${RUNTIME_DIR}/scratchpad-fullscreen.state"
 
 # 3. Query i3 tree state in a single fast call (~8ms)
 tree_info=$(i3-msg -t get_tree 2>/dev/null || echo "{}")

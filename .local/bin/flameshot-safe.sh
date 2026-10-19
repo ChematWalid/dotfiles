@@ -18,21 +18,6 @@ mkdir -p "$SAVE_DIR"
 TIMESTAMP="$(date +'%Y%m%d_%H%M%S')"
 OUT_FILE="$SAVE_DIR/screenshot_${TIMESTAMP}.png"
 
-# Quick check if flameshot background daemon is alive and responsive
-ensure_flameshot_alive() {
-    if pgrep -x flameshot >/dev/null 2>&1; then
-        if ! timeout 0.5 flameshot --version >/dev/null 2>&1; then
-            killall -9 flameshot 2>/dev/null || true
-            sleep 0.1
-            flameshot >/dev/null 2>&1 &
-            sleep 0.1
-        fi
-    else
-        flameshot >/dev/null 2>&1 &
-        sleep 0.1
-    fi
-}
-
 # Copies to X11 clipboard and CopyQ clipboard manager
 copy_to_clipboards() {
     local file="$1"
@@ -44,7 +29,6 @@ copy_to_clipboards() {
 
 case "$MODE" in
     gui)
-        ensure_flameshot_alive
         set +e
         flameshot gui 2>/dev/null
         FS_EXIT=$?
@@ -65,7 +49,6 @@ case "$MODE" in
         ;;
 
     full)
-        ensure_flameshot_alive
         set +e
         flameshot full -p "$SAVE_DIR" -c 2>/dev/null
         FS_EXIT=$?
@@ -79,7 +62,6 @@ case "$MODE" in
         ;;
 
     screen)
-        ensure_flameshot_alive
         set +e
         flameshot screen -p "$SAVE_DIR" -c 2>/dev/null
         FS_EXIT=$?
@@ -95,7 +77,6 @@ case "$MODE" in
     delay)
         SECS="${2:-3}"
         MS=$(( SECS * 1000 ))
-        ensure_flameshot_alive
         set +e
         flameshot gui -d "$MS" 2>/dev/null
         FS_EXIT=$?
@@ -109,7 +90,6 @@ case "$MODE" in
         ;;
 
     *)
-        ensure_flameshot_alive
         flameshot gui 2>/dev/null || maim -u "$OUT_FILE" 2>/dev/null
         ;;
 esac

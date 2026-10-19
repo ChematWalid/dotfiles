@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
-# share-port — Instantly expose any local port to the internet via Cloudflare Tunnel
-# Usage: share-port 8222 (for Vaultwarden) | share-port 3000 (for Next.js)
+# share-port — Expose a local port publicly through a Cloudflare quick tunnel.
+# Usage: share-port --public PORT
+set -euo pipefail
 
-PORT="${1:-8222}"
+if [[ "${1:-}" != "--public" || $# -ne 2 ]]; then
+  echo "Usage: share-port --public PORT" >&2
+  echo "This creates a public internet URL for the local service on PORT." >&2
+  exit 2
+fi
 
-echo "🚀 Creating instant secure HTTPS Cloudflare Tunnel for port $PORT..."
-echo "  (Press Ctrl+C to close the tunnel anytime)"
-echo ""
+PORT="$2"
+if [[ ! "$PORT" =~ ^[0-9]+$ ]] || (( PORT < 1 || PORT > 65535 )); then
+  echo "Invalid TCP port: $PORT" >&2
+  exit 2
+fi
 
-cloudflared tunnel --url "http://localhost:$PORT"
+echo "WARNING: port $PORT will be reachable from the public internet."
+echo "Do not expose an unauthenticated or sensitive service. Press Ctrl+C to stop."
+
+exec cloudflared tunnel --url "http://127.0.0.1:$PORT"

@@ -12,8 +12,14 @@ safe_link() {
 
   mkdir -p "$(dirname "$dst")"
   if [[ -e "$dst" && ! -L "$dst" ]]; then
-    warn "Backing up: $dst → $dst.bak"
-    mv "$dst" "$dst.bak"
+    local backup="$dst.bak"
+    local suffix=1
+    while [[ -e "$backup" || -L "$backup" ]]; do
+      backup="$dst.bak.$suffix"
+      ((suffix += 1))
+    done
+    warn "Backing up: $dst → $backup"
+    mv -- "$dst" "$backup"
   fi
   [[ -L "$dst" ]] && rm -f "$dst"
   ln -s "$src" "$dst"

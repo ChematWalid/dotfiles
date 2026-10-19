@@ -62,20 +62,15 @@ alias bw-local='bw config server https://localhost:8222'
 alias genpass='bw generate -u -l -n -s --length 24'
 alias genphrase='bw generate --passphrase --words 4 --separator -'
 
-# Bitwarden Session Auto-Persistence
+# Bitwarden session stays in the current shell only.
 bw-unlock() {
     local session
     session=$(bw unlock --raw "$@")
     if [ -n "$session" ]; then
         export BW_SESSION="$session"
-        echo "$BW_SESSION" > ~/.cache/.bw_session
-        chmod 600 ~/.cache/.bw_session
-        echo "✓ Bitwarden vault unlocked & session saved for all terminal tabs!"
+        echo "✓ Bitwarden vault unlocked for this shell."
     fi
 }
-if [[ -f ~/.cache/.bw_session && -z "$BW_SESSION" ]]; then
-    export BW_SESSION="$(< ~/.cache/.bw_session)"
-fi
 
 # Antigravity AI CLI
 alias agy-last='agy -c'

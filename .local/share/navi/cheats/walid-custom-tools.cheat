@@ -343,8 +343,8 @@ rmaxima
 scripts-common.sh
 
 % custom, local, tools
-# 🚀 Creating instant secure HTTPS Cloudflare Tunnel for port --help...
-share-port
+# Expose port 3000 to the public internet (confirm the service is authenticated first).
+share-port --public 3000
 
 % custom, local, tools
 # telegram-desktop utility on Arch Linux.

@@ -15,3 +15,5 @@ target/
 lockfile
 timers.target.wants/
 *.zwc
+# rclone OAuth credentials are stored in ~/.config/rclone, outside this repo.
+/.config/rclone/rclone.conf

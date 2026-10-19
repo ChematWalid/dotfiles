@@ -55,15 +55,15 @@ cd ~/dotfiles && bash install.sh
 ### What `install.sh` does
 
 1. **`pacman -Syu`** — system update
-2. **296 pacman packages** — full desktop stack from `pkglist-pacman-names.txt`
+2. **271 pacman packages** — full desktop stack from `pkglist-pacman-names.txt`
 3. **yay** — AUR helper (built from source if not present)
-4. **36 AUR packages** — themes, tools, and apps from `pkglist-aur-names.txt`
+4. **35 AUR packages** — themes, tools, and apps from `pkglist-aur-names.txt`
 5. **Oh-My-Zsh** + 5 custom plugins (fzf-tab, autosuggestions, completions, fast-syntax-highlighting, catppuccin theme)
 6. **Symlinks** all dotfiles into `~/.config`, `~/.local/bin`, `~/.local/share`
 7. **Fonts** — Iosevka, Fantasque Sans Mono, Feather, Material Icons, Terminus
 8. **Wallpaper** → `~/Pictures/catppuccin-wall-dark.jpg`
 9. **/etc configs** — SDDM theme, sysctl performance tweaks, logind no-sleep
-10. **Systemd user services** — copyq, i3-autoname, mpd, syncthing, wireplumber
+10. **Systemd user services** — selected user daemons and the Antigravity timer
 11. **Default shell** → zsh
 
 ---
@@ -79,12 +79,12 @@ ssh-keygen -t ed25519 -C "you@mail"   # SSH key (or restore from backup)
 
 hdd-route all                          # symlink Steam/VSCode/Docker/JetBrains to HDD
 mise install                           # restore node/python/go/java runtimes
-rclone config                          # re-add cloud remotes
+rclone config                          # credentials stay in ~/.config/rclone (private, not in this repo)
 # open localhost:8384 for Syncthing pairing
 ```
 
-> **fstab warning:** `install.sh` shows a diff and asks before touching `/etc/fstab`.
-> UUIDs are hardware-specific — verify with `blkid` before applying.
+> **Machine-specific storage:** `etc/fstab` contains device UUIDs for this machine.
+> The installer does not install it; verify every UUID with `blkid` before using it elsewhere.
 
 ---
 
@@ -152,7 +152,7 @@ Full reference → [`TOOLS_GUIDE.md`](TOOLS_GUIDE.md)
 | `rofi-websearch.sh` | Google search from Rofi prompt |
 | `bw` / `bw-local` | Bitwarden CLI wrappers (local Vaultwarden) |
 | `vaultwarden` | Start/stop self-hosted Vaultwarden Docker container |
-| `share-port` | Cloudflare tunnel quick launcher |
+| `share-port` | Explicitly confirmed public Cloudflare tunnel launcher |
 | `docker-gui` | Portainer GUI launcher |
 
 ---

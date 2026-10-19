@@ -13,12 +13,6 @@ TMP_RAW=$(mktemp /tmp/ocr_raw_XXXXXX.png)
 TMP_OPT=$(mktemp /tmp/ocr_opt_XXXXXX.png)
 trap 'rm -f "$TMP_RAW" "$TMP_OPT"' EXIT
 
-# Ensure Flameshot background daemon is active
-if ! pgrep -x flameshot >/dev/null 2>&1; then
-    flameshot >/dev/null 2>&1 &
-    sleep 0.15
-fi
-
 # 1. Capture screen region: Try Flameshot raw output first
 if ! flameshot gui -r > "$TMP_RAW" 2>/dev/null || [[ ! -s "$TMP_RAW" ]]; then
     # Fallback to maim interactive region selector (click and drag)

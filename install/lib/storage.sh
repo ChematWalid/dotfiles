@@ -3,6 +3,23 @@
 # Storage layout configuration (Single Drive vs Multi-Drive Secondary Routing)
 # ─────────────────────────────────────────────────────────────────────────────
 
+write_storage_config() {
+  local hdd_mount="$1" data_mount="$2"
+  local config="$HOME/.config/dotfiles-storage.env"
+  local tmp="${config}.tmp.$$"
+
+  mkdir -p "$HOME/.config" || return 1
+  (
+    umask 077
+    {
+      printf '%s\n' '# Dotfiles storage layout'
+      printf 'export HDD_MOUNT=%q\n' "$hdd_mount"
+      printf 'export DATA_MOUNT=%q\n' "$data_mount"
+    } > "$tmp"
+  ) || { rm -f -- "$tmp"; return 1; }
+  chmod 600 "$tmp" && mv -f -- "$tmp" "$config"
+}
+
 configure_storage() {
   mkdir -p "$HOME/.config"
 
@@ -19,19 +36,11 @@ configure_storage() {
 
   if [[ "${INSTALL_MODE:-}" == "dotfiles" || "${INSTALL_MODE:-}" == "module" ]]; then
     if [[ ! -f "$HOME/.config/dotfiles-storage.env" ]]; then
-      cat > "$HOME/.config/dotfiles-storage.env" << 'EOF'
-# Dotfiles single-drive storage layout
-export HDD_MOUNT=""
-export DATA_MOUNT=""
-EOF
+      write_storage_config "" ""
     fi
   elif [[ "${INSTALL_MODE:-}" == "all" ]]; then
     if [[ ! -f "$HOME/.config/dotfiles-storage.env" ]]; then
-      cat > "$HOME/.config/dotfiles-storage.env" << 'EOF'
-# Dotfiles single-drive storage layout
-export HDD_MOUNT=""
-export DATA_MOUNT=""
-EOF
+      write_storage_config "" ""
       log "Default single-drive storage layout configured"
     fi
   else
@@ -54,18 +63,14 @@ EOF
       read -rp "  Enter optional data drive mount path (e.g. /mnt/drive3, press Enter to use same): " user_data || true
       user_data="${user_data:-$user_hdd}"
 
-      cat > "$HOME/.config/dotfiles-storage.env" << EOF
-# Dotfiles secondary storage routing
-export HDD_MOUNT="$user_hdd"
-export DATA_MOUNT="$user_data"
-EOF
+      if [[ "$user_hdd" != /* || "$user_data" != /* ]]; then
+        warn "Storage mount paths must be absolute paths"
+        return 1
+      fi
+      write_storage_config "$user_hdd" "$user_data"
       log "Storage configuration saved → ~/.config/dotfiles-storage.env"
     else
-      cat > "$HOME/.config/dotfiles-storage.env" << 'EOF'
-# Dotfiles single-drive storage layout
-export HDD_MOUNT=""
-export DATA_MOUNT=""
-EOF
+      write_storage_config "" ""
       log "Single-drive layout configured"
     fi
   fi

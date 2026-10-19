@@ -197,8 +197,8 @@ Welcome to your complete reference manual! Every tool, custom script, keybinding
 ## 7. 🌐 Networking & Web Tools
 
 - **`share-port` / `tunnel` (Cloudflare Public Tunnels)**:
-  - `tunnel 8222`: Expose your self-hosted Vaultwarden to the internet with an instant secure HTTPS link.
-  - `share 3000`: Share a local web application or dev server with anyone remotely.
+  - `tunnel --public 8222`: Expose port 8222 to the public internet; check authentication before sharing.
+  - `share --public 3000`: Share a local web application or dev server publicly.
   - Press `Ctrl + C` to instantly shut down the tunnel.
 - **`xh` (Friendly & Fast HTTP Tool)**:
   - `xh get https://httpbin.org/json`: Send GET request with formatted JSON output.
