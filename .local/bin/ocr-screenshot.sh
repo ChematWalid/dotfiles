@@ -7,7 +7,16 @@
 set -euo pipefail
 
 readonly TESS_DIR="${HOME}/.local/share/tessdata"
-export TESSDATA_PREFIX="$TESS_DIR"
+
+if ! command -v tesseract >/dev/null 2>&1; then
+    if command -v notify-send >/dev/null 2>&1; then
+        notify-send -u critical -a "OCR" "OCR unavailable" \
+            "Tesseract is not installed or not on PATH." || true
+    else
+        printf 'ocr-screenshot: Tesseract is not installed or not on PATH\n' >&2
+    fi
+    exit 127
+fi
 
 TMP_RAW=$(mktemp /tmp/ocr_raw_XXXXXX.png)
 TMP_OPT=$(mktemp /tmp/ocr_opt_XXXXXX.png)
@@ -40,7 +49,8 @@ if [[ -d "$TESS_DIR" ]]; then
 fi
 
 if [[ -z "$OCR_TEXT" ]]; then
-    OCR_TEXT=$(tesseract "$TMP_OPT" stdout 2>/dev/null || true)
+    # Keep the system-data fallback independent from the shell's custom prefix.
+    OCR_TEXT=$(env -u TESSDATA_PREFIX tesseract "$TMP_OPT" stdout 2>/dev/null || true)
 fi
 
 # 4. Clean up recognized text
