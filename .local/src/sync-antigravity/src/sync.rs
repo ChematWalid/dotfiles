@@ -44,19 +44,17 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
     // 3. Read CLI SQLite db
     let cli_rows = fetch_cli_rows(&paths.cli_db)?;
 
-    let mut cli_map = HashSet::new();
-    let mut cli_row_map = Vec::new();
-    for row in cli_rows {
-        cli_map.insert(row.conversation_id.clone());
-        cli_row_map.push(row);
-    }
+    let cli_ids: HashSet<&str> = cli_rows
+        .iter()
+        .map(|row| row.conversation_id.as_str())
+        .collect();
 
     let mut synced_to_cli = 0;
     let mut synced_to_gui = 0;
 
     // 4. GUI -> CLI
     for (cid, entry) in &gui_entries {
-        if !cli_map.contains(cid) {
+        if !cli_ids.contains(cid.as_str()) {
             let title = if entry.title.is_empty() {
                 "Untitled Conversation"
             } else {
@@ -77,8 +75,8 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
     }
 
     // 5. CLI -> GUI
-    for row in &cli_row_map {
-        if !gui_entries.contains_key(&row.conversation_id) {
+    for row in &cli_rows {
+        if !gui_entries.contains_key(row.conversation_id.as_str()) {
             let title = row.title.as_deref().unwrap_or("Untitled Conversation");
             let step_count = row.step_count.unwrap_or(1);
             let ts = parse_iso_ts(row.last_modified_time.as_deref());
@@ -105,11 +103,15 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
 
     // 6. Brain / Transcripts / Artifacts mirroring
     let mut files_linked = 0;
-    let all_cids: HashSet<String> = gui_entries.keys().chain(cli_map.iter()).cloned().collect();
+    let gui_ids = gui_entries.keys().map(String::as_str);
+    let cli_only_ids = cli_rows.iter().filter_map(|row| {
+        let cid = row.conversation_id.as_str();
+        (!gui_entries.contains_key(cid)).then_some(cid)
+    });
 
-    for cid in all_cids {
-        let g_brain = paths.gui_brain.join(&cid);
-        let c_brain = paths.cli_brain.join(&cid);
+    for cid in gui_ids.chain(cli_only_ids) {
+        let g_brain = paths.gui_brain.join(cid);
+        let c_brain = paths.cli_brain.join(cid);
 
         if g_brain.exists() && !c_brain.exists() {
             if dry_run || symlink(&g_brain, &c_brain).is_ok() {
@@ -122,8 +124,9 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
             files_linked += 1;
         }
 
-        let g_conv = paths.gui_convs.join(format!("{}.json", cid));
-        let c_conv = paths.cli_convs.join(format!("{}.json", cid));
+        let filename = format!("{cid}.json");
+        let g_conv = paths.gui_convs.join(&filename);
+        let c_conv = paths.cli_convs.join(filename);
 
         if g_conv.exists() && !c_conv.exists() {
             if dry_run || symlink(&g_conv, &c_conv).is_ok() {
@@ -138,7 +141,7 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
     }
 
     if !quiet_if_no_changes || synced_to_cli > 0 || synced_to_gui > 0 || files_linked > 0 {
-        let total = gui_entries.len().max(cli_map.len());
+        let total = gui_entries.len().max(cli_ids.len());
         println!("✨ Sync {}:", if dry_run { "Preview" } else { "Complete" });
         println!("   • Total active conversations : {}", total);
         let prefix = if dry_run { "Would sync" } else { "Synced" };
