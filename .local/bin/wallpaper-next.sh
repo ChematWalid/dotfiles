@@ -67,5 +67,10 @@ fi
 feh --bg-fill "$wall"
 printf '%s\n' "$wall" > "$STATE_FILE"
 
-# Reset systemd rotation timer
-systemctl --user restart wallpaper-rotate.service
+# Reset the existing daemon's 30-minute wait without restarting the service.
+if systemctl --user is-active --quiet wallpaper-rotate.service; then
+    systemctl --user kill --signal=USR1 --kill-whom=main wallpaper-rotate.service
+else
+    systemctl --user reset-failed wallpaper-rotate.service || true
+    systemctl --user start wallpaper-rotate.service
+fi

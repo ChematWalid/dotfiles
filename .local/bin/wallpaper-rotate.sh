@@ -100,8 +100,28 @@ else
     pick_and_apply_wallpaper
 fi
 
+# A manual wallpaper change resets the next rotation deadline with USR1. Keep
+# the periodic sleep isolated so the signal can wake it without restarting the
+# daemon or burning through systemd's start limit on repeated key presses.
+RESET_TIMER=false
+SLEEP_PID=""
+reset_rotation_timer() {
+    RESET_TIMER=true
+    if [[ -n "$SLEEP_PID" ]]; then
+        kill "$SLEEP_PID" 2>/dev/null || true
+    fi
+}
+trap reset_rotation_timer USR1
+
 # Main rotation loop
 while true; do
-    sleep "$INTERVAL"
+    RESET_TIMER=false
+    sleep "$INTERVAL" &
+    SLEEP_PID=$!
+    wait "$SLEEP_PID" || true
+    SLEEP_PID=""
+    if [[ "$RESET_TIMER" == true ]]; then
+        continue
+    fi
     pick_and_apply_wallpaper
 done
