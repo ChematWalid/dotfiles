@@ -32,33 +32,19 @@ main() {
             ((.body.data // "") | gsub("[\u0000-\u001f\u007f]"; " ") | if length > 60 then .[0:57] + "..." else . end), "\u0000"
         '
     )
+    unset raw_history
 
     if [[ ${#parsed_fields[@]} -lt 4 ]]; then
         show_empty
     fi
 
-    # Build Rofi display entries and corresponding action metadata arrays
+    # Keep only the rendered lines; notification data stays in parsed_fields
+    # and is looked up after selection to avoid five duplicate metadata arrays.
     local rofi_lines=()
-    local actions=()
-    local nids=()
-    local appnames=()
-    local summaries=()
-    local bodies=()
 
     # Fixed top actions
     rofi_lines+=("󰎟  Redisplay Latest Notification")
-    actions+=("pop_latest")
-    nids+=("0")
-    appnames+=("")
-    summaries+=("")
-    bodies+=("")
-
     rofi_lines+=("󰎟  Clear All Notification History")
-    actions+=("clear_all")
-    nids+=("0")
-    appnames+=("")
-    summaries+=("")
-    bodies+=("")
 
     local field_index id app summary body
     for ((field_index = 0; field_index + 3 < ${#parsed_fields[@]}; field_index += 4)); do
@@ -73,11 +59,6 @@ main() {
         fi
 
         rofi_lines+=("$line")
-        actions+=("open")
-        nids+=("$id")
-        appnames+=("$app")
-        summaries+=("$summary")
-        bodies+=("$body")
     done
 
     # Run Rofi in dmenu mode
@@ -96,23 +77,23 @@ main() {
     fi
 
     local idx=$((selected_idx))
-    if [[ $idx -lt 0 || $idx -ge ${#actions[@]} ]]; then
+    if [[ $idx -lt 0 || $idx -ge ${#rofi_lines[@]} ]]; then
         exit 0
     fi
 
-    local action="${actions[$idx]}"
-    case "$action" in
-        pop_latest)
+    case "$idx" in
+        0)
             dunstctl history-pop >/dev/null 2>&1 || true
             ;;
-        clear_all)
+        1)
             dunstctl history-clear >/dev/null 2>&1 || true
             ;;
-        open)
-            local nid="${nids[$idx]}"
-            local app="${appnames[$idx]}"
-            local sum="${summaries[$idx]}"
-            local bdy="${bodies[$idx]}"
+        *)
+            local field_index=$(((idx - 2) * 4))
+            local nid="${parsed_fields[field_index]}"
+            local app="${parsed_fields[field_index + 1]}"
+            local sum="${parsed_fields[field_index + 2]}"
+            local bdy="${parsed_fields[field_index + 3]}"
             local full="$sum"
             [[ -n "$bdy" ]] && full+=$'\n'"$bdy"
             if command -v xclip >/dev/null 2>&1; then
