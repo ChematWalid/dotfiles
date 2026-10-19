@@ -7,19 +7,34 @@ set -euo pipefail
 apply_input() {
     local fallback_failed=false
 
-    # 1. Keyboard Layouts
-    if [[ -d "${HOME}/.config/xkb" ]]; then
-        if ! setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" \
-            -option "" -option "grp:win_space_toggle" -print \
-            | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null; then
-            setxkbmap -option "" 2>/dev/null || fallback_failed=true
+    # 1. Keyboard Layouts. Hotplug and resume events can arrive in bursts;
+    # preserve the user's currently selected layout when the configured map is
+    # already active instead of recompiling it and resetting the group.
+    local keyboard_state current_layout="" current_options="" key value
+    keyboard_state=$(setxkbmap -query 2>/dev/null || true)
+    while IFS=: read -r key value; do
+        key=${key//[[:space:]]/}
+        value=${value//[[:space:]]/}
+        case "$key" in
+            layout) current_layout=$value ;;
+            options) current_options=$value ;;
+        esac
+    done <<< "$keyboard_state"
+
+    if [[ "$current_layout" != "be,ara" || "$current_options" != "grp:win_space_toggle" ]]; then
+        if [[ -d "${HOME}/.config/xkb" ]]; then
+            if ! setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" \
+                -option "" -option "grp:win_space_toggle" -print \
+                | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null; then
+                setxkbmap -option "" 2>/dev/null || fallback_failed=true
+                setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null \
+                    || fallback_failed=true
+            fi
+        else
+            setxkbmap -option "" 2>/dev/null || true
             setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null \
                 || fallback_failed=true
         fi
-    else
-        setxkbmap -option "" 2>/dev/null || true
-        setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null \
-            || fallback_failed=true
     fi
     if [[ "$fallback_failed" == true ]]; then
         printf 'apply-input-settings: could not apply the Belgian/Arabic keyboard layout\n' >&2
