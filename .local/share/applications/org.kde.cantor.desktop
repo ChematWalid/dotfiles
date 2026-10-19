@@ -140,6 +140,6 @@ Comment[ug]=ماتېماتىكىلىق يۇمشاق دېتاللار ئۈچۈن 
 Comment[uk]=Графічна оболонка KDE до математичного програмного забезпечення
 Comment[zh_CN]=数学软件的 KDE 前端
 Comment[zh_TW]=KDE 數學軟體的前端介面
-Categories=Qt;KDE;Education;Math;Science;
+Categories=Qt;KDE;Science;Math;
 MimeType=application/x-cantor;
 X-DBUS-ServiceName=org.kde.cantor

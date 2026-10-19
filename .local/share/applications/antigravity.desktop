@@ -7,5 +7,5 @@ Icon=antigravity
 Type=Application
 StartupNotify=false
 StartupWMClass=Antigravity
-Categories=Development;Utility;
+Categories=Development;IDE;
 MimeType=x-scheme-handler/antigravity;

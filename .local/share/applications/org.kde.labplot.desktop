@@ -63,5 +63,5 @@ Comment[uk]=LabPlot є вільним, доступним для будь-ког
 Comment[zh_CN]=LabPlot 是一款自由开源的跨平台数据可视化和分析软件，任何人均可自由使用。
 Terminal=false
 MimeType=application/x-LabPlot-gzip;application/x-LabPlot-xz;application/x-labplot;
-Categories=Qt;KDE;Education;Science;Physics;Math;
+Categories=Qt;KDE;Science;Physics;Math;
 X-DocPath=labplot/index.html

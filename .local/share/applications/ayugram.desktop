@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Telegram
 GenericName=Telegram Desktop Client
-Comment=Telegram Desktop Client
+Comment=Send messages, photos, and files with Telegram
 Exec=/home/walid/.local/bin/ayugram -- %u
 Icon=telegram
 Terminal=false

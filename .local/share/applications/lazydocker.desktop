@@ -5,4 +5,4 @@ Exec=kitty -e lazydocker
 Icon=docker
 Terminal=false
 Type=Application
-Categories=Development;System;
+Categories=Development;

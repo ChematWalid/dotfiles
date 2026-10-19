@@ -5,4 +5,4 @@ Exec=/home/walid/.local/bin/docker-gui
 Icon=docker
 Terminal=false
 Type=Application
-Categories=Development;System;
+Categories=System;

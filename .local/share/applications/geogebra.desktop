@@ -7,6 +7,6 @@ Exec=geogebra
 Icon=geogebra
 Terminal=false
 StartupNotify=false
-Categories=Education;Science;Math;
+Categories=Education;Math;
 MimeType=application/vnd.geogebra.file;application/vnd.geogebra.tool;
 StartupWMClass=org-geogebra-desktop-GeoGebra3D

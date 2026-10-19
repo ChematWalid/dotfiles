@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Telegram Desktop
 GenericName=Telegram Desktop Client
-Comment=Telegram Desktop Client
+Comment=Alternate Telegram desktop launcher
 Exec=/home/walid/.local/bin/ayugram -- %u
 Icon=telegram
 Terminal=false
