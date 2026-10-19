@@ -4,26 +4,47 @@
 
 set -euo pipefail
 
-current=$(setxkbmap -query 2>/dev/null | awk '/layout/ {split($2, layouts, ","); print layouts[1]}')
+report_error() {
+    printf 'switch-layout: %s\n' "$1" >&2
+    if command -v dunstify >/dev/null 2>&1; then
+        dunstify -a "Keyboard" -r 9993 -u critical "Keyboard layout error" "$1" \
+            -t 3000 2>/dev/null || true
+    fi
+}
+
+if ! keyboard_state=$(setxkbmap -query); then
+    report_error 'could not read the current XKB layout'
+    exit 1
+fi
+current=$(awk '/^[[:space:]]*layout:/ {split($2, layouts, ","); print layouts[1]}' <<< "$keyboard_state")
 
 if [[ "$current" == "be" ]]; then
-    setxkbmap -layout "ara,be" -option "grp:win_space_toggle"
-    if [[ -d "${HOME}/.config/xkb" ]]; then
-        setxkbmap -I"${HOME}/.config/xkb" -layout "ara,be" -option "grp:win_space_toggle" -print | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null || true
-    fi
+    layouts="ara,be"
     layout_name="Arabic (العربية)"
     flag="🇸🇦"
 else
-    setxkbmap -layout "be,ara" -option "grp:win_space_toggle"
-    if [[ -d "${HOME}/.config/xkb" ]]; then
-        setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" -option "grp:win_space_toggle" -print | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null || true
-    fi
+    layouts="be,ara"
     layout_name="Belgian (AZERTY)"
     flag="🇧🇪"
 fi
 
+if [[ -d "${HOME}/.config/xkb" ]]; then
+    if ! setxkbmap -I"${HOME}/.config/xkb" -layout "$layouts" \
+        -option "grp:win_space_toggle" -print \
+        | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}"; then
+        report_error "could not apply the $layout_name layout"
+        exit 1
+    fi
+elif ! setxkbmap -layout "$layouts" -option "grp:win_space_toggle"; then
+    report_error "could not apply the $layout_name layout"
+    exit 1
+fi
+
 # Ensure repeat rate (250ms delay, 50 repeats/sec) is preserved
-xset r rate 250 50 2>/dev/null || true
+if ! xset r rate 250 50; then
+    report_error 'layout changed, but could not restore the keyboard repeat rate'
+    exit 1
+fi
 
 if command -v dunstify >/dev/null 2>&1; then
     dunstify -a "Keyboard" \
