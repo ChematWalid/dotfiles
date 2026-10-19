@@ -29,8 +29,11 @@ run_module() {
       _safe_etc "$DOTFILES_DIR/etc/systemd/logind.conf.d/nosleep.conf" "/etc/systemd/logind.conf.d/nosleep.conf"
     fi
 
-    sudo sysctl --system &>/dev/null || true
-    log "/etc system configs applied"
+    if sudo sysctl --system; then
+      log "/etc system configs applied and sysctl settings reloaded"
+    else
+      warn "/etc configs were copied, but sysctl settings could not be reloaded; inspect the error above and run 'sudo sysctl --system' after fixing it"
+    fi
   else
     warn "Skipped /etc system configs"
   fi
