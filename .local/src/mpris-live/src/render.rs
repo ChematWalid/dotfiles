@@ -7,20 +7,19 @@ use crate::config::{
 use crate::state::MediaState;
 
 pub fn get_marquee_slice(text: &str, offset: usize, hovering: bool) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    if chars.len() <= MAX_CHARS {
+    let char_count = text.chars().count();
+    if char_count <= MAX_CHARS {
         return text.to_string();
     }
     if !hovering {
-        let prefix: String = chars.iter().take(MAX_CHARS - 1).collect();
-        return format!("{}…", prefix);
+        let mut prefix: String = text.chars().take(MAX_CHARS - 1).collect();
+        prefix.push('…');
+        return prefix;
     }
-    let sep_chars: Vec<char> = SEPARATOR.chars().collect();
-    let mut stream: Vec<char> = chars.clone();
-    stream.extend_from_slice(&sep_chars);
-    let stream_len = stream.len();
+    let stream = text.chars().chain(SEPARATOR.chars());
+    let stream_len = char_count + SEPARATOR.chars().count();
     let idx = offset % stream_len;
-    stream.iter().cycle().skip(idx).take(MAX_CHARS).collect()
+    stream.cycle().skip(idx).take(MAX_CHARS).collect()
 }
 
 pub fn render_polybar(state: &MediaState, scroll_pos: usize, hovering: bool) -> String {

@@ -6,6 +6,11 @@ use std::io::Write;
 
 pub fn write_output_atomic(text: &str) {
     let (output, temporary) = output_paths();
+    let text = text.trim();
+    if fs::read(&output).is_ok_and(|current| current == text.as_bytes()) {
+        return;
+    }
+
     if let Some(parent) = output.parent() {
         if fs::create_dir_all(parent).is_err() {
             return;
@@ -14,14 +19,17 @@ pub fn write_output_atomic(text: &str) {
 
     let Ok(mut file) = OpenOptions::new()
         .write(true)
-        .create_new(true)
+        .create(true)
+        .truncate(true)
         .open(&temporary)
     else {
         return;
     };
-    if file.write_all(text.trim().as_bytes()).is_ok() {
+    if file.write_all(text.as_bytes()).is_ok() {
         drop(file);
-        let _ = fs::rename(temporary, output);
+        if fs::rename(&temporary, &output).is_err() {
+            let _ = fs::remove_file(temporary);
+        }
     } else {
         let _ = fs::remove_file(temporary);
     }
