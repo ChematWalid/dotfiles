@@ -90,7 +90,9 @@ impl Renderer {
         let mut position = style.position;
         for c in s.chars() {
             let glyph_id = charmap.map(c);
-            Self::draw_char(img, &mut scaler, glyph_id, position, style.color);
+            if !c.is_whitespace() {
+                Self::draw_char(img, &mut scaler, glyph_id, position, style.color);
+            }
             position.0 += metrics.advance_width(glyph_id) * advance_scale;
         }
     }
