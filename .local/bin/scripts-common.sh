@@ -54,8 +54,8 @@ acquire_lock() {
     local lockfile="$1"
     if [[ -f "$lockfile" ]]; then
         local old_pid
-        old_pid=$(cat "$lockfile" 2>/dev/null || true)
-        if [[ -n "$old_pid" ]] && kill -0 "$old_pid" 2>/dev/null; then
+        IFS= read -r old_pid < "$lockfile" || true
+        if [[ "$old_pid" =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
             return 1
         fi
     fi
@@ -67,7 +67,7 @@ release_lock() {
     local lockfile="$1"
     if [[ -f "$lockfile" ]]; then
         local holder
-        holder=$(cat "$lockfile" 2>/dev/null || true)
+        IFS= read -r holder < "$lockfile" || true
         if [[ "$holder" == "$$" ]]; then
             rm -f "$lockfile"
         fi

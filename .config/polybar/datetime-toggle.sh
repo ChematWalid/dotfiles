@@ -5,7 +5,11 @@
 set -euo pipefail
 
 readonly STATE_FILE="/tmp/polybar-datetime-state"
-state=$(cat "$STATE_FILE" 2>/dev/null || echo "0")
+state=0
+if [[ -r "$STATE_FILE" ]]; then
+    IFS= read -r state < "$STATE_FILE" || true
+fi
+[[ "$state" =~ ^[0-2]$ ]] || state=0
 
 # Cycle states: 0 -> 1 -> 2 -> 0
 next_state=$(( (state + 1) % 3 ))

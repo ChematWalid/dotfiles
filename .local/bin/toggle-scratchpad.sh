@@ -27,7 +27,9 @@ trap 'exec 200>&-' EXIT
 readonly STAMP_FILE="${RUNTIME_DIR}/scratchpad-toggle.stamp"
 now=$(date +%s%3N 2>/dev/null || date +%s)
 if [[ -f "$STAMP_FILE" ]]; then
-    last=$(cat "$STAMP_FILE" 2>/dev/null || echo 0)
+    last=0
+    IFS= read -r last < "$STAMP_FILE" || true
+    [[ "$last" =~ ^[0-9]+$ ]] || last=0
     diff=$((now - last))
     if (( diff < 200 )); then
         exit 0
@@ -123,7 +125,9 @@ if [[ -n "$current_ws" && "$scratch_ws" == "$current_ws" ]]; then
 
     # Restore fullscreen if a window was fullscreen before scratchpad opened
     if [[ -f "$FS_STATE_FILE" ]]; then
-        fs_id=$(cat "$FS_STATE_FILE" 2>/dev/null || echo "0")
+        fs_id=0
+        IFS= read -r fs_id < "$FS_STATE_FILE" || true
+        [[ "$fs_id" =~ ^[0-9]+$ ]] || fs_id=0
         rm -f "$FS_STATE_FILE"
         if [[ -n "$fs_id" && "$fs_id" != "0" ]]; then
             i3-msg "[id=\"$fs_id\"] fullscreen enable" >/dev/null 2>&1 || true
