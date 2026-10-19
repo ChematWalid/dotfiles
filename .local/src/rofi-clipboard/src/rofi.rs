@@ -6,20 +6,19 @@ use std::process::{Command, Stdio};
 
 use crate::card::Renderer;
 use crate::copyq::CopyQItem;
-use crate::theme::CACHE_DIR;
 
-fn dirs_home() -> PathBuf {
-    std::env::var("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("/home/walid"))
+fn dirs_home() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
 }
 
-pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer) -> Option<usize> {
+pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer, cache_dir: &Path) -> Option<usize> {
+    let config_rasi = dirs_home()?.join(".config/rofi/config.rasi");
+    let config_rasi = config_rasi.to_str()?;
     let mut rofi_entries = Vec::new();
 
     for item in items {
         let (preview, label) = if item.is_image {
-            let raw_path = format!("{}/{}", CACHE_DIR, item.raw_img);
+            let raw_path = cache_dir.join(&item.raw_img).to_string_lossy().into_owned();
             if Path::new(&raw_path).exists() {
                 let opt = renderer.optimize_image(&raw_path);
                 (opt, format!("  [Image #{}]", item.i))
@@ -108,8 +107,6 @@ pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer) -> Option<usize> {
          element-icon { enabled: false; size: 0px; max-width: 0px; max-height: 0px; margin: 0px; padding: 0px; border: 0px; } \
          element-text { vertical-align: 0.5; font: \"JetBrainsMono Nerd Font 11\"; }";
 
-    let config_rasi = dirs_home().join(".config/rofi/config.rasi");
-
     let mut rofi_cmd = Command::new("rofi")
         .args([
             "-dmenu",
@@ -119,7 +116,7 @@ pub fn run_rofi(items: &[CopyQItem], renderer: &Renderer) -> Option<usize> {
             "-format",
             "i",
             "-theme",
-            config_rasi.to_str().unwrap_or(""),
+            config_rasi,
             "-theme-str",
             theme_overrides,
         ])

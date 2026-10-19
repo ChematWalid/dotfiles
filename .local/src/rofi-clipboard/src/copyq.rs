@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
@@ -18,7 +19,9 @@ pub struct CopyQItem {
     pub raw_img: String,
 }
 
-pub fn fetch_items() -> Result<Vec<CopyQItem>> {
+pub fn fetch_items(cache_dir: &Path) -> Result<Vec<CopyQItem>> {
+    let cache_dir = cache_dir.to_string_lossy();
+    let cache_dir_js = serde_json::to_string(cache_dir.as_ref())?;
     let js = format!(
         r#"
         var NL = String.fromCharCode(10);
@@ -35,14 +38,15 @@ pub fn fetch_items() -> Result<Vec<CopyQItem>> {
                 if (b.size() === 0) b = read("image/jpeg", i);
                 var sz = b.size();
                 rawImg = "raw_" + i + "_" + sz + ".png";
-                var f = new File('/tmp/copyq_thumbs/' + rawImg);
+                var f = new File({} + '/' + rawImg);
                 if (!f.exists() && f.open(File.WriteOnly)) {{ f.write(b); f.close(); }}
             }}
             res.push({{i: i, isImage: isImage, isFiles: isFiles, text: rawText, rawImg: rawImg}});
         }}
         JSON.stringify(res);
     "#,
-        crate::theme::MAX_ITEMS
+        crate::theme::MAX_ITEMS,
+        cache_dir_js,
     );
 
     let output = Command::new("copyq")

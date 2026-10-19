@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <QString>
 #include <QUrl>
 #include <dlfcn.h>
@@ -8,20 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdarg.h>
-
-static void fdm_fix_log(const char *fmt, ...) {
-    FILE *f = fopen("/tmp/fdm-portal-fix.log", "a");
-    if (!f) return;
-    va_list args;
-    va_start(args, fmt);
-    fprintf(f, "[%ld] ", (long)time(NULL));
-    vfprintf(f, fmt, args);
-    fprintf(f, "\n");
-    va_end(args);
-    fclose(f);
-}
-
 typedef void (*qurl_toLocalFile_fn)(void *ret, const void *self);
 static qurl_toLocalFile_fn orig_qurl_toLocalFile = NULL;
 
@@ -52,7 +37,7 @@ void _ZNK4QUrl11toLocalFileEv(void *ret, const void *self) {
     }
 
     const char *home = getenv("HOME");
-    if (!home) home = "/home/walid";
+    if (!home || home[0] != '/') return;
 
     char fdm_cache[1024];
     snprintf(fdm_cache, sizeof(fdm_cache), "%s/.cache/fdm_last_selected_folder", home);
@@ -109,7 +94,6 @@ void _ZNK4QUrl11toLocalFileEv(void *ret, const void *self) {
         if (stat(chosen_folder, &dir_st) == 0 && S_ISDIR(dir_st.st_mode)) {
             QString *qstr = reinterpret_cast<QString*>(ret);
             *qstr = QString::fromUtf8(chosen_folder);
-            fdm_fix_log("Caller offset 0x%lx: successfully overrode path to '%s'", (unsigned long)offset, chosen_folder);
         }
     }
 }

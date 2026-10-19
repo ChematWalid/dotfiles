@@ -6,7 +6,7 @@ use image::{Rgba, RgbaImage};
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::theme::{ACCENT_COLOR, BG_COLOR, CARD_H, CARD_W, FG_COLOR, HEADER_BG, MUTED_COLOR};
@@ -14,10 +14,11 @@ use crate::theme::{ACCENT_COLOR, BG_COLOR, CARD_H, CARD_W, FG_COLOR, HEADER_BG, 
 pub struct Renderer {
     font_regular: FontArc,
     font_bold: FontArc,
+    cache_dir: PathBuf,
 }
 
 impl Renderer {
-    pub fn new() -> Self {
+    pub fn new(cache_dir: PathBuf) -> Self {
         let regular_bytes = fs::read("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf")
             .or_else(|_| fs::read("/usr/share/fonts/TTF/DejaVuSans.ttf"))
             .unwrap_or_default();
@@ -34,6 +35,7 @@ impl Renderer {
         Renderer {
             font_regular,
             font_bold,
+            cache_dir,
         }
     }
 
@@ -131,10 +133,10 @@ impl Renderer {
         sub.hash(&mut hasher);
         text.hash(&mut hasher);
         let hash = hasher.finish();
-        let path = format!("/tmp/copyq_thumbs/txt_{:x}.png", hash);
+        let path = self.cache_dir.join(format!("txt_{:x}.png", hash));
 
-        if Path::new(&path).exists() {
-            return path;
+        if path.exists() {
+            return path.to_string_lossy().into_owned();
         }
 
         let mut img = RgbaImage::from_pixel(CARD_W, CARD_H, BG_COLOR);
@@ -198,19 +200,19 @@ impl Renderer {
         }
 
         let _ = img.save(&path);
-        path
+        path.to_string_lossy().into_owned()
     }
 
     pub fn render_pdf_preview(&self, pdf_path: &Path) -> Option<String> {
-        let prefix = format!("/tmp/copyq_thumbs/pdf_{:x}", {
+        let prefix = self.cache_dir.join(format!("pdf_{:x}", {
             let mut h = DefaultHasher::new();
             pdf_path.hash(&mut h);
             h.finish()
-        });
-        let out_png = format!("{}-1.png", prefix);
+        }));
+        let out_png = PathBuf::from(format!("{}-1.png", prefix.display()));
 
-        if Path::new(&out_png).exists() {
-            return Some(out_png);
+        if out_png.exists() {
+            return Some(out_png.to_string_lossy().into_owned());
         }
 
         let status = Command::new("pdftoppm")
@@ -223,13 +225,13 @@ impl Renderer {
                 "-l",
                 "1",
                 pdf_path.to_str()?,
-                &prefix,
+                prefix.to_str()?,
             ])
             .status()
             .ok()?;
 
-        if status.success() && Path::new(&out_png).exists() {
-            Some(self.optimize_image(&out_png))
+        if status.success() && out_png.exists() {
+            Some(self.optimize_image(&out_png.to_string_lossy()))
         } else {
             None
         }

@@ -10,20 +10,19 @@ use anyhow::Result;
 use card::Renderer;
 use copyq::{fetch_items, select_and_paste};
 use rofi::run_rofi;
-use std::fs;
-use theme::CACHE_DIR;
+use theme::cache_dir;
 
 fn main() -> Result<()> {
-    let _ = fs::create_dir_all(CACHE_DIR);
+    let cache_dir = cache_dir()?;
 
-    let items = fetch_items()?;
+    let items = fetch_items(&cache_dir)?;
     if items.is_empty() {
         return Ok(());
     }
 
-    let renderer = Renderer::new();
+    let renderer = Renderer::new(cache_dir.clone());
 
-    if let Some(idx) = run_rofi(&items, &renderer) {
+    if let Some(idx) = run_rofi(&items, &renderer, &cache_dir) {
         if idx < items.len() {
             select_and_paste(items[idx].i);
         }
