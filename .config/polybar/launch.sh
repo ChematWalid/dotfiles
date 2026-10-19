@@ -13,6 +13,10 @@ fi
 : "${HOME:?Could not determine home directory}"
 export HOME
 
+readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
+readonly VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
+mkdir -p "$STATE_DIR"
+
 for module_script in mpris-live.sh datetime-tail.sh; do
     if [[ ! -x "${HOME}/.config/polybar/${module_script}" ]]; then
         printf 'Polybar module script is missing or not executable: %s\n' \
@@ -57,9 +61,17 @@ DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.
 # Wait for the main bar's IPC endpoint. systemd can then retry this launcher
 # while the X display or its authorization cookie is still coming up.
 MAIN_COMMAND=hide
-if [[ "${1:-}" == "--show" ]]; then
-    MAIN_COMMAND=show
-fi
+case "${1:-}" in
+    --show) MAIN_COMMAND=show ;;
+    --hide) MAIN_COMMAND=hide ;;
+    *)
+        if [[ "$(cat "$VISIBILITY_STATE" 2>/dev/null || true)" == hidden ]]; then
+            MAIN_COMMAND=hide
+        else
+            MAIN_COMMAND=show
+        fi
+        ;;
+esac
 MAIN_READY=false
 for _ in {1..20}; do
     MAIN_PID=$(pgrep -n -f "polybar main" || true)
@@ -73,6 +85,13 @@ if [[ "$MAIN_READY" != true ]]; then
     printf 'Polybar main did not initialize; see /tmp/polybar.log\n' >&2
     exit 1
 fi
+
+if [[ "$MAIN_COMMAND" == hide ]]; then
+    printf 'hidden\n' > "${VISIBILITY_STATE}.tmp.$$"
+else
+    printf 'visible\n' > "${VISIBILITY_STATE}.tmp.$$"
+fi
+mv -f "${VISIBILITY_STATE}.tmp.$$" "$VISIBILITY_STATE"
 
 # Always hide tray popup bar by default on launch
 for _ in {1..20}; do
