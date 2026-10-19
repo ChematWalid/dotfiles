@@ -204,7 +204,8 @@ mapfile -d '' -t track_fields < <(
             ([$track.sections[]? | select(.type == "SONG") | .metadata[]? | select(.title == "Released") | .text][0] // ""),
             ($track.genres.primary // "Music"),
             ($track.images.coverarthq // $track.images.coverart // ""),
-            ($track.url // $track.share.href // "")
+            ($track.url // $track.share.href // ""),
+            ((($track.subtitle // "") + " " + ($track.title // "")) | @uri | gsub("%2F"; "/"))
         ][] | tostring, "\u0000"
     ' <<< "$raw_json" 2>/dev/null
 )
@@ -227,8 +228,8 @@ genre="${track_fields[4]:-Music}"
 cover_url="${track_fields[5]:-}"
 shazam_url="${track_fields[6]:-}"
 
-# Encode search URLs
-encoded_query=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' "$artist $title" 2>/dev/null || echo "")
+# Search term encoding is included in the jq pass above to avoid starting Python.
+encoded_query="${track_fields[7]:-}"
 spotify_url="https://open.spotify.com/search/${encoded_query}"
 ytm_url="https://music.youtube.com/search?q=${encoded_query}"
 
