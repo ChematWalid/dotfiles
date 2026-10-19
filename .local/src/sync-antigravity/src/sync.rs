@@ -62,18 +62,16 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         .collect();
     let synced_to_gui = cli_only_rows.len();
 
-    if !dry_run && (!imports.is_empty() || !cli_only_rows.is_empty()) {
-        if paths.gui_proto.exists() {
-            fs::copy(
-                &paths.gui_proto,
-                paths.gui_dir.join("agyhub_summaries_proto.pb.bak"),
-            )?;
-        }
-        if paths.cli_db.exists() {
-            let backup_path = paths.cli_dir.join("conversation_summaries.db.bak");
-            fs::copy(&paths.cli_db, &backup_path)?;
-            fs::set_permissions(&backup_path, fs::Permissions::from_mode(0o600))?;
-        }
+    if !dry_run && !imports.is_empty() && paths.cli_db.exists() {
+        let backup_path = paths.cli_dir.join("conversation_summaries.db.bak");
+        fs::copy(&paths.cli_db, &backup_path)?;
+        fs::set_permissions(&backup_path, fs::Permissions::from_mode(0o600))?;
+    }
+    if !dry_run && !cli_only_rows.is_empty() && paths.gui_proto.exists() {
+        fs::copy(
+            &paths.gui_proto,
+            paths.gui_dir.join("agyhub_summaries_proto.pb.bak"),
+        )?;
     }
 
     let synced_to_cli = if dry_run {
