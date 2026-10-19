@@ -33,16 +33,26 @@ trap "update" USR1
 # Emit initial status
 update
 
-# Stream NetworkManager events asynchronously and trigger update on changes
-nmcli monitor 2>/dev/null | while IFS= read -r line; do
+# Stream NetworkManager events asynchronously and trigger update on changes.
+# Track nmcli itself so a Polybar restart cannot leave its monitor orphaned.
+coproc NM_MONITOR { exec nmcli monitor 2>/dev/null; }
+NM_PID=$NM_MONITOR_PID
+
+cleanup() {
+    trap - EXIT
+    kill "$NM_PID" 2>/dev/null || true
+    wait "$NM_PID" 2>/dev/null || true
+}
+
+trap cleanup EXIT
+trap 'exit 0' INT TERM
+
+while IFS= read -r -u "${NM_MONITOR[0]}" line; do
     case "$line" in
         *"connected"*|*"disconnected"*|*"connecting"*|*"activated"*|*"deactivated"*)
             update
             ;;
     esac
-done &
-NM_PID=$!
-
-trap 'kill "$NM_PID" 2>/dev/null || true; exit 0' EXIT INT TERM
+done
 
 wait "$NM_PID" 2>/dev/null || true
