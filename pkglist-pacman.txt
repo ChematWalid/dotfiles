@@ -182,6 +182,7 @@ qt6ct
 rbw
 rclone
 ripgrep
+rtkit
 rofi
 rofi-calc
 rofi-rbw
