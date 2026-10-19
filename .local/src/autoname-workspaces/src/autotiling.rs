@@ -8,8 +8,8 @@ use std::time::Duration;
 use serde_json::Value;
 
 use crate::ipc::{
-    event_change, get_i3_socket_path, is_stream_disconnect, subscribe_events_with_payload,
-    wait_for_i3_socket_after_failure, I3Client,
+    event_change, get_i3_socket_path, is_stream_disconnect, is_transient_ipc_error,
+    subscribe_events_with_payload, wait_for_i3_socket_after_failure, I3Client,
 };
 
 const WINDOW_EVENT: u32 = 0x8000_0003;
@@ -29,7 +29,9 @@ pub fn run() {
         let mut events = match subscribe_events_with_payload(&socket_path, EVENT_SUBSCRIPTION) {
             Ok(stream) => stream,
             Err(error) => {
-                eprintln!("autotiling: i3 event subscription failed: {error}");
+                if !is_transient_ipc_error(&error) {
+                    eprintln!("autotiling: i3 event subscription failed: {error}");
+                }
                 socket_path = wait_for_i3_socket_after_failure(&socket_path, &mut retry_delay);
                 client = I3Client::new(socket_path.clone());
                 continue;
@@ -59,7 +61,9 @@ pub fn run() {
             retry_delay = Duration::from_millis(50);
             if event_requires_autotile(event_type, &body) {
                 if let Err(error) = autotile_focused(&mut client) {
-                    eprintln!("autotiling: failed to apply layout: {error}");
+                    if !is_transient_ipc_error(&error) {
+                        eprintln!("autotiling: failed to apply layout: {error}");
+                    }
                 }
             }
         }
