@@ -9,7 +9,7 @@ exec 9>"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/toggle-polybar.lock"
 flock -n 9 || exit 0
 
 MAIN_PID=$(pgrep -n -f "polybar main" || true)
-TRAY_PID=$(pgrep -n -f "polybar tray" || true)
+TRAY_WINDOW=$(timeout 2s xdotool search --class --limit 1 '^stalonetray$' 2>/dev/null || true)
 STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
 VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
 TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
@@ -36,10 +36,10 @@ else
     printf '%s\n' "$NEXT_STATE" > "${VISIBILITY_STATE}.tmp.$$"
     mv -f "${VISIBILITY_STATE}.tmp.$$" "$VISIBILITY_STATE"
 
-    # Keep the popup closed whenever the main bar is toggled.
-    if [[ -n "$TRAY_PID" ]]; then
-        timeout --signal=TERM --kill-after=1s 2s \
-            polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
+    # Keep the tray popup closed whenever the main bar is toggled.
+    pkill -x tray-autohide 2>/dev/null || true
+    if [[ -n "$TRAY_WINDOW" ]]; then
+        xdotool windowunmap "$TRAY_WINDOW" 2>/dev/null || true
         printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
         mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
     fi

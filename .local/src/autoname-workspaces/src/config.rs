@@ -5,6 +5,7 @@ pub const IGNORE_CLASSES: &[&str] = &[
     "blueman-applet",
     "conky",
     "polybar",
+    "stalonetray",
     "i3bar",
     "dunst",
     "notify-osd",
