@@ -4,7 +4,9 @@
 
 set -euo pipefail
 
-readonly STATE_FILE="/tmp/polybar-network-state"
+readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
+readonly STATE_FILE="${STATE_DIR}/polybar-network-state"
+mkdir -p "$STATE_DIR"
 
 if [[ -f "$STATE_FILE" ]]; then
     rm -f "$STATE_FILE"

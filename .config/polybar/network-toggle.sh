@@ -1,6 +1,8 @@
 #!/bin/bash
 
-STATE_FILE="/tmp/polybar-network-state"
+STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
+STATE_FILE="${STATE_DIR}/polybar-network-state"
+mkdir -p "$STATE_DIR"
 
 if [ "$1" == "toggle" ]; then
     if [ -f "$STATE_FILE" ]; then
