@@ -3,82 +3,112 @@
 use crate::config::{ICON_PAUSE, ICON_PLAY};
 use anyhow::Result;
 use std::collections::HashMap;
-use std::process::Stdio;
-use tokio::process::Command;
 use zbus::{message::Type as MsgType, Connection, MatchRule, Message, MessageStream, OwnedVariant};
 
-/// Queries playerctl for the highest priority active player:
-/// Prefers Playing > Paused. Falls back to MPD via `mpc current`.
-pub async fn query_current_state() -> String {
-    let out = Command::new("playerctl")
-        .args([
-            "metadata",
-            "-a",
-            "--format",
-            "{{status}}:::{{artist}}:::{{title}}",
-        ])
-        .stderr(Stdio::null())
-        .output()
-        .await;
-
-    if let Ok(out) = out {
-        let stdout = String::from_utf8_lossy(&out.stdout);
-        let mut playing: Option<String> = None;
-        let mut paused: Option<String> = None;
-
-        for line in stdout.lines() {
-            let mut parts = line.splitn(4, ":::");
-            let (Some(status), Some(artist), Some(title)) =
-                (parts.next(), parts.next(), parts.next())
-            else {
-                continue;
-            };
-            let status = status.trim();
-            let artist = artist.trim();
-            let title = title.trim();
-
-            if artist.is_empty() && title.is_empty() {
-                continue;
-            }
-
-            let full = match (artist.is_empty(), title.is_empty()) {
-                (false, false) => format!("{} - {}", artist, title),
-                (true, false) => title.to_string(),
-                _ => artist.to_string(),
-            };
-
-            if status == "Playing" && playing.is_none() {
-                playing = Some(format!("{} {}", ICON_PLAY, full));
-            } else if status == "Paused" && paused.is_none() {
-                paused = Some(format!("{} {}", ICON_PAUSE, full));
-            }
-
-            if playing.is_some() {
-                break;
-            }
-        }
-
-        if let Some(t) = playing {
-            return t;
-        }
-        if let Some(t) = paused {
-            return t;
-        }
-    }
-
-    // Fallback: mpc (MPD)
-    if let Ok(out) = Command::new("mpc")
-        .arg("current")
-        .stderr(Stdio::null())
-        .output()
+/// Queries active MPRIS players directly over D-Bus, preferring Playing > Paused.
+/// MPD remains a fallback through `mpc current` when no MPRIS player has metadata.
+pub async fn query_current_state(conn: &Connection) -> String {
+    let names_reply = match conn
+        .call_method(
+            Some("org.freedesktop.DBus"),
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "ListNames",
+            &(),
+        )
         .await
     {
-        let mpc = String::from_utf8_lossy(&out.stdout).trim().to_string();
-        if !mpc.is_empty() {
-            return format!("{} {}", ICON_PLAY, mpc);
+        Ok(reply) => reply,
+        Err(_) => return query_mpd().await,
+    };
+    let names: Vec<String> = match names_reply.body().deserialize() {
+        Ok(names) => names,
+        Err(_) => return query_mpd().await,
+    };
+
+    let mut paused = None;
+    for name in names.iter().filter(|name| name.starts_with("org.mpris.")) {
+        let properties_reply = match conn
+            .call_method(
+                Some(name.as_str()),
+                "/org/mpris/MediaPlayer2",
+                Some("org.freedesktop.DBus.Properties"),
+                "GetAll",
+                &("org.mpris.MediaPlayer2.Player",),
+            )
+            .await
+        {
+            Ok(reply) => reply,
+            Err(_) => continue,
+        };
+        let Ok(properties) = properties_reply
+            .body()
+            .deserialize::<HashMap<String, OwnedVariant>>()
+        else {
+            continue;
+        };
+        let Some(status) = properties
+            .get("PlaybackStatus")
+            .and_then(|value| String::try_from(value.try_clone().ok()?).ok())
+        else {
+            continue;
+        };
+        let icon = match status.as_str() {
+            "Playing" => ICON_PLAY,
+            "Paused" if paused.is_none() => ICON_PAUSE,
+            _ => continue,
+        };
+
+        let Some(metadata) = properties.get("Metadata").and_then(|value| {
+            HashMap::<String, OwnedVariant>::try_from(value.try_clone().ok()?).ok()
+        }) else {
+            continue;
+        };
+        let artist = metadata
+            .get("xesam:artist")
+            .and_then(|value| Vec::<String>::try_from(value.try_clone().ok()?).ok())
+            .unwrap_or_default()
+            .join(", ");
+        let title = metadata
+            .get("xesam:title")
+            .and_then(|value| String::try_from(value.try_clone().ok()?).ok())
+            .unwrap_or_default();
+
+        let full = match (artist.is_empty(), title.is_empty()) {
+            (false, false) => format!("{artist} - {title}"),
+            (true, false) => title,
+            (false, true) => artist,
+            (true, true) => continue,
+        };
+        let text = format!("{icon} {full}");
+
+        if status == "Playing" {
+            return text;
         }
+        paused = Some(text);
     }
 
+    if let Some(text) = paused {
+        return text;
+    }
+    query_mpd().await
+}
+
+async fn query_mpd() -> String {
+    // Fallback: mpc (MPD)
+    let Ok(output) = tokio::process::Command::new("mpc")
+        .arg("current")
+        .stderr(std::process::Stdio::null())
+        .output()
+        .await
+    else {
+        return String::new();
+    };
+    let current = String::from_utf8_lossy(&output.stdout);
+    let current = current.trim();
+    if !current.is_empty() {
+        return format!("{} {current}", ICON_PLAY);
+    }
     String::new()
 }
 

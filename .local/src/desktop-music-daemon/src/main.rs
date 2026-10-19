@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
         .context("Failed to setup D-Bus match streams")?;
 
     // Re-read after subscribing so a track change during startup cannot be missed.
-    report_write_error(output.write(&mpris::query_current_state().await));
+    report_write_error(output.write(&mpris::query_current_state(&conn).await));
 
     loop {
         tokio::select! {
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
             message = props_stream.next() => {
                 match message {
                     Some(Ok(message)) if mpris::affects_displayed_state(&message) => {
-                        report_write_error(output.write(&mpris::query_current_state().await));
+                        report_write_error(output.write(&mpris::query_current_state(&conn).await));
                     }
                     Some(Err(error)) => {
                         eprintln!("desktop-music-daemon: D-Bus property stream error: {error}");
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
                         let body: Result<(String, String, String), _> = message.body().deserialize();
                         if let Ok((name, _old, _new)) = body {
                             if name.starts_with("org.mpris.") {
-                                report_write_error(output.write(&mpris::query_current_state().await));
+                                report_write_error(output.write(&mpris::query_current_state(&conn).await));
                             }
                         }
                     }
