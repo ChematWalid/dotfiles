@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <X11/Xlib.h>
 #include <dlfcn.h>
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,16 +17,28 @@ static void init(void) {
     unsetenv("LD_PRELOAD");
 }
 
-static int (*real_XMapWindow)(Display*, Window) = NULL;
-_Static_assert(sizeof(real_XMapWindow) == sizeof(void*),
+typedef int (*XMapWindow_fn)(Display*, Window);
+static _Atomic(XMapWindow_fn) real_XMapWindow = NULL;
+_Static_assert(sizeof(XMapWindow_fn) == sizeof(void*),
                "XMapWindow function pointers must match dlsym pointer size");
 
 int XMapWindow(Display *dpy, Window w) {
-    if (!real_XMapWindow) {
+    XMapWindow_fn real_map = atomic_load_explicit(&real_XMapWindow, memory_order_acquire);
+    if (!real_map) {
         void *symbol = dlsym(RTLD_NEXT, "XMapWindow");
-        memcpy(&real_XMapWindow, &symbol, sizeof(real_XMapWindow));
-        if (!real_XMapWindow) {
+        XMapWindow_fn resolved = NULL;
+        memcpy(&resolved, &symbol, sizeof(resolved));
+        if (!resolved) {
             return 0;
+        }
+
+        XMapWindow_fn expected = NULL;
+        if (atomic_compare_exchange_strong_explicit(
+                &real_XMapWindow, &expected, resolved,
+                memory_order_acq_rel, memory_order_acquire)) {
+            real_map = resolved;
+        } else {
+            real_map = expected;
         }
     }
 
@@ -47,7 +60,7 @@ int XMapWindow(Display *dpy, Window w) {
 
     XMoveResizeWindow(dpy, w, x, y, width, height);
 
-    int ret = real_XMapWindow(dpy, w);
+    int ret = real_map(dpy, w);
     XSync(dpy, False);
     XSetInputFocus(dpy, w, RevertToParent, CurrentTime);
     return ret;
