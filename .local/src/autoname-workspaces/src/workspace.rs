@@ -14,11 +14,11 @@ pub fn get_workspace_number(name: &str, re: &Regex) -> String {
     name.to_string()
 }
 
-pub fn find_workspaces(node: &Value, out: &mut Vec<Value>) {
+pub fn find_workspaces<'a>(node: &'a Value, out: &mut Vec<&'a Value>) {
     if node.get("type").and_then(|t| t.as_str()) == Some("workspace") {
         if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
             if !name.starts_with("__") {
-                out.push(node.clone());
+                out.push(node);
             }
         }
         return;
@@ -35,20 +35,21 @@ pub fn find_workspaces(node: &Value, out: &mut Vec<Value>) {
     }
 }
 
-pub fn find_leaves(node: &Value, leaves: &mut Vec<Value>) {
-    let empty_vec = Vec::new();
+pub fn find_leaves<'a>(node: &'a Value, leaves: &mut Vec<&'a Value>) {
     let nodes = node
         .get("nodes")
         .and_then(|n| n.as_array())
-        .unwrap_or(&empty_vec);
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
     let floating = node
         .get("floating_nodes")
         .and_then(|n| n.as_array())
-        .unwrap_or(&empty_vec);
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
 
     if nodes.is_empty() && floating.is_empty() {
         if node.get("window").is_some() || node.get("name").is_some() {
-            leaves.push(node.clone());
+            leaves.push(node);
         }
     } else {
         for n in nodes {
@@ -77,7 +78,7 @@ pub fn update_workspaces(client: &mut I3Client, re_ws: &Regex) {
 
         let ws_num = get_workspace_number(ws_name, re_ws);
         let mut leaves = Vec::new();
-        find_leaves(&ws, &mut leaves);
+        find_leaves(ws, &mut leaves);
 
         let mut icons: Vec<&str> = Vec::new();
         for w in leaves {

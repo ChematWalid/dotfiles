@@ -95,7 +95,7 @@ impl I3Client {
 
 pub fn subscribe_events(sock_path: &str) -> Result<UnixStream, std::io::Error> {
     let mut stream = UnixStream::connect(sock_path)?;
-    let payload = r#"["window", "workspace", "mode"]"#;
+    let payload = r#"["window", "workspace"]"#;
     let mut sub_msg = Vec::new();
     sub_msg.extend_from_slice(b"i3-ipc");
     sub_msg.extend_from_slice(&(payload.len() as u32).to_ne_bytes());
@@ -111,4 +111,63 @@ pub fn subscribe_events(sock_path: &str) -> Result<UnixStream, std::io::Error> {
     stream.read_exact(&mut body)?;
 
     Ok(stream)
+}
+
+/// i3 event IDs have the high bit set; the low 31 bits identify the event.
+/// Workspace focus and window focus do not change the set of icons on any
+/// workspace, so skip those events instead of fetching and parsing the tree.
+pub fn event_changes_workspace_icons(event_type: u32, body: &[u8]) -> bool {
+    const WORKSPACE_EVENT: u32 = 0x8000_0000;
+    const WINDOW_EVENT: u32 = 0x8000_0003;
+
+    let Ok(event) = serde_json::from_slice::<serde_json::Value>(body) else {
+        // Unknown payloads should trigger a refresh to preserve correctness.
+        return true;
+    };
+    let Some(change) = event.get("change").and_then(|v| v.as_str()) else {
+        return true;
+    };
+
+    match event_type {
+        WORKSPACE_EVENT => matches!(change, "init" | "empty" | "move" | "rename"),
+        WINDOW_EVENT => matches!(
+            change,
+            "new" | "close" | "title" | "move" | "floating" | "urgent"
+        ),
+        _ => true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::event_changes_workspace_icons;
+
+    #[test]
+    fn skips_focus_events_and_handles_icon_changes() {
+        const WORKSPACE: u32 = 0x8000_0000;
+        const WINDOW: u32 = 0x8000_0003;
+
+        assert!(!event_changes_workspace_icons(
+            WORKSPACE,
+            br#"{"change":"focus"}"#
+        ));
+        assert!(!event_changes_workspace_icons(
+            WINDOW,
+            br#"{"change":"focus"}"#
+        ));
+        assert!(event_changes_workspace_icons(
+            WORKSPACE,
+            br#"{"change":"empty"}"#
+        ));
+        assert!(event_changes_workspace_icons(
+            WINDOW,
+            br#"{"change":"title"}"#
+        ));
+    }
+
+    #[test]
+    fn refreshes_on_unknown_or_invalid_events() {
+        assert!(event_changes_workspace_icons(99, br#"{"change":"focus"}"#));
+        assert!(event_changes_workspace_icons(99, b"not json"));
+    }
 }

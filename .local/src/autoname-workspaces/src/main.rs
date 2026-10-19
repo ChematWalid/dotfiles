@@ -11,7 +11,7 @@ use std::io::Read;
 use std::thread;
 use std::time::Duration;
 
-use ipc::{get_i3_socket_path, subscribe_events, I3Client};
+use ipc::{event_changes_workspace_icons, get_i3_socket_path, subscribe_events, I3Client};
 use workspace::update_workspaces;
 
 fn main() {
@@ -30,22 +30,22 @@ fn main() {
     // Event listener subscription loop
     loop {
         match subscribe_events(&sock_path) {
-            Ok(mut event_stream) => {
-                loop {
-                    let mut ev_header = [0u8; 14];
-                    if event_stream.read_exact(&mut ev_header).is_err() {
-                        break;
-                    }
-                    let ev_len = u32::from_ne_bytes(ev_header[6..10].try_into().unwrap()) as usize;
-                    let mut ev_body = vec![0u8; ev_len];
-                    if event_stream.read_exact(&mut ev_body).is_err() {
-                        break;
-                    }
+            Ok(mut event_stream) => loop {
+                let mut ev_header = [0u8; 14];
+                if event_stream.read_exact(&mut ev_header).is_err() {
+                    break;
+                }
+                let ev_len = u32::from_ne_bytes(ev_header[6..10].try_into().unwrap()) as usize;
+                let ev_type = u32::from_ne_bytes(ev_header[10..14].try_into().unwrap());
+                let mut ev_body = vec![0u8; ev_len];
+                if event_stream.read_exact(&mut ev_body).is_err() {
+                    break;
+                }
 
-                    // On any window/workspace/mode event, update immediately
+                if event_changes_workspace_icons(ev_type, &ev_body) {
                     update_workspaces(&mut client, &re_ws);
                 }
-            }
+            },
             Err(_) => {
                 thread::sleep(Duration::from_secs(1));
             }

@@ -115,10 +115,11 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
             if dry_run || symlink(&g_brain, &c_brain).is_ok() {
                 files_linked += 1;
             }
-        } else if c_brain.exists() && !g_brain.exists() {
-            if dry_run || symlink(&c_brain, &g_brain).is_ok() {
-                files_linked += 1;
-            }
+        } else if c_brain.exists()
+            && !g_brain.exists()
+            && (dry_run || symlink(&c_brain, &g_brain).is_ok())
+        {
+            files_linked += 1;
         }
 
         let g_conv = paths.gui_convs.join(format!("{}.json", cid));
@@ -128,10 +129,11 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
             if dry_run || symlink(&g_conv, &c_conv).is_ok() {
                 files_linked += 1;
             }
-        } else if c_conv.exists() && !g_conv.exists() {
-            if dry_run || symlink(&c_conv, &g_conv).is_ok() {
-                files_linked += 1;
-            }
+        } else if c_conv.exists()
+            && !g_conv.exists()
+            && (dry_run || symlink(&c_conv, &g_conv).is_ok())
+        {
+            files_linked += 1;
         }
     }
 

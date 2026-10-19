@@ -214,28 +214,6 @@ fn parse_timestamp(data: &[u8]) -> Option<u64> {
     seconds
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn reads_timestamp_from_summary_proto_entry() {
-        let path = std::env::temp_dir().join(format!(
-            "sync-antigravity-proto-test-{}.pb",
-            std::process::id()
-        ));
-        let bytes = build_gui_proto_entry("conversation-id", "Example", 7, 1_234_567, "");
-        fs::write(&path, bytes).unwrap();
-        let (entries, _) = read_gui_proto(&path);
-        let _ = fs::remove_file(path);
-
-        let entry = entries.get("conversation-id").unwrap();
-        assert_eq!(entry.title, "Example");
-        assert_eq!(entry.step_count, 7);
-        assert_eq!(entry.last_modified_unix, Some(1_234_567));
-    }
-}
-
 pub fn build_gui_proto_entry(
     cid: &str,
     title: &str,
@@ -261,4 +239,26 @@ pub fn build_gui_proto_entry(
     let mut entry = encode_field(1, 2, cid.as_bytes());
     entry.extend_from_slice(&encode_field(2, 2, &summary));
     encode_field(1, 2, &entry)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_timestamp_from_summary_proto_entry() {
+        let path = std::env::temp_dir().join(format!(
+            "sync-antigravity-proto-test-{}.pb",
+            std::process::id()
+        ));
+        let bytes = build_gui_proto_entry("conversation-id", "Example", 7, 1_234_567, "");
+        fs::write(&path, bytes).unwrap();
+        let (entries, _) = read_gui_proto(&path);
+        let _ = fs::remove_file(path);
+
+        let entry = entries.get("conversation-id").unwrap();
+        assert_eq!(entry.title, "Example");
+        assert_eq!(entry.step_count, 7);
+        assert_eq!(entry.last_modified_unix, Some(1_234_567));
+    }
 }
