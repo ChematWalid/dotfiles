@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <poll.h>
@@ -18,9 +20,35 @@
 
 namespace {
 
-constexpr std::string_view state_path = "/tmp/polybar-datetime-state";
-constexpr std::string_view state_directory = "/tmp";
 constexpr std::string_view state_filename = "polybar-datetime-state";
+
+struct StatePaths {
+    std::string directory;
+    std::string file;
+};
+
+StatePaths make_state_paths() {
+    const char* runtime_directory = std::getenv("XDG_RUNTIME_DIR");
+    const char* home_directory = std::getenv("HOME");
+
+    std::string base_directory;
+    if (runtime_directory != nullptr && runtime_directory[0] != '\0') {
+        base_directory = runtime_directory;
+    } else if (home_directory != nullptr && home_directory[0] != '\0') {
+        base_directory = std::string{home_directory} + "/.cache";
+    } else {
+        base_directory = "/tmp";
+    }
+
+    StatePaths paths{base_directory + "/dotfiles", {}};
+    paths.file = paths.directory + "/" + std::string{state_filename};
+    std::error_code error;
+    std::filesystem::create_directories(paths.directory, error);
+    if (error) {
+        throw std::system_error(error, "create Polybar datetime state directory");
+    }
+    return paths;
+}
 
 class FileDescriptor {
 public:
@@ -42,8 +70,8 @@ private:
     int value_;
 };
 
-int read_mode() {
-    std::ifstream state_file{std::string{state_path}};
+int read_mode(const std::string& state_path) {
+    std::ifstream state_file{state_path};
     int mode = 0;
     if (state_file >> mode && (mode == 1 || mode == 2)) {
         return mode;
@@ -139,14 +167,14 @@ FileDescriptor make_second_timer() {
     return timer_fd;
 }
 
-FileDescriptor make_state_watcher() {
+FileDescriptor make_state_watcher(const std::string& state_directory) {
     FileDescriptor inotify_fd{inotify_init1(IN_CLOEXEC | IN_NONBLOCK)};
     if (inotify_fd.get() < 0) {
         throw std::system_error(errno, std::generic_category(), "create state watcher");
     }
 
     constexpr std::uint32_t mask = IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE | IN_DELETE;
-    if (inotify_add_watch(inotify_fd.get(), state_directory.data(), mask) < 0) {
+    if (inotify_add_watch(inotify_fd.get(), state_directory.c_str(), mask) < 0) {
         throw std::system_error(errno, std::generic_category(), "watch state directory");
     }
     return inotify_fd;
@@ -158,9 +186,10 @@ int main() {
     std::setlocale(LC_TIME, "");
 
     try {
+        const StatePaths state_paths = make_state_paths();
         const FileDescriptor timer_fd = make_second_timer();
-        const FileDescriptor inotify_fd = make_state_watcher();
-        int mode = read_mode();
+        const FileDescriptor inotify_fd = make_state_watcher(state_paths.directory);
+        int mode = read_mode(state_paths.file);
         std::string previous;
         emit_if_changed(mode, previous);
 
@@ -181,7 +210,7 @@ int main() {
             const bool state_changed =
                 (watched_fds[1].revents & POLLIN) != 0 && state_file_changed(inotify_fd.get());
             if (state_changed) {
-                mode = read_mode();
+                mode = read_mode(state_paths.file);
             }
 
             const bool timer_expired = (watched_fds[0].revents & POLLIN) != 0;
