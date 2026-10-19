@@ -118,7 +118,10 @@ fi
 
 # Check if Foliate was running before import
 WAS_RUNNING=false
-if pgrep -f "foliate" >/dev/null 2>&1; then
+if command -v gdbus >/dev/null 2>&1 && gdbus call --session \
+    --dest com.github.johnfactotum.Foliate \
+    --object-path /com/github/johnfactotum/Foliate \
+    --method org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
     WAS_RUNNING=true
 fi
 

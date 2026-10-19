@@ -26,23 +26,29 @@ IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 def compute_identifier(file_path: str) -> str:
     """Foliate computes MD5 of first 10,000,000 bytes."""
+    md5 = hashlib.md5()
+    remaining = 10000000
     with open(file_path, "rb") as f:
-        chunk = f.read(10000000)
-    md5 = hashlib.md5(chunk).hexdigest()
-    return f"foliate:{md5}"
+        while remaining:
+            chunk = f.read(min(1024 * 1024, remaining))
+            if not chunk:
+                break
+            md5.update(chunk)
+            remaining -= len(chunk)
+    return f"foliate:{md5.hexdigest()}"
 
 
 def extract_cbz_cover(cbz_path: str) -> Image.Image | None:
     """Extracts first image alphabetically from CBZ archive."""
     try:
         with zipfile.ZipFile(cbz_path) as z:
-            imgs = sorted([
+            first_image = min((
                 name for name in z.namelist()
                 if any(name.lower().endswith(ext) for ext in IMAGE_EXTS)
                 and not name.startswith("__MACOSX")
-            ])
-            if imgs:
-                data = z.read(imgs[0])
+            ), default=None)
+            if first_image:
+                data = z.read(first_image)
                 return Image.open(io.BytesIO(data))
     except Exception as e:
         print(f"  [!] Failed to extract cover from {cbz_path}: {e}")
@@ -59,12 +65,12 @@ def extract_epub_cover(epub_path: str) -> Image.Image | None:
                 if "cover" in lower and any(lower.endswith(ext) for ext in IMAGE_EXTS):
                     return Image.open(io.BytesIO(z.read(name)))
             # Otherwise first image
-            imgs = sorted([
+            first_image = min((
                 name for name in z.namelist()
                 if any(name.lower().endswith(ext) for ext in IMAGE_EXTS)
-            ])
-            if imgs:
-                return Image.open(io.BytesIO(z.read(imgs[0])))
+            ), default=None)
+            if first_image:
+                return Image.open(io.BytesIO(z.read(first_image)))
     except Exception as e:
         print(f"  [!] Failed to extract cover from {epub_path}: {e}")
     return None
@@ -106,7 +112,15 @@ def normalize_store_path(abs_path: str) -> str:
 def close_foliate_if_running():
     """Gracefully closes Foliate if it's currently running via DBus."""
     import subprocess
-    check = subprocess.run(["pgrep", "-f", "foliate"], stdout=subprocess.DEVNULL)
+    try:
+        check = subprocess.run([
+            "gdbus", "call", "--session",
+            "--dest", "com.github.johnfactotum.Foliate",
+            "--object-path", "/com/github/johnfactotum/Foliate",
+            "--method", "org.freedesktop.DBus.Peer.Ping",
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError:
+        return
     if check.returncode == 0:
         print("Closing running Foliate instance to preserve library sync...")
         subprocess.run([
@@ -119,7 +133,7 @@ def close_foliate_if_running():
         time.sleep(1)
 
 
-def import_book(file_path: str, uri_entries: list) -> bool:
+def import_book(file_path: str, uri_entries: list, uri_index: dict) -> bool:
     abs_path = os.path.abspath(file_path)
     filename = os.path.basename(abs_path)
     ext = os.path.splitext(filename)[1].lower()
@@ -160,11 +174,12 @@ def import_book(file_path: str, uri_entries: list) -> bool:
             save_cover_thumbnail(cover_img, cover_path)
 
     # 3. Add to uri_entries if not present
-    existing_idx = next((i for i, entry in enumerate(uri_entries) if entry[0] == identifier), None)
+    existing_idx = uri_index.get(identifier)
     if existing_idx is not None:
         uri_entries[existing_idx] = [identifier, store_path]
     else:
         uri_entries.append([identifier, store_path])
+        uri_index[identifier] = len(uri_entries) - 1
 
     return True
 
@@ -194,6 +209,13 @@ def main():
         except Exception as e:
             print(f"Warning: Could not read existing {URI_STORE_PATH}: {e}")
 
+    # Preserve the first matching entry, as the former linear search did, while
+    # making per-book updates O(1) instead of scanning the full library each time.
+    uri_index = {}
+    for index, entry in enumerate(uri_entries):
+        if entry:
+            uri_index.setdefault(entry[0], index)
+
     imported_count = 0
     total_found = 0
 
@@ -202,7 +224,7 @@ def main():
         if os.path.isfile(target_path):
             total_found += 1
             print(f"Importing: {os.path.basename(target_path)}")
-            if import_book(target_path, uri_entries):
+            if import_book(target_path, uri_entries, uri_index):
                 imported_count += 1
         elif os.path.isdir(target_path):
             for root, _, files in os.walk(target_path):
@@ -212,7 +234,7 @@ def main():
                     if ext in SUPPORTED_EXTS:
                         total_found += 1
                         print(f"Importing: {f}")
-                        if import_book(file_path, uri_entries):
+                        if import_book(file_path, uri_entries, uri_index):
                             imported_count += 1
         else:
             print(f"Path not found: {target_path}", file=sys.stderr)
