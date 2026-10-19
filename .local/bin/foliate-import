@@ -121,20 +121,29 @@ def close_foliate_if_running():
             "--method", "org.freedesktop.DBus.Peer.Ping",
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
-        return
-    if check.returncode == 0:
+        print("Error: Cannot check Foliate state because gdbus is unavailable.", file=sys.stderr)
+        return False
+    if check.returncode != 0:
+        return True
+
+    try:
         from gi.repository import Gio, GLib
 
-        print("Closing running Foliate instance to preserve library sync...")
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        loop = GLib.MainLoop()
-        timed_out = False
+    except Exception as error:
+        print(f"Error: Cannot wait for Foliate to close: {error}", file=sys.stderr)
+        return False
 
-        def owner_changed(_connection, _sender, _path, _interface, _signal, params, _data):
-            name, _old_owner, new_owner = params.unpack()
-            if name == "com.github.johnfactotum.Foliate" and not new_owner:
-                loop.quit()
+    print("Closing running Foliate instance to preserve library sync...")
+    loop = GLib.MainLoop()
+    timed_out = False
 
+    def owner_changed(_connection, _sender, _path, _interface, _signal, params, _data):
+        name, _old_owner, new_owner = params.unpack()
+        if name == "com.github.johnfactotum.Foliate" and not new_owner:
+            loop.quit()
+
+    try:
         subscription = bus.signal_subscribe(
             "org.freedesktop.DBus",
             "org.freedesktop.DBus",
@@ -145,38 +154,43 @@ def close_foliate_if_running():
             owner_changed,
             None,
         )
+    except GLib.Error as error:
+        print(f"Error: Cannot subscribe to Foliate shutdown: {error}", file=sys.stderr)
+        return False
 
+    try:
         quit_request = subprocess.run([
             "gdbus", "call", "--session",
             "--dest", "com.github.johnfactotum.Foliate",
             "--object-path", "/com/github/johnfactotum/Foliate",
             "--method", "org.gtk.Actions.Activate", "quit", "[]", "{}"
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if quit_request.returncode == 0:
-
-            def stop_waiting():
-                nonlocal timed_out
-                timed_out = True
-                loop.quit()
-                return GLib.SOURCE_REMOVE
-
-            timeout_id = GLib.timeout_add_seconds(5, stop_waiting)
-            loop.run()
-            if not timed_out:
-                GLib.source_remove(timeout_id)
-        else:
-            print(
-                "Warning: Could not ask Foliate to quit; continuing without waiting.",
-                file=sys.stderr,
-            )
-
+    except OSError as error:
         bus.signal_unsubscribe(subscription)
-        if timed_out:
-            print(
-                "Warning: Foliate did not close within 5 seconds; "
-                "library changes may need a restart.",
-                file=sys.stderr,
-            )
+        print(f"Error: Could not ask Foliate to quit: {error}", file=sys.stderr)
+        return False
+
+    if quit_request.returncode != 0:
+        bus.signal_unsubscribe(subscription)
+        print("Error: Could not ask Foliate to quit; import cancelled.", file=sys.stderr)
+        return False
+
+    def stop_waiting():
+        nonlocal timed_out
+        timed_out = True
+        loop.quit()
+        return GLib.SOURCE_REMOVE
+
+    timeout_id = GLib.timeout_add_seconds(5, stop_waiting)
+    loop.run()
+    if not timed_out:
+        GLib.source_remove(timeout_id)
+
+    bus.signal_unsubscribe(subscription)
+    if timed_out:
+        print("Error: Foliate did not close within 5 seconds; import cancelled.", file=sys.stderr)
+        return False
+    return True
 
 
 def import_book(file_path: str, uri_entries: list, uri_index: dict) -> bool:
@@ -252,7 +266,8 @@ def main():
     def close_before_first_import():
         nonlocal foliate_closed
         if not foliate_closed:
-            close_foliate_if_running()
+            if not close_foliate_if_running():
+                raise SystemExit("Import aborted because Foliate could not be closed safely.")
             foliate_closed = True
 
     # Load existing uri-store.json
