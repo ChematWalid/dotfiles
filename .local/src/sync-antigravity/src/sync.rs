@@ -158,7 +158,11 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
     }
 
     if !quiet_if_no_changes || synced_to_cli > 0 || synced_to_gui > 0 || files_linked > 0 {
-        let total = gui_entries.len().max(cli_ids.len());
+        let total = gui_entries.len()
+            + cli_ids
+                .iter()
+                .filter(|conversation_id| !gui_entries.contains_key(**conversation_id))
+                .count();
         println!("✨ Sync {}:", if dry_run { "Preview" } else { "Complete" });
         println!("   • Total active conversations : {}", total);
         let prefix = if dry_run { "Would sync" } else { "Synced" };
