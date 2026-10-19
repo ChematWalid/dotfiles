@@ -1,3 +1,4 @@
+complete -e "conv"
 # Print an optspec for argparse to handle cmd's options that are independent of any subcommand.
 function __fish_conv_global_optspecs
     string join \n o/output-dir= j/jobs= d/dry-run f/force k/keep-going l/list h/help V/version
@@ -37,3 +38,4 @@ complete -c conv -n "__fish_conv_needs_command" -a "help" -d 'Print this message
 complete -c conv -n "__fish_conv_using_subcommand completions" -s h -l help -d 'Print help'
 complete -c conv -n "__fish_conv_using_subcommand help; and not __fish_seen_subcommand_from completions help" -f -a "completions" -d 'Generate shell completions for bash, zsh, fish, etc.'
 complete -c conv -n "__fish_conv_using_subcommand help; and not __fish_seen_subcommand_from completions help" -f -a "help" -d 'Print this message or the help of the given subcommand(s)'
+complete -c "conv" -f -a '(_carapace_completer "conv")'
