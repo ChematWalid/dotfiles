@@ -16,7 +16,9 @@ _source_cached() {
 }
 
 # Starship Catppuccin Prompt
-_source_cached starship "${XDG_CACHE_HOME:-$HOME/.cache}/starship/init.zsh" starship init zsh
+if [[ "${TERM:-dumb}" != dumb ]]; then
+    _source_cached starship "${XDG_CACHE_HOME:-$HOME/.cache}/starship/init.zsh" starship init zsh
+fi
 
 # Zoxide (Smart cd with memory)
 _source_cached zoxide "${XDG_CACHE_HOME:-$HOME/.cache}/zoxide/init.zsh" zoxide init zsh
