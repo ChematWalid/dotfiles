@@ -125,11 +125,18 @@ run_module() {
     # ── Custom Zsh completions ─────────────────────────────────────────────────
     if [[ -d "$DOTFILES_DIR/.zsh/completions" ]]; then
       mkdir -p "$HOME/.zsh/completions"
-      cp -rn "$DOTFILES_DIR/.zsh/completions/." "$HOME/.zsh/completions/" 2>/dev/null || true
-      log "Custom Zsh completions installed"
+      if cp -rn "$DOTFILES_DIR/.zsh/completions/." "$HOME/.zsh/completions/"; then
+        log "Custom Zsh completions installed"
+      else
+        warn "Some custom Zsh completions could not be copied"
+      fi
     fi
 
-    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+    if command -v update-desktop-database >/dev/null 2>&1; then
+      if ! update-desktop-database "$HOME/.local/share/applications"; then
+        warn "Could not refresh the desktop application database"
+      fi
+    fi
     log "All dotfiles symlinked"
   else
     warn "Skipped dotfiles symlinking"

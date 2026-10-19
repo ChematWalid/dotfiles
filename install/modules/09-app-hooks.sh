@@ -22,26 +22,38 @@ run_module() {
 
   # Git Delta Catppuccin Include
   if [[ -f "$HOME/.config/delta/catppuccin.gitconfig" ]]; then
-    git config --global include.path "$HOME/.config/delta/catppuccin.gitconfig" 2>/dev/null || true
-    log "Git Delta Catppuccin theme registered"
+    if git config --global include.path "$HOME/.config/delta/catppuccin.gitconfig"; then
+      log "Git Delta Catppuccin theme registered"
+    else
+      warn "Could not register the Git Delta theme"
+    fi
   fi
 
   # Thunar Location Entry
   if command -v xfconf-query &>/dev/null; then
-    xfconf-query -c thunar -p /last-location-bar -s "ThunarLocationEntry" --create -t string 2>/dev/null || true
-    log "Thunar location entry enabled"
+    if xfconf-query -c thunar -p /last-location-bar -s "ThunarLocationEntry" --create -t string; then
+      log "Thunar location entry enabled"
+    else
+      warn "Could not enable Thunar's editable location entry"
+    fi
   fi
 
   # Bat theme cache
   if command -v bat &>/dev/null; then
-    bat cache --build 2>/dev/null || true
-    log "Bat cache built with Catppuccin Mocha"
+    if bat cache --build; then
+      log "Bat cache built with Catppuccin Mocha"
+    else
+      warn "Could not build the Bat syntax theme cache"
+    fi
   fi
 
   # TeX Live formats
   if command -v fmtutil-user &>/dev/null; then
-    fmtutil-user --all 2>/dev/null || true
-    log "TeX Live formats generated"
+    if fmtutil-user --all; then
+      log "TeX Live formats generated"
+    else
+      warn "TeX Live format generation failed"
+    fi
   fi
 
   # Secondary drive cache routing (if configured and mounted)
@@ -52,8 +64,11 @@ run_module() {
   local active_hdd="${HDD_MOUNT:-/mnt/drive2}"
   if [[ -n "$active_hdd" && -d "$active_hdd" ]] && command -v hdd-route &>/dev/null; then
     info "Applying secondary drive routing for developer caches and toolchains..."
-    hdd-route all 2>/dev/null || true
-    log "Secondary drive routing configured"
+    if hdd-route all; then
+      log "Secondary drive routing configured"
+    else
+      warn "Secondary drive routing failed; review the hdd-route output"
+    fi
   fi
 
   # Polyglot runtime restoration via mise
@@ -62,8 +77,11 @@ run_module() {
       info "Restoring polyglot runtimes via mise..."
       export MISE_DATA_DIR="${active_hdd:-$HOME}/.mise"
       export MISE_CACHE_DIR="${active_hdd:-$HOME}/.cache/mise"
-      mise install -y 2>/dev/null || true
-      log "Mise polyglot toolchains restored"
+      if mise install -y; then
+        log "Mise polyglot toolchains restored"
+      else
+        warn "Mise could not install all configured toolchains"
+      fi
     fi
   fi
 
