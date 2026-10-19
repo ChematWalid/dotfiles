@@ -30,7 +30,10 @@ update() {
             printf 'network-tail: could not query global IPv4 addresses\n' >&2
             return
         fi
-        ip=$(awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' <<< "$ip_output")
+        local -a address_fields=()
+        read -r -a address_fields <<< "$ip_output"
+        ip="${address_fields[3]:-}"
+        ip=${ip%%/*}
         if [[ -z "$ip" ]]; then
             STATUS="󰤭 Disconnected"
         else

@@ -14,8 +14,10 @@ if [ "$1" == "toggle" ]; then
 fi
 
 if [ -f "$STATE_FILE" ]; then
-    IP=$(ip -4 -o addr show scope global 2>/dev/null \
-        | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' || true)
+    IP_OUTPUT=$(ip -4 -o addr show scope global 2>/dev/null || true)
+    read -r -a ADDRESS_FIELDS <<< "$IP_OUTPUT"
+    IP="${ADDRESS_FIELDS[3]:-}"
+    IP=${IP%%/*}
     if [ -z "$IP" ]; then
         echo "󰤭 Disconnected"
     else

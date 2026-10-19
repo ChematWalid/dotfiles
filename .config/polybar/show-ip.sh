@@ -4,8 +4,10 @@
 
 set -euo pipefail
 
-ip=$(ip -4 -o addr show scope global 2>/dev/null \
-    | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' || true)
+ip_output=$(ip -4 -o addr show scope global 2>/dev/null || true)
+read -r -a address_fields <<< "$ip_output"
+ip="${address_fields[3]:-}"
+ip=${ip%%/*}
 ip=${ip:-None}
 ssid=$(iwgetid -r 2>/dev/null || echo "Disconnected / Wired")
 
