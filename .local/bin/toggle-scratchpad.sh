@@ -25,7 +25,12 @@ trap 'exec 200>&-' EXIT
 
 # 2. Key-repeat debounce (200ms threshold matching X11 key repeat)
 readonly STAMP_FILE="${RUNTIME_DIR}/scratchpad-toggle.stamp"
-now=$(date +%s%3N 2>/dev/null || date +%s)
+if [[ -n "${EPOCHREALTIME:-}" ]]; then
+    now="${EPOCHREALTIME/./}"
+    now="${now:0:${#now}-3}"
+else
+    now=$(date +%s%3N 2>/dev/null || date +%s)
+fi
 if [[ -f "$STAMP_FILE" ]]; then
     last=0
     IFS= read -r last < "$STAMP_FILE" || true
