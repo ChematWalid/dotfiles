@@ -96,33 +96,43 @@ impl Renderer {
         let width = glyph.placement.width as usize;
         let height = glyph.placement.height as usize;
         let image_width = img.width() as usize;
-        let image_height = img.height() as usize;
         let left = x.floor() as i32 + glyph.placement.left;
         let top = baseline.ceil() as i32 - glyph.placement.top;
+        let image_right = img.width() as i32;
+        let image_bottom = img.height() as i32;
+        let clipped_left = left.max(0);
+        let clipped_top = top.max(0);
+        let clipped_right = left.saturating_add(width as i32).min(image_right);
+        let clipped_bottom = top.saturating_add(height as i32).min(image_bottom);
+        if clipped_left >= clipped_right || clipped_top >= clipped_bottom {
+            return;
+        }
+
+        let clipped_left = clipped_left as usize;
+        let clipped_top = clipped_top as usize;
+        let clipped_right = clipped_right as usize;
+        let clipped_bottom = clipped_bottom as usize;
+        let source_x = (clipped_left as i32 - left) as usize;
         let pixels = img.as_mut();
 
-        for gy in 0..height {
-            let py = top + gy as i32;
-            if py < 0 || py as usize >= image_height {
-                continue;
-            }
-            for gx in 0..width {
-                let px = left + gx as i32;
-                if px < 0 || px as usize >= image_width {
-                    continue;
-                }
-                let alpha = glyph.data[gy * width + gx];
+        for py in clipped_top..clipped_bottom {
+            let gy = (py as i32 - top) as usize;
+            let source_row = gy * width + source_x;
+            let destination_start = (py * image_width + clipped_left) * 4;
+            let destination_end = destination_start + (clipped_right - clipped_left) * 4;
+            let row = &mut pixels[destination_start..destination_end];
+            let (pixel_chunks, _) = row.as_chunks_mut::<4>();
+            for (offset, pixel) in pixel_chunks.iter_mut().enumerate() {
+                let alpha = glyph.data[source_row + offset];
                 if alpha == 0 {
                     continue;
                 }
 
-                let pixel_index = (py as usize * image_width + px as usize) * 4;
-                let pixel = &mut pixels[pixel_index..pixel_index + 4];
                 let alpha = alpha as u16;
                 let inverse_alpha = 255 - alpha;
                 for channel in 0..3 {
-                    let blended = pixel[channel] as u16 * inverse_alpha
-                        + color[channel] as u16 * alpha;
+                    let blended =
+                        pixel[channel] as u16 * inverse_alpha + color[channel] as u16 * alpha;
                     pixel[channel] = (blended / 255) as u8;
                 }
                 pixel[3] = 255;
