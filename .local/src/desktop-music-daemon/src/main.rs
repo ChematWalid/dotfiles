@@ -12,7 +12,7 @@ use zbus::Connection;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     // Write initial state immediately
-    let mut output = writer::OutputWriter::new();
+    let mut output = writer::OutputWriter::new().context("initialize Conky music output")?;
     report_write_error(output.write(&mpris::query_current_state().await));
 
     // Connect to session D-Bus
@@ -47,7 +47,7 @@ async fn main() -> Result<()> {
     }
 }
 
-fn report_write_error(result: std::io::Result<()>) {
+fn report_write_error(result: Result<()>) {
     if let Err(error) = result {
         eprintln!("desktop-music-daemon: could not update Conky music output: {error}");
     }
