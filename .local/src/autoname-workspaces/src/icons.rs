@@ -72,27 +72,32 @@ const ICON_MAP: &[(&[&str], &str)] = &[
     ),
 ];
 
-pub fn is_ignored(cls: &str, inst: &str, name: &str) -> bool {
-    let lower_cls = cls.to_lowercase();
-    let lower_inst = inst.to_lowercase();
-    let lower_name = name.to_lowercase();
+fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
+    haystack
+        .as_bytes()
+        .windows(needle.len())
+        .any(|candidate| candidate.eq_ignore_ascii_case(needle.as_bytes()))
+}
 
-    for ign in IGNORE_CLASSES {
-        if lower_cls.contains(ign) || lower_inst.contains(ign) || lower_name.contains(ign) {
-            return true;
-        }
-    }
-    false
+pub fn is_ignored(cls: &str, inst: &str, name: &str) -> bool {
+    IGNORE_CLASSES.iter().any(|ignored| {
+        contains_ascii_case_insensitive(cls, ignored)
+            || contains_ascii_case_insensitive(inst, ignored)
+            || contains_ascii_case_insensitive(name, ignored)
+    })
 }
 
 pub fn get_icon(cls: &str, inst: &str, name: &str) -> &'static str {
-    let fields = [cls, inst, name].map(|field| field.to_lowercase());
+    let fields = [cls, inst, name];
 
     // Window class and instance are stable identifiers; titles are only a
     // fallback because they are user content and can contain incidental names.
-    for exact in [&fields[0], &fields[1]] {
+    for exact in &fields[..2] {
         for &(aliases, icon) in ICON_MAP {
-            if aliases.iter().any(|alias| exact == alias) {
+            if aliases
+                .iter()
+                .any(|alias| exact.eq_ignore_ascii_case(alias))
+            {
                 return icon;
             }
         }
@@ -100,7 +105,10 @@ pub fn get_icon(cls: &str, inst: &str, name: &str) -> &'static str {
 
     for field in &fields {
         for &(aliases, icon) in ICON_MAP {
-            if aliases.iter().any(|alias| field.contains(alias)) {
+            if aliases
+                .iter()
+                .any(|alias| contains_ascii_case_insensitive(field, alias))
+            {
                 return icon;
             }
         }
