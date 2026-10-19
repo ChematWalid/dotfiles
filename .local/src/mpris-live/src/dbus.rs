@@ -13,17 +13,17 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
 
     let props_rule = MatchRule::builder()
         .msg_type(MsgType::Signal)
-        .interface("org.freedesktop.DBus.Properties")?
-        .member("PropertiesChanged")?
-        .path("/org/mpris/MediaPlayer2")?
-        .build();
+        .interface("org.freedesktop.DBus.Properties")
+        .member("PropertiesChanged")
+        .path("/org/mpris/MediaPlayer2")
+        .build()?;
 
     let name_rule = MatchRule::builder()
         .msg_type(MsgType::Signal)
-        .sender("org.freedesktop.DBus")?
-        .interface("org.freedesktop.DBus")?
-        .member("NameOwnerChanged")?
-        .build();
+        .sender("org.freedesktop.DBus")
+        .interface("org.freedesktop.DBus")
+        .member("NameOwnerChanged")
+        .build()?;
 
     let mut props_stream = MessageStream::for_match_rule(props_rule, &conn, None).await?;
     let mut name_stream = MessageStream::for_match_rule(name_rule, &conn, None).await?;
