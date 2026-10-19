@@ -4,9 +4,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <filesystem>
 #include <iostream>
 #include <poll.h>
+#include <spawn.h>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -15,7 +17,10 @@
 #include <linux/rtnetlink.h>
 #include <sys/inotify.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <unistd.h>
+
+extern char** environ;
 
 namespace {
 
@@ -38,17 +43,64 @@ private:
     int fd_;
 };
 
-[[nodiscard]] std::string command_output(const char* command) {
-    FILE* raw_pipe = ::popen(command, "r");
-    if (raw_pipe == nullptr) {
+[[nodiscard]] std::string command_output(char* const arguments[]) {
+    std::array<int, 2> pipe_fds{};
+    if (::pipe2(pipe_fds.data(), O_CLOEXEC) != 0) {
         return {};
     }
+
+    posix_spawn_file_actions_t actions;
+    if (::posix_spawn_file_actions_init(&actions) != 0) {
+        ::close(pipe_fds[0]);
+        ::close(pipe_fds[1]);
+        return {};
+    }
+    int action_error = ::posix_spawn_file_actions_adddup2(&actions, pipe_fds[1], STDOUT_FILENO);
+    if (action_error == 0) {
+        action_error = ::posix_spawn_file_actions_addclose(&actions, pipe_fds[0]);
+    }
+    if (action_error == 0) {
+        action_error = ::posix_spawn_file_actions_addclose(&actions, pipe_fds[1]);
+    }
+    if (action_error == 0) {
+        action_error = ::posix_spawn_file_actions_addopen(
+            &actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+    }
+    if (action_error != 0) {
+        ::posix_spawn_file_actions_destroy(&actions);
+        ::close(pipe_fds[0]);
+        ::close(pipe_fds[1]);
+        return {};
+    }
+
+    pid_t child{};
+    const int spawn_error = ::posix_spawnp(
+        &child, arguments[0], &actions, nullptr, arguments, environ);
+    ::posix_spawn_file_actions_destroy(&actions);
+    ::close(pipe_fds[1]);
+    if (spawn_error != 0) {
+        ::close(pipe_fds[0]);
+        return {};
+    }
+
     std::string output;
     std::array<char, 256> buffer{};
-    while (std::fgets(buffer.data(), static_cast<int>(buffer.size()), raw_pipe) != nullptr) {
-        output.append(buffer.data());
+    for (;;) {
+        const ssize_t bytes = ::read(pipe_fds[0], buffer.data(), buffer.size());
+        if (bytes > 0) {
+            output.append(buffer.data(), static_cast<std::size_t>(bytes));
+            continue;
+        }
+        if (bytes < 0 && errno == EINTR) {
+            continue;
+        }
+        break;
     }
-    (void)::pclose(raw_pipe);
+    ::close(pipe_fds[0]);
+
+    int status{};
+    while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {
+    }
     while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
         output.pop_back();
     }
@@ -57,7 +109,13 @@ private:
 
 [[nodiscard]] std::string current_status(const std::filesystem::path& state_file) {
     if (std::filesystem::exists(state_file)) {
-        const auto route = command_output("ip -4 route get 1.1.1.1 2>/dev/null");
+        char ip[] = "ip";
+        char ipv4[] = "-4";
+        char route_command[] = "route";
+        char get[] = "get";
+        char destination[] = "1.1.1.1";
+        char* arguments[]{ip, ipv4, route_command, get, destination, nullptr};
+        const auto route = command_output(arguments);
         const auto source = route.find(" src ");
         if (source == std::string::npos) {
             return std::string{disconnected};
@@ -68,7 +126,10 @@ private:
         return address.empty() ? std::string{disconnected} : "󰤨 " + address;
     }
 
-    const auto ssid = command_output("iwgetid -r 2>/dev/null");
+    char iwgetid[] = "iwgetid";
+    char raw_ssid[] = "-r";
+    char* arguments[]{iwgetid, raw_ssid, nullptr};
+    const auto ssid = command_output(arguments);
     return ssid.empty() ? std::string{disconnected} : "󰤨 " + ssid;
 }
 
