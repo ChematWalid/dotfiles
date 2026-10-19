@@ -99,10 +99,20 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         -d|--device)
+            if [[ $# -lt 2 || -z "$2" ]]; then
+                printf 'Error: %s requires a device name.\n' "$1" >&2
+                echo "Run 'shazam --help' for usage." >&2
+                exit 2
+            fi
             CUSTOM_DEVICE="$2"
             shift 2
             ;;
         -f|--file)
+            if [[ $# -lt 2 || -z "$2" ]]; then
+                printf 'Error: %s requires a file path.\n' "$1" >&2
+                echo "Run 'shazam --help' for usage." >&2
+                exit 2
+            fi
             TARGET_FILE="$2"
             shift 2
             ;;
