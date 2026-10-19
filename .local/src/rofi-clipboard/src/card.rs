@@ -145,18 +145,31 @@ impl Renderer {
         }
     }
 
-    fn wrap_text(&self, text: &str, scale: f32, max_w: f32) -> Vec<String> {
+    fn wrap_text(
+        &self,
+        text: &str,
+        scale: f32,
+        max_w: f32,
+        max_lines: usize,
+    ) -> (Vec<String>, bool) {
         let Some(font) = FontRef::from_index(&self.font_regular, 0) else {
-            return vec![text.to_owned()];
+            return (Vec::new(), !text.is_empty());
         };
         let charmap = font.charmap();
         let metrics = font.glyph_metrics(&[]);
         let advance_scale = scale / font.metrics(&[]).units_per_em.max(1) as f32;
-        let mut lines = Vec::new();
+        let mut lines = Vec::with_capacity(max_lines.min(16));
+        if max_lines == 0 {
+            return (lines, !text.is_empty());
+        }
 
-        for block in text.lines() {
+        let mut blocks = text.lines().peekable();
+        while let Some(block) = blocks.next() {
             if block.is_empty() {
                 lines.push(String::new());
+                if lines.len() == max_lines && blocks.peek().is_some() {
+                    return (lines, true);
+                }
                 continue;
             }
             let mut current = String::new();
@@ -169,6 +182,9 @@ impl Renderer {
                     .sum();
                 if current_w + word_w > max_w && !current.is_empty() {
                     lines.push(current);
+                    if lines.len() == max_lines {
+                        return (lines, true);
+                    }
                     current = word.to_string();
                     current_w = word_w;
                 } else {
@@ -178,9 +194,12 @@ impl Renderer {
             }
             if !current.is_empty() {
                 lines.push(current);
+                if lines.len() == max_lines && blocks.peek().is_some() {
+                    return (lines, true);
+                }
             }
         }
-        lines
+        (lines, false)
     }
 
     pub fn render_text_card(
@@ -251,25 +270,12 @@ impl Renderer {
 
         // Body Text
         let y_start = if !sub.is_empty() { 128.0 } else { 96.0 };
-        let lines = self.wrap_text(text, 18.0, 700.0);
         let line_height = 28.0;
+        let max_lines = ((CARD_H as f32 - 32.0 - y_start) / line_height).floor() as usize + 1;
+        let (lines, truncated) = self.wrap_text(text, 18.0, 700.0, max_lines);
 
         for (i, line) in lines.iter().enumerate() {
             let y = y_start + (i as f32) * line_height;
-            if y > (CARD_H as f32 - 32.0) {
-                Self::draw_str(
-                    &mut img,
-                    &mut scale_context,
-                    &self.font_regular,
-                    "… (truncated)",
-                    TextStyle {
-                        scale: 18.0,
-                        position: (24.0, y),
-                        color: MUTED_COLOR,
-                    },
-                );
-                break;
-            }
             Self::draw_str(
                 &mut img,
                 &mut scale_context,
@@ -279,6 +285,20 @@ impl Renderer {
                     scale: 18.0,
                     position: (24.0, y),
                     color: FG_COLOR,
+                },
+            );
+        }
+        if truncated {
+            let y = y_start + (lines.len() as f32) * line_height;
+            Self::draw_str(
+                &mut img,
+                &mut scale_context,
+                &self.font_regular,
+                "… (truncated)",
+                TextStyle {
+                    scale: 18.0,
+                    position: (24.0, y),
+                    color: MUTED_COLOR,
                 },
             );
         }

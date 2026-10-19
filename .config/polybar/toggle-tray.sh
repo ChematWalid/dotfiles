@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
+    | awk '$2 ~ /^"polybar-main_/ { print $1; exit }')
+
 TRAY_PID=$(pgrep -o -f "polybar tray" || true)
 
 if [[ -z "$TRAY_PID" ]]; then
@@ -13,7 +16,7 @@ if [[ -z "$TRAY_PID" ]]; then
     # Wait for Polybar's IPC queue, then arm the watcher before showing the bar.
     for _ in {1..20}; do
         if polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1; then
-            setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" >/dev/null 2>&1 &
+            setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" >/dev/null 2>&1 &
             polybar-msg -p "$TRAY_PID" cmd show >/dev/null
             exit 0
         fi
@@ -39,7 +42,7 @@ if [[ -n "$TRAY_WINDOW" ]] \
     polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
 else
     # Tray is hidden -> arm click-outside handling before showing it.
-    setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" >/dev/null 2>&1 &
+    setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" >/dev/null 2>&1 &
     polybar-msg -p "$TRAY_PID" cmd show >/dev/null
 fi
 
