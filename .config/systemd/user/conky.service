@@ -13,6 +13,7 @@ ExecStart=%h/.local/opt/conky-1.25.3/bin/conky -c %h/.config/conky/conky.conf -q
 Restart=always
 RestartSec=1
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=XDG_CURRENT_DESKTOP=i3
 
 [Install]
 # Started from i3 after the X display and compositor are ready.
