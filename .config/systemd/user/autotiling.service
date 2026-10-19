@@ -1,5 +1,7 @@
 [Unit]
 Description=Native event-driven i3 autotiling
+After=i3-session.target
+PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
 ConditionEnvironment=XAUTHORITY
 

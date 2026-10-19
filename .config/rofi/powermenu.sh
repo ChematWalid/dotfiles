@@ -7,6 +7,6 @@ case "$chosen" in
     "  Power Off") systemctl poweroff ;;
     "  Restart") systemctl reboot ;;
     "  Suspend") systemctl suspend ;;
-    "  Log Out") i3-msg exit ;;
+    "  Log Out") ~/.config/i3/session-stop.sh ;;
     "  Lock") /home/walid/.local/bin/lock.sh ;;
 esac

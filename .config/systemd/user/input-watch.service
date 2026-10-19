@@ -1,6 +1,7 @@
 [Unit]
 Description=Reapply X11 input settings when input devices change
-After=graphical-session.target
+After=i3-session.target
+PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
 ConditionEnvironment=XAUTHORITY
 
@@ -11,4 +12,4 @@ Restart=on-failure
 RestartSec=2
 
 [Install]
-WantedBy=default.target
+WantedBy=i3-session.target

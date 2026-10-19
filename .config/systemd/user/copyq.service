@@ -1,6 +1,7 @@
 [Unit]
 Description=CopyQ Clipboard Manager
-After=graphical-session.target
+After=i3-session.target
+PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
 ConditionEnvironment=XAUTHORITY
 

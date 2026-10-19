@@ -1,7 +1,7 @@
 [Unit]
 Description=RustDesk Remote Desktop (user session)
-After=graphical-session.target
-Wants=graphical-session.target
+After=i3-session.target
+PartOf=i3-session.target
 
 [Service]
 Type=simple
@@ -12,4 +12,4 @@ Environment="PULSE_LATENCY_MSEC=60"
 Environment="PIPEWIRE_LATENCY=1024/48000"
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=i3-session.target
