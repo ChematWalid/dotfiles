@@ -39,6 +39,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
         .sender("org.freedesktop.DBus")
         .interface("org.freedesktop.DBus")
         .member("NameOwnerChanged")
+        .arg0ns("org.mpris")
         .build()?;
 
     let mut props_stream = MessageStream::for_match_rule(props_rule, &conn, None).await?;

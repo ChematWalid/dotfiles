@@ -96,6 +96,7 @@ pub async fn setup_dbus_streams(conn: &Connection) -> Result<(MessageStream, Mes
         .sender("org.freedesktop.DBus")
         .interface("org.freedesktop.DBus")
         .member("NameOwnerChanged")
+        .arg0ns("org.mpris")
         .build()?;
 
     let props_stream = MessageStream::for_match_rule(props_rule, conn, None).await?;
