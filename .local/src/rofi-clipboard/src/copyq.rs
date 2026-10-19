@@ -56,7 +56,15 @@ pub fn fetch_items(cache_dir: &Path) -> Result<Vec<CopyQItem>> {
         .output()
         .context("Failed to run copyq eval")?;
     if !output.status.success() {
-        bail!("CopyQ eval failed with status {}", output.status);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.trim().is_empty() {
+            bail!("CopyQ eval failed with status {}", output.status);
+        }
+        bail!(
+            "CopyQ eval failed with status {}: {}",
+            output.status,
+            stderr.trim()
+        );
     }
 
     let out_str = String::from_utf8_lossy(&output.stdout);

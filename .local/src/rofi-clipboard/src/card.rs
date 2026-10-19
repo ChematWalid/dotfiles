@@ -309,7 +309,7 @@ impl Renderer {
             return Some(self.optimize_image(&out_png.to_string_lossy()));
         }
 
-        let status = Command::new("pdftoppm")
+        let output = Command::new("pdftoppm")
             .args([
                 "-png",
                 "-r",
@@ -321,13 +321,28 @@ impl Renderer {
                 pdf_path.to_str()?,
                 prefix.to_str()?,
             ])
-            .status()
-            .ok()?;
+            .output();
 
-        if status.success() && out_png.exists() {
-            Some(self.optimize_image(&out_png.to_string_lossy()))
-        } else {
-            None
+        match output {
+            Ok(output) if output.status.success() && out_png.exists() => {
+                Some(self.optimize_image(&out_png.to_string_lossy()))
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                if stderr.trim().is_empty() {
+                    eprintln!(
+                        "rofi-clipboard: pdftoppm failed with status {}",
+                        output.status
+                    );
+                } else {
+                    eprintln!("rofi-clipboard: pdftoppm failed: {}", stderr.trim());
+                }
+                None
+            }
+            Err(error) => {
+                eprintln!("rofi-clipboard: could not start pdftoppm: {error}");
+                None
+            }
         }
     }
 
