@@ -38,8 +38,23 @@ if [[ "$count" -eq 0 ]]; then
 fi
 
 if [[ "$count" -gt 1 ]]; then
-    wall=$(printf '%s\n' "${walls[@]}" | grep -Fxv "$current" | shuf -n 1 || true)
-    [[ -z "$wall" ]] && wall="${walls[0]}"
+    current_index=-1
+    for ((i = 0; i < count; i++)); do
+        if [[ "${walls[$i]}" == "$current" ]]; then
+            current_index=$i
+            break
+        fi
+    done
+
+    choice_count=$count
+    if (( current_index >= 0 )); then
+        choice_count=$((choice_count - 1))
+    fi
+    selected_index=$(shuf -i "0-$((choice_count - 1))" -n 1)
+    if (( current_index >= 0 && selected_index >= current_index )); then
+        selected_index=$((selected_index + 1))
+    fi
+    wall="${walls[$selected_index]}"
 else
     wall="${walls[0]}"
 fi
