@@ -9,26 +9,22 @@ mod x11;
 
 use anyhow::Result;
 use std::io::{stdout, Write};
-use tokio::sync::{mpsc, watch};
+use tokio::sync::watch;
 use tokio::time::{interval, Duration, MissedTickBehavior};
 
 use config::{MAX_CHARS, SCROLL_MS, SEPARATOR};
 use state::query_current_state;
-
-enum UiEvent {
-    HoverChanged(bool),
-}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let current = query_current_state().await;
 
     let (state_tx, mut state_rx) = watch::channel(current);
-    let (event_tx, mut event_rx) = mpsc::unbounded_channel();
+    let (hover_tx, mut hover_rx) = watch::channel(false);
 
-    // Keep the channel open if the X11 connection cannot be established.
-    let _event_guard = event_tx.clone();
-    x11::spawn_hover_thread(event_tx);
+    // Keep the listener alive if the X11 connection cannot be established.
+    let _hover_guard = hover_tx.clone();
+    x11::spawn_hover_thread(hover_tx);
 
     // Start D-Bus event stream for real-time player status updates
     dbus::start_dbus_listener(state_tx).await?;
@@ -58,15 +54,13 @@ async fn main() -> Result<()> {
                     break;
                 }
             }
-            event = event_rx.recv() => {
-                match event {
-                    Some(UiEvent::HoverChanged(next_hovering)) => {
-                        hovering = next_hovering;
-                        if !hovering {
-                            scroll_pos = 0;
-                        }
-                    }
-                    None => break,
+            changed = hover_rx.changed() => {
+                if changed.is_err() {
+                    break;
+                }
+                hovering = *hover_rx.borrow_and_update();
+                if !hovering {
+                    scroll_pos = 0;
                 }
             }
             _ = ticker.tick(), if should_scroll => {
