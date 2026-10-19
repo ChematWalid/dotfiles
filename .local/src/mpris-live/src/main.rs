@@ -43,8 +43,14 @@ async fn main() -> Result<()> {
     ticker.tick().await;
 
     loop {
-        let current_state = state_rx.borrow().clone();
-        let should_scroll = hovering && current_state.full_text.chars().count() > MAX_CHARS;
+        let (should_scroll, stream_len) = {
+            let current_state = state_rx.borrow();
+            let text_len = current_state.full_text.chars().count();
+            (
+                hovering && text_len > MAX_CHARS,
+                text_len + SEPARATOR.chars().count(),
+            )
+        };
 
         tokio::select! {
             changed = state_rx.changed() => {
@@ -64,16 +70,14 @@ async fn main() -> Result<()> {
                 }
             }
             _ = ticker.tick(), if should_scroll => {
-                let stream_len = current_state.full_text.chars().count()
-                    + SEPARATOR.chars().count();
                 scroll_pos = (scroll_pos + 1) % stream_len;
             }
         }
 
-        let current_state = state_rx.borrow().clone();
+        let current_state = state_rx.borrow_and_update();
         if current_state.full_text != last_text {
             scroll_pos = 0;
-            last_text = current_state.full_text.clone();
+            last_text.clone_from(&current_state.full_text);
         }
 
         let rendered = render::render_polybar(&current_state, scroll_pos, hovering);
