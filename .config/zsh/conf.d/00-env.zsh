@@ -1,4 +1,7 @@
 # ── Core Environment & Developer Storage ──────────────────────────────────────
+# Keep PATH entries unique as nested zsh instances reapply the configured paths.
+typeset -U path PATH
+
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME=""
 CASE_SENSITIVE="false"
