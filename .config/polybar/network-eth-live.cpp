@@ -52,14 +52,24 @@ private:
         return true;
     }
 
-    int remaining = static_cast<int>(IFLA_PAYLOAD(header));
-    for (auto* attribute = IFLA_RTA(info); RTA_OK(attribute, remaining);
-         attribute = RTA_NEXT(attribute, remaining)) {
+    const char* cursor = reinterpret_cast<const char*>(IFLA_RTA(info));
+    std::size_t remaining = static_cast<std::size_t>(IFLA_PAYLOAD(header));
+    while (remaining >= sizeof(rtattr)) {
+        const auto* attribute = reinterpret_cast<const rtattr*>(cursor);
+        if (attribute->rta_len < sizeof(rtattr) || attribute->rta_len > remaining) {
+            break;
+        }
         if (attribute->rta_type == IFLA_IFNAME) {
             const auto* name = static_cast<const char*>(RTA_DATA(attribute));
-            const auto name_size = strnlen(name, RTA_PAYLOAD(attribute));
+            const auto name_size = strnlen(name, static_cast<std::size_t>(RTA_PAYLOAD(attribute)));
             return std::string_view{name, name_size} == interface_name;
         }
+        const auto attribute_size = static_cast<std::size_t>(RTA_ALIGN(attribute->rta_len));
+        if (attribute_size > remaining) {
+            break;
+        }
+        cursor += attribute_size;
+        remaining -= attribute_size;
     }
     return false;
 }
