@@ -5,7 +5,7 @@
 set -euo pipefail
 
 MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
-    | awk '$2 ~ /^"polybar-main_/ { print $1; exit }')
+    | awk '$2 ~ /^"polybar-main_/ && !found { window = $1; found = 1 } END { if (found) print window }')
 
 TRAY_PID=$(pgrep -o -f "polybar tray" || true)
 
@@ -34,10 +34,14 @@ fi
 pkill -x "tray-autohide" 2>/dev/null || true
 
 TRAY_WINDOW=$(xwininfo -root -tree 2>/dev/null \
-    | awk '$2 ~ /^"polybar-tray_/ { print $1; exit }')
+    | awk '$2 ~ /^"polybar-tray_/ && !found { window = $1; found = 1 } END { if (found) print window }')
 
-if [[ -n "$TRAY_WINDOW" ]] \
-    && xwininfo -id "$TRAY_WINDOW" 2>/dev/null | grep -q "Map State: IsViewable"; then
+TRAY_INFO=""
+if [[ -n "$TRAY_WINDOW" ]]; then
+    TRAY_INFO=$(xwininfo -id "$TRAY_WINDOW" 2>/dev/null || true)
+fi
+
+if [[ "$TRAY_INFO" == *"Map State: IsViewable"* ]]; then
     # Tray is currently visible -> hide it
     polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1 || true
 else
