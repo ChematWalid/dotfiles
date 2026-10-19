@@ -15,8 +15,8 @@ systemctl --user start i3-session.target
 "${HOME}/.local/bin/apply-input-settings.sh"
 
 # Make the display compositor and tray host available before tray clients.
-systemctl --user start picom.service
-"${HOME}/.config/polybar/launch.sh" --show
+systemctl --user start picom.service || true
+systemctl --user restart polybar.service || true
 
 # Start the rest after the X11 display and Polybar tray are initialized.
 systemctl --user start \
@@ -25,4 +25,4 @@ systemctl --user start \
     wallpaper-rotate.service \
     autotiling.service \
     input-watch.service \
-    i3-autoname.service
+    i3-autoname.service || true

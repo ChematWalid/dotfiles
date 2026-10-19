@@ -1,0 +1,14 @@
+[Unit]
+Description=Polybar main and tray bars
+After=i3-session.target picom.service
+PartOf=i3-session.target
+ConditionEnvironment=DISPLAY
+ConditionEnvironment=XAUTHORITY
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/polybar/launch.sh --show
+RemainAfterExit=yes
+Restart=on-failure
+RestartSec=5s

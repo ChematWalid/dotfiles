@@ -54,15 +54,24 @@ DISPLAY="${DISPLAY:-:0}" setsid polybar main -c "${HOME}/.config/polybar/config.
 # Launch tray popup bar
 DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar-tray.log 2>&1 &
 
-# Wait for IPC socket to initialize and hide Polybar by default if requested
-if [[ "${1:-}" != "--show" ]]; then
-    for _ in {1..20}; do
-        MAIN_PID=$(pgrep -o -f "polybar main" || true)
-        if [[ -n "$MAIN_PID" ]] && polybar-msg -p "$MAIN_PID" cmd hide 2>/dev/null; then
-            break
-        fi
-        sleep 0.05
-    done
+# Wait for the main bar's IPC endpoint. systemd can then retry this launcher
+# while the X display or its authorization cookie is still coming up.
+MAIN_COMMAND=hide
+if [[ "${1:-}" == "--show" ]]; then
+    MAIN_COMMAND=show
+fi
+MAIN_READY=false
+for _ in {1..20}; do
+    MAIN_PID=$(pgrep -o -f "polybar main" || true)
+    if [[ -n "$MAIN_PID" ]] && polybar-msg -p "$MAIN_PID" cmd "$MAIN_COMMAND" >/dev/null 2>&1; then
+        MAIN_READY=true
+        break
+    fi
+    sleep 0.05
+done
+if [[ "$MAIN_READY" != true ]]; then
+    printf 'Polybar main did not initialize; see /tmp/polybar.log\n' >&2
+    exit 1
 fi
 
 # Always hide tray popup bar by default on launch
