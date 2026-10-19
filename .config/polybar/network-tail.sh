@@ -10,7 +10,8 @@ readonly STATE_FILE="/tmp/polybar-network-state"
 update() {
     if [[ -f "$STATE_FILE" ]]; then
         local ip
-        ip=$(ip -4 addr show 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1 || true)
+        ip=$(ip -4 -o addr show scope global 2>/dev/null \
+            | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' || true)
         if [[ -z "$ip" ]]; then
             echo "󰤭 Disconnected"
         else
