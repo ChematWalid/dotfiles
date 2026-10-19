@@ -182,15 +182,11 @@ run_audit() {
     local -A tldr_pages=()
     while IFS= read -r page; do
         [[ -n "$page" ]] && tldr_pages["$page"]=1
-    done < <(tldr --list --platform linux --platform common --no-auto-update --quiet 2>/dev/null || true)
+    done < <(tldr --list --platform linux --platform common --quiet 2>/dev/null || true)
 
     # Read the cheat registry once instead of reopening each file per tool.
-    local navi_contents=""
-    local cheat_file
-    for cheat_file in "$NAVI_DOT_DIR"/*.cheat; do
-        [[ -f "$cheat_file" ]] || continue
-        navi_contents+=$(<"$cheat_file")$'\n'
-    done
+    local navi_contents
+    navi_contents=$(grep -rh '' "$NAVI_DOT_DIR" 2>/dev/null || true)
     
     for tool in "${bins[@]}"; do
         (( total_tools++ )) || true
