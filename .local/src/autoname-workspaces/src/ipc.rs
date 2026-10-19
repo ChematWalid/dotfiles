@@ -354,10 +354,7 @@ pub fn event_changes_workspace_icons(event_type: u32, body: &[u8]) -> bool {
 
     match event_type {
         WORKSPACE_EVENT => matches!(change, "init" | "empty" | "move" | "rename" | "restored"),
-        WINDOW_EVENT => matches!(
-            change,
-            "new" | "close" | "title" | "move" | "floating" | "urgent"
-        ),
+        WINDOW_EVENT => matches!(change, "new" | "close" | "title" | "move"),
         _ => true,
     }
 }
