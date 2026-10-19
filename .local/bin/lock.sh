@@ -65,4 +65,4 @@ i3lock \
   --layout-font="JetBrainsMono Nerd Font"
 
 # Re-apply keyboard rate and mouse settings after unlocking
-"${HOME}/.local/bin/apply-input-settings.sh" --no-spawn &
+"${HOME}/.local/bin/apply-input-settings.sh" &

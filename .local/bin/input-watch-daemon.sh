@@ -7,16 +7,33 @@ set -euo pipefail
 
 readonly APPLY_SCRIPT="${HOME}/.local/bin/apply-input-settings.sh"
 
-# Apply initially
-"$APPLY_SCRIPT"
-
 # Stream udev input subsystem events
 coproc UDEV_MONITOR {
-    exec udevadm monitor --subsystem-match=input --udev 2>/dev/null
+    exec env LC_ALL=C udevadm monitor --subsystem-match=input --udev 2>/dev/null
 }
 udev_pid=$UDEV_MONITOR_PID
+udev_fd=${UDEV_MONITOR[0]}
 
-while IFS= read -r -u "${UDEV_MONITOR[0]}" line; do
+# udevadm prints this after opening its monitor socket. Waiting for that
+# handshake closes the startup gap where a newly attached device could be
+# missed before the first settings pass.
+monitor_ready=false
+while IFS= read -r -u "$udev_fd" line; do
+    if [[ "$line" == 'UDEV - the event which udev sends out after rule processing' ]]; then
+        monitor_ready=true
+        break
+    fi
+done
+
+if [[ "$monitor_ready" != true ]]; then
+    wait "$udev_pid"
+    exit 1
+fi
+
+# Apply initially after the event subscription is active.
+"$APPLY_SCRIPT"
+
+while IFS= read -r -u "$udev_fd" line; do
     if [[ "$line" =~ ^UDEV.*[[:space:]](add|bind|change)[[:space:]]/ ]]; then
         "$APPLY_SCRIPT"
     fi
