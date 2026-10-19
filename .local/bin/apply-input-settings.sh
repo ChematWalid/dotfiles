@@ -71,6 +71,11 @@ apply_input() {
             && "$device_line" != *"[master pointer"* \
             && "$device_line" =~ id=([0-9]+) ]]; then
             pointer_ids+=("${BASH_REMATCH[1]}")
+        elif [[ "$device_line" == *"[floating slave"* \
+            && "$device_line" =~ id=([0-9]+) ]]; then
+            # Floating devices have no master-pointer section; query them too
+            # and let the libinput-property check distinguish mice from keys.
+            pointer_ids+=("${BASH_REMATCH[1]}")
         fi
     done <<< "$devices"
 
