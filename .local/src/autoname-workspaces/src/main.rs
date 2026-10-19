@@ -8,10 +8,11 @@ mod ipc;
 mod workspace;
 
 use std::io::Read;
-use std::thread;
-use std::time::Duration;
 
-use ipc::{event_changes_workspace_icons, get_i3_socket_path, subscribe_events, I3Client};
+use ipc::{
+    event_changes_workspace_icons, get_i3_socket_path, subscribe_events, wait_for_i3_socket,
+    I3Client,
+};
 use workspace::update_workspaces;
 
 fn main() {
@@ -20,7 +21,7 @@ fn main() {
         return;
     }
 
-    let sock_path = get_i3_socket_path();
+    let mut sock_path = get_i3_socket_path();
     if sock_path.is_empty() {
         eprintln!("Error: i3 socket path not found. Is i3 running?");
         std::process::exit(1);
@@ -33,8 +34,8 @@ fn main() {
 
     // Event listener subscription loop
     loop {
-        match subscribe_events(&sock_path) {
-            Ok(mut event_stream) => loop {
+        if let Ok(mut event_stream) = subscribe_events(&sock_path) {
+            loop {
                 let mut ev_header = [0u8; 14];
                 if event_stream.read_exact(&mut ev_header).is_err() {
                     break;
@@ -49,10 +50,11 @@ fn main() {
                 if event_changes_workspace_icons(ev_type, &ev_body) {
                     update_workspaces(&mut client);
                 }
-            },
-            Err(_) => {
-                thread::sleep(Duration::from_secs(1));
             }
         }
+
+        sock_path = wait_for_i3_socket(&sock_path);
+        client = I3Client::new(sock_path.clone());
+        update_workspaces(&mut client);
     }
 }

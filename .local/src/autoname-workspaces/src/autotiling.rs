@@ -3,19 +3,17 @@
 
 use std::collections::VecDeque;
 use std::io::Read;
-use std::thread;
-use std::time::Duration;
 
 use serde_json::Value;
 
-use crate::ipc::{get_i3_socket_path, subscribe_events_with_payload, I3Client};
+use crate::ipc::{get_i3_socket_path, subscribe_events_with_payload, wait_for_i3_socket, I3Client};
 
 const WINDOW_EVENT: u32 = 0x8000_0003;
 const MODE_EVENT: u32 = 0x8000_0002;
 const EVENT_SUBSCRIPTION: &str = r#"["window", "mode"]"#;
 
 pub fn run() {
-    let socket_path = get_i3_socket_path();
+    let mut socket_path = get_i3_socket_path();
     if socket_path.is_empty() {
         eprintln!("autotiling: i3 socket path not found; is i3 running?");
         std::process::exit(1);
@@ -23,8 +21,8 @@ pub fn run() {
 
     let mut client = I3Client::new(socket_path.clone());
     loop {
-        match subscribe_events_with_payload(&socket_path, EVENT_SUBSCRIPTION) {
-            Ok(mut events) => loop {
+        if let Ok(mut events) = subscribe_events_with_payload(&socket_path, EVENT_SUBSCRIPTION) {
+            loop {
                 let mut header = [0u8; 14];
                 if events.read_exact(&mut header).is_err() {
                     break;
@@ -40,9 +38,11 @@ pub fn run() {
                 if event_requires_autotile(event_type, &body) {
                     autotile_focused(&mut client);
                 }
-            },
-            Err(_) => thread::sleep(Duration::from_secs(1)),
+            }
         }
+
+        socket_path = wait_for_i3_socket(&socket_path);
+        client = I3Client::new(socket_path.clone());
     }
 }
 

@@ -2,19 +2,46 @@
 
 use serde_json::Value;
 use std::env;
-use std::io::{Read, Write};
+use std::ffi::CString;
+use std::fs::File;
+use std::io::{self, Read, Write};
+use std::os::fd::{AsRawFd, FromRawFd};
+use std::os::raw::{c_char, c_int};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::net::UnixStream;
+use std::path::Path;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
+
+const IN_CLOEXEC: c_int = 0o2000000;
+const IN_CREATE: u32 = 0x0000_0100;
+const IN_DELETE: u32 = 0x0000_0200;
+const IN_MOVED_FROM: u32 = 0x0000_0040;
+const IN_MOVED_TO: u32 = 0x0000_0080;
+const IN_DELETE_SELF: u32 = 0x0000_0400;
+const IN_MOVE_SELF: u32 = 0x0000_0800;
+const IN_Q_OVERFLOW: u32 = 0x0000_4000;
+
+#[repr(C)]
+struct InotifyEvent {
+    wd: i32,
+    mask: u32,
+    cookie: u32,
+    len: u32,
+}
+
+unsafe extern "C" {
+    fn inotify_init1(flags: c_int) -> c_int;
+    fn inotify_add_watch(fd: c_int, pathname: *const c_char, mask: u32) -> c_int;
+}
 
 pub fn get_i3_socket_path() -> String {
-    if let Ok(sock) = env::var("I3SOCK") {
-        if !sock.is_empty() {
-            return sock;
-        }
-    }
-    if let Ok(sock) = env::var("SWAYSOCK") {
-        if !sock.is_empty() {
-            return sock;
+    for variable in ["I3SOCK", "SWAYSOCK"] {
+        if let Ok(sock) = env::var(variable) {
+            if !sock.is_empty() && UnixStream::connect(&sock).is_ok() {
+                return sock;
+            }
         }
     }
     if let Ok(out) = Command::new("i3").arg("--get-socketpath").output() {
@@ -24,6 +51,107 @@ pub fn get_i3_socket_path() -> String {
         }
     }
     String::new()
+}
+
+/// Block on an inotify event while i3 replaces its IPC socket, then return the
+/// currently connectable socket path. The one-second sleep is only a fallback
+/// for missing or unavailable inotify support.
+pub fn wait_for_i3_socket(sock_path: &str) -> String {
+    let parent = Path::new(sock_path)
+        .parent()
+        .unwrap_or_else(|| Path::new("/"));
+    let Ok(mut watcher) = watch_directory(parent) else {
+        thread::sleep(Duration::from_secs(1));
+        return get_i3_socket_path();
+    };
+
+    loop {
+        let current_path = get_i3_socket_path();
+        if !current_path.is_empty() && UnixStream::connect(&current_path).is_ok() {
+            return current_path;
+        }
+
+        if wait_for_directory_entry(&mut watcher).is_err() {
+            thread::sleep(Duration::from_secs(1));
+            return get_i3_socket_path();
+        }
+    }
+}
+
+fn watch_directory(path: &Path) -> io::Result<File> {
+    let path = CString::new(path.as_os_str().as_bytes())
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid socket directory"))?;
+    let fd = unsafe { inotify_init1(IN_CLOEXEC) };
+    if fd < 0 {
+        return Err(io::Error::last_os_error());
+    }
+
+    let file = unsafe { File::from_raw_fd(fd) };
+    let mask = IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_DELETE_SELF | IN_MOVE_SELF;
+    if unsafe { inotify_add_watch(file.as_raw_fd(), path.as_ptr(), mask) } < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(file)
+}
+
+fn wait_for_directory_entry(watcher: &mut File) -> io::Result<()> {
+    let mut buffer = [0u64; 512];
+    loop {
+        let bytes = match watcher.read(unsafe {
+            std::slice::from_raw_parts_mut(
+                buffer.as_mut_ptr().cast::<u8>(),
+                std::mem::size_of_val(&buffer),
+            )
+        }) {
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            result => result?,
+        };
+        if bytes == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "inotify watcher closed",
+            ));
+        }
+
+        let mut offset = 0;
+        while offset + std::mem::size_of::<InotifyEvent>() <= bytes {
+            let event = unsafe {
+                &*buffer
+                    .as_ptr()
+                    .cast::<u8>()
+                    .add(offset)
+                    .cast::<InotifyEvent>()
+            };
+            let event_size = std::mem::size_of::<InotifyEvent>() + event.len as usize;
+            if event_size > bytes - offset {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "truncated inotify event",
+                ));
+            }
+            if event.mask & (IN_DELETE_SELF | IN_MOVE_SELF | IN_Q_OVERFLOW) != 0 {
+                return Ok(());
+            }
+            if event.len > 0 {
+                let name_start = offset + std::mem::size_of::<InotifyEvent>();
+                let name = unsafe {
+                    std::slice::from_raw_parts(
+                        buffer.as_ptr().cast::<u8>().add(name_start),
+                        event.len as usize,
+                    )
+                };
+                let name_len = name
+                    .iter()
+                    .position(|byte| *byte == 0)
+                    .unwrap_or(name.len());
+                let name = &name[..name_len];
+                if name.starts_with(b"ipc-socket.") || name.starts_with(b"sway-ipc.") {
+                    return Ok(());
+                }
+            }
+            offset += event_size;
+        }
+    }
 }
 
 pub struct I3Client {
