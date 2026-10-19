@@ -47,24 +47,26 @@ find_scratchpad_id() {
         <<< "$tree"
 }
 
-# 3. Query i3 tree state in a single fast call (~8ms)
+# 3. Query i3 state once; the focused workspace is present in the same tree.
 tree_info=$(i3-msg -t get_tree 2>/dev/null || echo "{}")
 
-current_ws=$(i3-msg -t get_workspaces 2>/dev/null | jq -r '.[] | select(.focused == true) | .name' || echo "")
-
-# Derive both tree facts in one jq invocation instead of starting jq twice.
+# Derive the scratchpad workspace, focused workspace, and fullscreen window in
+# one jq invocation instead of making a second IPC request and parser process.
 # Keep the workspace lookup scoped to nodes containing our scratchpad,
 # including the hidden __i3_scratch workspace.
 mapfile -t tree_state < <(jq -r --arg instance "$CLASS_NAME" '
   [
     (first(.. | objects | select(.type? == "workspace")
       | select(.. | .window_properties?.instance? == $instance) | .name) // ""),
+    (first(.. | objects | select(.type? == "workspace")
+      | select(any(.. | objects; .focused? == true)) | .name) // ""),
     (first(.. | objects | select(.focused? == true and .fullscreen_mode? == 1)
       | .id) // 0)
   ][]
 ' <<< "$tree_info")
 scratch_ws="${tree_state[0]:-}"
-fullscreen_id="${tree_state[1]:-0}"
+current_ws="${tree_state[1]:-}"
+fullscreen_id="${tree_state[2]:-0}"
 
 # 4. Handle scratchpad state
 if [[ -z "$scratch_ws" ]]; then
