@@ -30,9 +30,10 @@ if [[ -r "$STATE_FILE" ]]; then
     IFS= read -r current < "$STATE_FILE" || true
 fi
 
-mapfile -t walls < <(
+mapfile -d '' -t walls < <(
     find -L "$wallpaper_dir" -maxdepth 3 -type f \
-         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \)
+         \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) \
+         -print0
 )
 count=${#walls[@]}
 
@@ -63,8 +64,8 @@ else
     wall="${walls[0]}"
 fi
 
-echo "$wall" > "$STATE_FILE"
 feh --bg-fill "$wall"
+printf '%s\n' "$wall" > "$STATE_FILE"
 
 # Reset systemd rotation timer
 systemctl --user restart wallpaper-rotate.service
