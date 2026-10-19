@@ -45,6 +45,9 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
     let mut props_stream = MessageStream::for_match_rule(props_rule, &conn, None).await?;
     let mut name_stream = MessageStream::for_match_rule(name_rule, &conn, None).await?;
 
+    // Re-query after the match rules are active to close the startup race.
+    state.send_replace(query_current_state().await);
+
     tokio::spawn(async move {
         loop {
             tokio::select! {

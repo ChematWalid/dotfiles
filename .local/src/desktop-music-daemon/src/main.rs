@@ -24,6 +24,9 @@ async fn main() -> Result<()> {
         .await
         .context("Failed to setup D-Bus match streams")?;
 
+    // Re-read after subscribing so a track change during startup cannot be missed.
+    report_write_error(output.write(&mpris::query_current_state().await));
+
     loop {
         tokio::select! {
             // MPRIS playback status or track property changed
