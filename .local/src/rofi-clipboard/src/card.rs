@@ -95,17 +95,20 @@ impl Renderer {
     fn draw_glyph(img: &mut RgbaImage, glyph: &Image, x: f32, baseline: f32, color: Rgba<u8>) {
         let width = glyph.placement.width as usize;
         let height = glyph.placement.height as usize;
+        let image_width = img.width() as usize;
+        let image_height = img.height() as usize;
         let left = x.floor() as i32 + glyph.placement.left;
         let top = baseline.ceil() as i32 - glyph.placement.top;
+        let pixels = img.as_mut();
 
         for gy in 0..height {
             let py = top + gy as i32;
-            if py < 0 || py as u32 >= img.height() {
+            if py < 0 || py as usize >= image_height {
                 continue;
             }
             for gx in 0..width {
                 let px = left + gx as i32;
-                if px < 0 || px as u32 >= img.width() {
+                if px < 0 || px as usize >= image_width {
                     continue;
                 }
                 let alpha = glyph.data[gy * width + gx];
@@ -113,11 +116,14 @@ impl Renderer {
                     continue;
                 }
 
-                let pixel = img.get_pixel_mut(px as u32, py as u32);
-                let a = alpha as f32 / 255.0;
+                let pixel_index = (py as usize * image_width + px as usize) * 4;
+                let pixel = &mut pixels[pixel_index..pixel_index + 4];
+                let alpha = alpha as u16;
+                let inverse_alpha = 255 - alpha;
                 for channel in 0..3 {
-                    pixel[channel] =
-                        ((1.0 - a) * pixel[channel] as f32 + a * color[channel] as f32) as u8;
+                    let blended = pixel[channel] as u16 * inverse_alpha
+                        + color[channel] as u16 * alpha;
+                    pixel[channel] = (blended / 255) as u8;
                 }
                 pixel[3] = 255;
             }
