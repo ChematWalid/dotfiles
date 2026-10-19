@@ -25,17 +25,22 @@ run_module() {
     fi
 
     local omz_custom="$HOME/.oh-my-zsh/custom"
+    local plugin_setup_failed=false
 
     _install_omz_plugin() {
       local name="$1" url="$2"
       local dest="$omz_custom/plugins/$name"
       if [[ ! -d "$dest" ]]; then
         info "Cloning zsh plugin: $name"
-        git clone --depth=1 "$url" "$dest"
+        if ! git clone --depth=1 "$url" "$dest"; then
+          warn "Could not clone zsh plugin $name"
+          plugin_setup_failed=true
+        fi
       else
         info "Updating zsh plugin: $name"
         if ! git -C "$dest" pull --ff-only; then
           warn "Could not update $name; keeping the installed version"
+          plugin_setup_failed=true
         fi
       fi
     }
@@ -51,7 +56,11 @@ run_module() {
       cp "$DOTFILES_DIR/.config/zsh-plugins/catppuccin_mocha-zsh-syntax-highlighting.zsh" \
          "$omz_custom/plugins/catppuccin-syntax-highlighting/"
     fi
-    log "Zsh plugins configured"
+    if [[ "$plugin_setup_failed" == false ]]; then
+      log "Zsh plugins configured"
+    else
+      warn "Zsh plugin setup finished with errors; review the messages above"
+    fi
   else
     warn "Skipped Oh-My-Zsh and plugins"
   fi

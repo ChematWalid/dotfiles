@@ -22,5 +22,11 @@ run_module() {
 
   # Step 15: XDG user dirs update
   step "15 — XDG user dirs"
-  xdg-user-dirs-update 2>/dev/null && log "XDG user directories updated" || true
+  if command -v xdg-user-dirs-update >/dev/null 2>&1; then
+    if xdg-user-dirs-update; then
+      log "XDG user directories updated"
+    else
+      warn "Could not update XDG user directories"
+    fi
+  fi
 }
