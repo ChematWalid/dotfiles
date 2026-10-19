@@ -24,6 +24,13 @@ pub struct Renderer {
     cache_dir: PathBuf,
 }
 
+#[derive(Clone, Copy)]
+struct TextStyle {
+    scale: f32,
+    position: (f32, f32),
+    color: Rgba<u8>,
+}
+
 impl Renderer {
     pub fn new(cache_dir: PathBuf) -> Self {
         let regular_bytes = fs::read("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf")
@@ -64,25 +71,22 @@ impl Renderer {
 
     fn draw_str(
         img: &mut RgbaImage,
+        context: &mut ScaleContext,
         font_data: &[u8],
-        scale: f32,
         s: &str,
-        start_x: f32,
-        y: f32,
-        color: Rgba<u8>,
+        style: TextStyle,
     ) {
         let Some(font) = FontRef::from_index(font_data, 0) else {
             return;
         };
         let charmap = font.charmap();
         let metrics = font.glyph_metrics(&[]);
-        let advance_scale = scale / font.metrics(&[]).units_per_em.max(1) as f32;
-        let mut context = ScaleContext::new();
-        let mut scaler = context.builder(font).size(scale).build();
-        let mut position = (start_x, y);
+        let advance_scale = style.scale / font.metrics(&[]).units_per_em.max(1) as f32;
+        let mut scaler = context.builder(font).size(style.scale).build();
+        let mut position = style.position;
         for c in s.chars() {
             let glyph_id = charmap.map(c);
-            Self::draw_char(img, &mut scaler, glyph_id, position, color);
+            Self::draw_char(img, &mut scaler, glyph_id, position, style.color);
             position.0 += metrics.advance_width(glyph_id) * advance_scale;
         }
     }
@@ -171,6 +175,7 @@ impl Renderer {
         }
 
         let mut img = RgbaImage::from_pixel(CARD_W, CARD_H, BG_COLOR);
+        let mut scale_context = ScaleContext::new();
 
         // Fill the header in the backing buffer to avoid per-pixel bounds checks.
         let header_bytes = CARD_W as usize * 64 * 4;
@@ -192,23 +197,27 @@ impl Renderer {
         let header_str = format!("{}  {}", icon, title);
         Self::draw_str(
             &mut img,
+            &mut scale_context,
             &self.font_bold,
-            22.0,
             &header_str,
-            24.0,
-            42.0,
-            ACCENT_COLOR,
+            TextStyle {
+                scale: 22.0,
+                position: (24.0, 42.0),
+                color: ACCENT_COLOR,
+            },
         );
 
         if !sub.is_empty() {
             Self::draw_str(
                 &mut img,
+                &mut scale_context,
                 &self.font_regular,
-                16.0,
                 sub,
-                24.0,
-                96.0,
-                MUTED_COLOR,
+                TextStyle {
+                    scale: 16.0,
+                    position: (24.0, 96.0),
+                    color: MUTED_COLOR,
+                },
             );
         }
 
@@ -222,16 +231,28 @@ impl Renderer {
             if y > (CARD_H as f32 - 32.0) {
                 Self::draw_str(
                     &mut img,
+                    &mut scale_context,
                     &self.font_regular,
-                    18.0,
                     "… (truncated)",
-                    24.0,
-                    y,
-                    MUTED_COLOR,
+                    TextStyle {
+                        scale: 18.0,
+                        position: (24.0, y),
+                        color: MUTED_COLOR,
+                    },
                 );
                 break;
             }
-            Self::draw_str(&mut img, &self.font_regular, 18.0, line, 24.0, y, FG_COLOR);
+            Self::draw_str(
+                &mut img,
+                &mut scale_context,
+                &self.font_regular,
+                line,
+                TextStyle {
+                    scale: 18.0,
+                    position: (24.0, y),
+                    color: FG_COLOR,
+                },
+            );
         }
 
         let _ = img.save(&path);
