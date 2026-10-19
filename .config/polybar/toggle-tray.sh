@@ -7,7 +7,7 @@ set -euo pipefail
 MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
     | awk '$2 ~ /^"polybar-main_/ && !found { window = $1; found = 1 } END { if (found) print window }')
 
-TRAY_PID=$(pgrep -o -f "polybar tray" || true)
+TRAY_PID=$(pgrep -n -f "polybar tray" || true)
 
 if [[ -z "$TRAY_PID" ]]; then
     DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar-tray.log 2>&1 &

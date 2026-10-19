@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-MAIN_PID=$(pgrep -o -f "polybar main" || true)
-TRAY_PID=$(pgrep -o -f "polybar tray" || true)
+MAIN_PID=$(pgrep -n -f "polybar main" || true)
+TRAY_PID=$(pgrep -n -f "polybar tray" || true)
 
 if [[ -z "$MAIN_PID" ]]; then
     systemctl --user restart polybar.service
