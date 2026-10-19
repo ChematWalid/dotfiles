@@ -1,10 +1,32 @@
 //! Text formatting, marquee slicing, and Polybar formatting with click actions.
 
+use std::borrow::Cow;
+
 use crate::config::{
     COLOR_BLUE, COLOR_GREEN, COLOR_PINK, COLOR_TEXT, COLOR_YELLOW, ICON_NEXT, ICON_NOTE,
     ICON_PAUSE_BTN, ICON_PLAY_BTN, ICON_PREV, MAX_CHARS, SEPARATOR,
 };
 use crate::state::MediaState;
+
+fn escape_polybar_text(text: &str) -> Cow<'_, str> {
+    if !text.contains("%{") && !text.chars().any(char::is_control) {
+        return Cow::Borrowed(text);
+    }
+
+    let mut escaped = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '%' && chars.peek() == Some(&'{') {
+            escaped.push_str("%%{");
+            chars.next();
+        } else if character.is_control() {
+            escaped.push(' ');
+        } else {
+            escaped.push(character);
+        }
+    }
+    Cow::Owned(escaped)
+}
 
 #[cfg(test)]
 pub fn get_marquee_slice(text: &str, offset: usize, hovering: bool) -> String {
@@ -49,6 +71,7 @@ pub fn render_polybar(state: &MediaState, scroll_pos: usize, hovering: bool) -> 
         scroll_pos,
         hovering,
     );
+    let display = escape_polybar_text(&display);
     let p = &state.player;
 
     format!(
