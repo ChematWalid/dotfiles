@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Query Muslimtify for next prayer info
-JSON_OUTPUT=$(muslimtify show --next --json 2>/dev/null)
+# Query Muslimtify for next prayer info.
+if ! JSON_OUTPUT=$(muslimtify show --next --json 2>/dev/null); then
+    echo "%{F#6c7086}🕌 --:--%{F-}"
+    exit 0
+fi
 
 if [ -z "$JSON_OUTPUT" ]; then
     echo "%{F#6c7086}🕌 --:--%{F-}"
@@ -12,13 +15,19 @@ fi
 # Strip trailing commas before closing braces (muslimtify may emit invalid JSON)
 CLEAN_JSON=$(echo "$JSON_OUTPUT" | sed 's/,\s*}/}/g')
 
-# Parse fields with jq
-prayer_raw=$(echo "$CLEAN_JSON" | jq -r '.prayer // ""')
-time_val=$(echo "$CLEAN_JSON"  | jq -r '.time // ""')
-remaining=$(echo "$CLEAN_JSON" | jq -r '.remaining // ""')
+# Parse the response once. mapfile preserves empty fields and avoids jq's
+# process-per-field overhead.
+mapfile -t fields < <(jq -r '.prayer // "", .time // "", .remaining // ""' <<< "$CLEAN_JSON" 2>/dev/null)
+if [[ "${#fields[@]}" -lt 3 ]]; then
+    echo "%{F#6c7086}🕌 --:--%{F-}"
+    exit 0
+fi
+prayer_raw=${fields[0]}
+time_val=${fields[1]}
+remaining=${fields[2]}
 
 # Capitalize: first letter upper, rest unchanged (matches Python's str.capitalize())
-prayer=$(echo "$prayer_raw" | sed 's/./\u&/')
+prayer=${prayer_raw^}
 
 # Format remaining time: "H:MM:SS" or "H:MM" → "Xh YYm" or "Ym"
 IFS=':' read -r h m _s <<< "${remaining}:0"   # _s absorbs optional seconds field
