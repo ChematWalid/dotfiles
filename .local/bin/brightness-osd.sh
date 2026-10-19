@@ -56,17 +56,17 @@ elif command -v ddcutil >/dev/null 2>&1; then
     # Desktop monitor: use DDC/CI VCP feature 0x10 (brightness).
     case "$action" in
         up)
-            if ! ddcutil --display 1 setvcp 10 + "$STEP" >/dev/null; then
+            if ! ddcutil --mccs 2.2 --display 1 setvcp 10 + "$STEP" >/dev/null; then
                 action_failed=true
             fi
             ;;
         down)
-            if ! ddcutil --display 1 setvcp 10 - "$STEP" >/dev/null; then
+            if ! ddcutil --mccs 2.2 --display 1 setvcp 10 - "$STEP" >/dev/null; then
                 action_failed=true
             fi
             ;;
     esac
-    if ! brightness_info=$(ddcutil --display 1 getvcp 10 --brief 2>/dev/null); then
+    if ! brightness_info=$(ddcutil --mccs 2.2 --display 1 getvcp 10 --brief 2>/dev/null); then
         report_error 'Could not read DDC/CI monitor brightness.'
         exit 1
     fi
