@@ -9,13 +9,18 @@ readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
 readonly STATE_FILE="${STATE_DIR}/polybar-network-state"
 mkdir -p "$STATE_DIR"
 
+if ! command -v nmcli >/dev/null 2>&1; then
+    printf 'network-tail: nmcli is not installed or not on PATH\n' >&2
+    exit 127
+fi
+
 STATUS=""
 LAST_STATUS=""
 
 update() {
     if [[ -f "$STATE_FILE" ]]; then
         local ip
-        ip=$(ip -4 -o addr show scope global 2>/dev/null \
+        ip=$(ip -4 -o addr show scope global \
             | awk 'NR == 1 { sub(/\/.*/, "", $4); print $4; exit }' || true)
         if [[ -z "$ip" ]]; then
             STATUS="󰤭 Disconnected"
@@ -24,7 +29,7 @@ update() {
         fi
     else
         local ssid
-        ssid=$(iwgetid -r 2>/dev/null || true)
+        ssid=$(iwgetid -r || true)
         if [[ -z "$ssid" ]]; then
             STATUS="󰤭 Disconnected"
         else
@@ -48,7 +53,7 @@ refresh_if_changed
 
 # Stream NetworkManager events asynchronously and trigger update on changes.
 # Track nmcli itself so a Polybar restart cannot leave its monitor orphaned.
-coproc NM_MONITOR { exec nmcli monitor 2>/dev/null; }
+coproc NM_MONITOR { exec nmcli monitor; }
 NM_PID=$NM_MONITOR_PID
 
 cleanup() {
@@ -68,4 +73,10 @@ while IFS= read -r -u "${NM_MONITOR[0]}" line; do
     esac
 done
 
-wait "$NM_PID" 2>/dev/null || true
+if wait "$NM_PID"; then
+    printf 'network-tail: nmcli monitor exited unexpectedly\n' >&2
+else
+    monitor_status=$?
+    printf 'network-tail: nmcli monitor failed with status %s\n' "$monitor_status" >&2
+fi
+exit 1
