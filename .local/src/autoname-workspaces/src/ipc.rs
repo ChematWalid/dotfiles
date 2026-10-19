@@ -195,7 +195,7 @@ impl I3Client {
     ) -> Result<Vec<u8>, std::io::Error> {
         let stream = self.ensure_connected()?;
 
-        let mut msg = Vec::new();
+        let mut msg = Vec::with_capacity(14 + payload.len());
         msg.extend_from_slice(b"i3-ipc");
         msg.extend_from_slice(&(payload.len() as u32).to_ne_bytes());
         msg.extend_from_slice(&msg_type.to_ne_bytes());
@@ -243,7 +243,7 @@ pub fn subscribe_events_with_payload(
     payload: &str,
 ) -> Result<UnixStream, std::io::Error> {
     let mut stream = UnixStream::connect(sock_path)?;
-    let mut sub_msg = Vec::new();
+    let mut sub_msg = Vec::with_capacity(14 + payload.len());
     sub_msg.extend_from_slice(b"i3-ipc");
     sub_msg.extend_from_slice(&(payload.len() as u32).to_ne_bytes());
     sub_msg.extend_from_slice(&2u32.to_ne_bytes());
