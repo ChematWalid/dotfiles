@@ -31,6 +31,27 @@
     "lavender",
   ];
 
+  function applyAccent(selectedValue, colorScheme) {
+    const accent = selectedValue === "none" ? "text" : selectedValue;
+    const properties = {
+      "--spice-text": `var(--spice-${selectedValue})`,
+      "--spice-button-active": `var(--spice-${selectedValue})`,
+      "--spice-equalizer": document.querySelector(
+        "body > script.marketplaceScript"
+      )
+        ? `url('https://github.com/catppuccin/spicetify/blob/main/catppuccin/assets/${colorScheme}/equalizer-animated-${accent}.gif?raw=true')`
+        : `url('${colorScheme}/equalizer-animated-${accent}.gif')`,
+    };
+
+    Object.entries(properties).forEach(([property, value]) => {
+      if (value.includes("none")) {
+        document.documentElement.style.removeProperty(property);
+      } else {
+        document.documentElement.style.setProperty(property, value);
+      }
+    });
+  }
+
   // Create our own section matching spotifys style and structure
   const Section = Spicetify.React.memo(() => {
     const colorScheme = Spicetify.Config.color_scheme || "frappe";
@@ -40,24 +61,7 @@
       Spicetify.React.useState(initialValue);
 
     Spicetify.React.useEffect(() => {
-      const accent = selectedValue === "none" ? "text" : selectedValue;
-      const properties = {
-        "--spice-text": `var(--spice-${selectedValue})`,
-        "--spice-button-active": `var(--spice-${selectedValue})`,
-        "--spice-equalizer": document.querySelector(
-          "body > script.marketplaceScript"
-        )
-          ? `url('https://github.com/catppuccin/spicetify/blob/main/catppuccin/assets/${colorScheme}/equalizer-animated-${accent}.gif?raw=true')`
-          : `url('${colorScheme}/equalizer-animated-${accent}.gif')`,
-      };
-
-      Object.entries(properties).forEach(([property, value]) => {
-        if (value.includes("none")) {
-          document.documentElement.style.removeProperty(property);
-        } else {
-          document.documentElement.style.setProperty(property, value);
-        }
-      });
+      applyAccent(selectedValue, colorScheme);
 
       if (initialValue !== selectedValue) {
         localStorage.setItem("catppuccin-accentColor", selectedValue);
@@ -130,30 +134,57 @@
     );
   });
 
-  // Function to insert our section into the settings page
-  function insertOption(name) {
-    if (name !== "/preferences") return;
+  let settingsObserver = null;
 
-    const checkHeaderInterval = setInterval(() => {
-      const header = document.querySelector("[data-testid='settings-page'] > div:first-of-type, .x-settings-headerContainer");
+  function mountSettingsSection() {
+    const header = document.querySelector(
+      "[data-testid='settings-page'] > div:first-of-type, .x-settings-headerContainer"
+    );
+    if (!header?.parentNode) return false;
 
-      if (header) {
-        clearInterval(checkHeaderInterval);
-
-        const sectionContainer = document.createElement("div");
-        Spicetify.ReactDOM.render(
-          Spicetify.React.createElement(Section),
-          sectionContainer
-        );
-        header.parentNode.insertBefore(sectionContainer, header.nextSibling);
-      }
-    }, 1);
+    if (!header.parentNode.querySelector("#catppuccin-settings-section")) {
+      const sectionContainer = document.createElement("div");
+      sectionContainer.id = "catppuccin-settings-section";
+      Spicetify.ReactDOM.render(
+        Spicetify.React.createElement(Section),
+        sectionContainer
+      );
+      header.parentNode.insertBefore(sectionContainer, header.nextSibling);
+    }
+    return true;
   }
 
-  // Hotload useEffect
-  Spicetify.ReactDOM.render(
-    Spicetify.React.createElement(Section),
-    document.createElement("div")
+  // Mount when the SPA creates the settings header, without a millisecond poll.
+  function insertOption(name) {
+    if (name !== "/preferences") {
+      settingsObserver?.disconnect();
+      settingsObserver = null;
+      return;
+    }
+
+    if (mountSettingsSection()) {
+      settingsObserver?.disconnect();
+      settingsObserver = null;
+      return;
+    }
+
+    if (settingsObserver) return;
+    settingsObserver = new MutationObserver(() => {
+      if (mountSettingsSection()) {
+        settingsObserver.disconnect();
+        settingsObserver = null;
+      }
+    });
+    settingsObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  // Apply the saved accent without mounting a detached React tree.
+  applyAccent(
+    localStorage.getItem("catppuccin-accentColor") ?? "none",
+    Spicetify.Config.color_scheme || "frappe"
   );
 
   // Initialize + Listener
