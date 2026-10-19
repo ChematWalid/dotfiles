@@ -39,6 +39,14 @@ readonly CLASS_NAME="scratchpad_term"
 readonly TITLE="__scratchpad_term__"
 readonly FS_STATE_FILE="${RUNTIME_DIR}/scratchpad-fullscreen.state"
 
+find_scratchpad_id() {
+    local tree
+    tree=$(i3-msg -t get_tree 2>/dev/null) || return 1
+    jq -r --arg instance "$CLASS_NAME" \
+        'first(.. | objects | select(.window_properties?.instance? == $instance) | .id) // empty' \
+        <<< "$tree"
+}
+
 # 3. Query i3 tree state in a single fast call (~8ms)
 tree_info=$(i3-msg -t get_tree 2>/dev/null || echo "{}")
 
@@ -59,18 +67,43 @@ if [[ -z "$scratch_ws" ]]; then
         echo "$fullscreen_id" > "$FS_STATE_FILE"
     fi
 
+    # Subscribe before launching Kitty; query once after launch to cover the
+    # small interval before the event connection is ready, then wait on i3 events.
+    coproc I3_EVENTS { i3-msg -t subscribe -m '["window"]'; }
+    event_fd="${I3_EVENTS[0]}"
+    event_pid="$I3_EVENTS_PID"
+    cleanup_event_listener() {
+        kill "$event_pid" 2>/dev/null || true
+        wait "$event_pid" 2>/dev/null || true
+    }
+    trap cleanup_event_listener EXIT
+
     # Spawn kitty via i3 so it is properly managed and detached
     i3-msg "exec --no-startup-id kitty --class $CLASS_NAME --title $TITLE" >/dev/null 2>&1
 
-    # Wait briefly for kitty to register in i3 tree (max 500ms)
-    for _ in {1..25}; do
-        if i3-msg -t get_tree 2>/dev/null | grep -q "\"instance\":\"$CLASS_NAME\""; then
+    window_id=""
+    while [[ -z "$window_id" ]]; do
+        window_id=$(find_scratchpad_id || true)
+        [[ -n "$window_id" ]] && break
+
+        if ! IFS= read -r -t 5 event <&"$event_fd"; then
             break
         fi
-        sleep 0.02
+
+        # The window event is emitted once i3 has reparented the new client.
+        if jq -e '.change == "new"' <<< "$event" >/dev/null 2>&1; then
+            window_id=$(find_scratchpad_id || true)
+        fi
     done
 
-    i3-msg '[instance="'"$CLASS_NAME"'"] scratchpad show, floating enable, resize set 900 550, move position center, focus' >/dev/null 2>&1 || true
+    cleanup_event_listener
+    trap - EXIT
+
+    if [[ -z "$window_id" ]]; then
+        exit 1
+    fi
+
+    i3-msg "[id=\"$window_id\"] scratchpad show, floating enable, resize set 900 550, move position center, focus" >/dev/null 2>&1 || true
     exit 0
 fi
 
