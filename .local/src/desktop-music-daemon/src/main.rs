@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use futures_lite::StreamExt;
 use zbus::Connection;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     // Write initial state immediately
     writer::write_output_atomic(&mpris::query_current_state());

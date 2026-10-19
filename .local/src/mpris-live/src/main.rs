@@ -19,7 +19,7 @@ enum UiEvent {
     HoverChanged(bool),
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let current = query_current_state();
 
