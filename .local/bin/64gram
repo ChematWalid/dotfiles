@@ -1,2 +1,15 @@
 #!/bin/bash
-exec "$HOME/.local/share/64Gram/64Gram" "$@"
+set -euo pipefail
+
+readonly install_dir="$HOME/.local/share/64Gram"
+readonly executable="$install_dir/Telegram"
+
+if [[ ! -x "$executable" ]]; then
+    printf '64Gram is not installed correctly: missing executable %s\n' "$executable" >&2
+    exit 127
+fi
+
+# Telegram Desktop stores its profile in ./tdata by default. Keep the working
+# directory fixed so launches from menus, terminals, and file managers share it.
+cd -- "$install_dir"
+exec "$executable" "$@"
