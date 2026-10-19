@@ -18,10 +18,30 @@ readonly VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
 readonly TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
 mkdir -p "$STATE_DIR"
 
-# Snapshot the popup state before killing the old bars. The tray watcher writes
-# this state when it closes the popup after an outside click.
-TRAY_WAS_VISIBLE=false
-[[ "$(cat "$TRAY_STATE" 2>/dev/null || true)" == visible ]] && TRAY_WAS_VISIBLE=true
+# Read the actual X11 map state before killing the old bars. State files are a
+# fallback for startup, when there is no existing window to inspect.
+window_visibility() {
+    local role window
+    role="$1"
+    window=$(xwininfo -root -tree 2>/dev/null \
+        | awk -v prefix="\"polybar-${role}_" 'index($2, prefix) == 1 { print $1; exit }')
+    [[ -n "$window" ]] || return 1
+
+    if xwininfo -id "$window" 2>/dev/null | grep -q 'Map State: IsViewable'; then
+        printf 'visible\n'
+    else
+        printf 'hidden\n'
+    fi
+}
+
+MAIN_WAS_VISIBLE=$(window_visibility main || true)
+TRAY_WAS_VISIBLE=$(window_visibility tray || true)
+if [[ -z "$MAIN_WAS_VISIBLE" ]]; then
+    MAIN_WAS_VISIBLE=$(cat "$VISIBILITY_STATE" 2>/dev/null || printf 'visible')
+fi
+if [[ -z "$TRAY_WAS_VISIBLE" ]]; then
+    TRAY_WAS_VISIBLE=$(cat "$TRAY_STATE" 2>/dev/null || printf 'hidden')
+fi
 
 for module_script in mpris-live.sh datetime-tail.sh; do
     if [[ ! -x "${HOME}/.config/polybar/${module_script}" ]]; then
@@ -71,7 +91,7 @@ case "${1:-}" in
     --show) MAIN_COMMAND=show ;;
     --hide) MAIN_COMMAND=hide ;;
     *)
-        if [[ "$(cat "$VISIBILITY_STATE" 2>/dev/null || true)" == hidden ]]; then
+        if [[ "$MAIN_WAS_VISIBLE" == hidden ]]; then
             MAIN_COMMAND=hide
         else
             MAIN_COMMAND=show
@@ -104,7 +124,7 @@ mv -f "${VISIBILITY_STATE}.tmp.$$" "$VISIBILITY_STATE"
 for _ in {1..20}; do
     TRAY_PID=$(pgrep -n -f "polybar tray" || true)
     if [[ -n "$TRAY_PID" ]] && polybar-msg -p "$TRAY_PID" cmd hide >/dev/null 2>&1; then
-        if [[ "$TRAY_WAS_VISIBLE" == true ]]; then
+        if [[ "$TRAY_WAS_VISIBLE" == visible ]]; then
             MAIN_WINDOW=$(xwininfo -root -tree 2>/dev/null \
                 | awk '$2 ~ /^"polybar-main_/ && !found { print $1; found = 1 }')
             setsid "${HOME}/.config/polybar/tray-autohide" "$TRAY_PID" "$MAIN_WINDOW" "$TRAY_STATE" >/dev/null 2>&1 &
