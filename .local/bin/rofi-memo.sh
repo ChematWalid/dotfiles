@@ -23,7 +23,7 @@ if [[ "$CHOICE" == "📖 Open Notes in Editor" ]]; then
     kitty -e nvim "$NOTES_FILE" &
 elif grep -Fxq "$CHOICE" "$NOTES_FILE" 2>/dev/null; then
     CLEAN_TEXT="${CHOICE#- \[*\] }"
-    echo -n "$CLEAN_TEXT" | xclip -selection clipboard
+    printf '%s' "$CLEAN_TEXT" | xclip -selection clipboard
     dunstify -a "Memo" -u low -i "accessories-text-editor" "Copied to Clipboard" "$CLEAN_TEXT"
 else
     TIMESTAMP=$(date +"%Y-%m-%d %H:%M")

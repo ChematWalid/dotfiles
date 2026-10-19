@@ -5,11 +5,10 @@
 set -euo pipefail
 
 query=$(
-    echo "" | \
     rofi -dmenu \
          -p "  Search Google" \
          -theme "${HOME}/.config/rofi/config.rasi" \
-         -theme-str 'window {width: 450px; height: 120px;}' 2>/dev/null || true
+         -theme-str 'window {width: 450px; height: 120px;}' </dev/null 2>/dev/null || true
 )
 
 if [[ -n "$query" ]]; then
