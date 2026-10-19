@@ -16,10 +16,40 @@ OUT_FILE="$SAVE_DIR/screenshot_${TIMESTAMP}.png"
 # Copies to X11 clipboard and CopyQ clipboard manager
 copy_to_clipboards() {
     local file="$1"
-    xclip -selection clipboard -t image/png < "$file" 2>/dev/null || true
-    if command -v copyq >/dev/null 2>&1; then
-        copyq write image/png - < "$file" 2>/dev/null || true
+    local copied=false
+    if command -v xclip >/dev/null 2>&1 \
+        && xclip -selection clipboard -t image/png < "$file" 2>/dev/null; then
+        copied=true
     fi
+    if command -v copyq >/dev/null 2>&1; then
+        if copyq write image/png - < "$file" 2>/dev/null; then
+            copied=true
+        fi
+    fi
+    [[ "$copied" == true ]]
+}
+
+notify_capture() {
+    local title="$1"
+    local message="$2"
+    if copy_to_clipboards "$OUT_FILE"; then
+        message+=" & copied to clipboard"
+    else
+        message+=" (clipboard copy failed)"
+    fi
+    dunstify -a "screenshot" -u normal -i "$OUT_FILE" "$title" "$message" || true
+}
+
+capture_fallback() {
+    local title="$1"
+    local message="$2"
+    if maim -u "$OUT_FILE" 2>/dev/null; then
+        notify_capture "$title" "$message"
+        return 0
+    fi
+    dunstify -a "screenshot" -u critical "Screenshot failed" \
+        "Could not capture the screen" || true
+    return 1
 }
 
 # Qt maps the system-wide C.UTF-8 locale to "C" and logs a missing-translation
@@ -34,8 +64,7 @@ case "$MODE" in
         # Do not launch a selector or move focus before capture: Telegram
         # previews and other transient windows can disappear when focus changes.
         if maim -u "$OUT_FILE" 2>/dev/null; then
-            copy_to_clipboards "$OUT_FILE"
-            dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screenshot Captured" "Saved to Screenshots & copied to clipboard"
+            notify_capture "📸 Screenshot Captured" "Saved to Screenshots"
             if command -v feh >/dev/null 2>&1; then
                 feh --auto-zoom --scale-down "$OUT_FILE" >/dev/null 2>&1 &
             fi
@@ -58,10 +87,7 @@ case "$MODE" in
         
         # If Flameshot failed with an unexpected error code, fall back to maim
         if [ "$FS_EXIT" -ne 0 ]; then
-            if maim -u "$OUT_FILE" 2>/dev/null; then
-                copy_to_clipboards "$OUT_FILE"
-                dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screenshot Captured" "Direct capture saved to Screenshots & clipboard"
-            fi
+            capture_fallback "📸 Screenshot Captured" "Direct capture saved to Screenshots" || exit 1
         fi
         ;;
 
@@ -71,10 +97,7 @@ case "$MODE" in
         FS_EXIT=$?
         set -e
         if [ "$FS_EXIT" -ne 0 ]; then
-            if maim -u "$OUT_FILE" 2>/dev/null; then
-                copy_to_clipboards "$OUT_FILE"
-                dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Fullscreen Captured" "Saved to Screenshots & copied to clipboard"
-            fi
+            capture_fallback "📸 Fullscreen Captured" "Saved to Screenshots" || exit 1
         fi
         ;;
 
@@ -84,10 +107,7 @@ case "$MODE" in
         FS_EXIT=$?
         set -e
         if [ "$FS_EXIT" -ne 0 ]; then
-            if maim -u "$OUT_FILE" 2>/dev/null; then
-                copy_to_clipboards "$OUT_FILE"
-                dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screen Captured" "Saved to Screenshots & copied to clipboard"
-            fi
+            capture_fallback "📸 Screen Captured" "Saved to Screenshots" || exit 1
         fi
         ;;
 
@@ -101,8 +121,7 @@ case "$MODE" in
         # Capture the root window directly after waiting. Starting Flameshot's
         # selector first can dismiss transient menus and hover previews.
         if maim -u -d "$SECS" "$OUT_FILE" 2>/dev/null; then
-            copy_to_clipboards "$OUT_FILE"
-            dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screenshot Captured" "Saved to Screenshots & copied to clipboard"
+            notify_capture "📸 Screenshot Captured" "Saved to Screenshots"
             if command -v feh >/dev/null 2>&1; then
                 feh --auto-zoom --scale-down "$OUT_FILE" >/dev/null 2>&1 &
             fi
