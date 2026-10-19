@@ -52,11 +52,10 @@ capture_fallback() {
     return 1
 }
 
-# Qt maps the system-wide C.UTF-8 locale to "C" and logs a missing-translation
-# warning on every CLI invocation. Force the available English translation only
-# for Flameshot, without changing locale behavior for the rest of the desktop.
+# Force the available English translation and use qt6ct for Papirus-Dark icon
+# lookup, independent of conflicting session-level portal theme overrides.
 run_flameshot() {
-    LC_ALL=en_US.UTF-8 command flameshot "$@"
+    LC_ALL=en_US.UTF-8 QT_QPA_PLATFORMTHEME=qt6ct command flameshot "$@"
 }
 
 case "$MODE" in
