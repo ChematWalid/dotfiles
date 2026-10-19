@@ -7,7 +7,6 @@ Generates metadata and cover thumbnails matching Foliate's exact storage format.
 
 import os
 import sys
-import io
 import json
 import hashlib
 import zipfile
@@ -22,6 +21,16 @@ URI_STORE_PATH = os.path.join(FOLIATE_LIB_DIR, "uri-store.json")
 
 SUPPORTED_EXTS = {".cbz", ".cbr", ".epub", ".pdf", ".mobi", ".azw", ".azw3", ".fb2"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+
+def read_archive_image(archive: zipfile.ZipFile, name: str) -> Image.Image:
+    """Decode an archive member directly, avoiding a full compressed bytes copy."""
+    with archive.open(name) as image_stream:
+        image = Image.open(image_stream)
+        image.load()
+        # Pixel data is now resident; release the closed ZipExtFile reference.
+        image.fp = None
+        return image
 
 
 def compute_identifier(file_path: str) -> str:
@@ -48,8 +57,7 @@ def extract_cbz_cover(cbz_path: str) -> Image.Image | None:
                 and not name.startswith("__MACOSX")
             ), default=None)
             if first_image:
-                data = z.read(first_image)
-                return Image.open(io.BytesIO(data))
+                return read_archive_image(z, first_image)
     except Exception as e:
         print(f"  [!] Failed to extract cover from {cbz_path}: {e}")
     return None
@@ -63,14 +71,14 @@ def extract_epub_cover(epub_path: str) -> Image.Image | None:
             for name in z.namelist():
                 lower = name.lower()
                 if "cover" in lower and any(lower.endswith(ext) for ext in IMAGE_EXTS):
-                    return Image.open(io.BytesIO(z.read(name)))
+                    return read_archive_image(z, name)
             # Otherwise first image
             first_image = min((
                 name for name in z.namelist()
                 if any(name.lower().endswith(ext) for ext in IMAGE_EXTS)
             ), default=None)
             if first_image:
-                return Image.open(io.BytesIO(z.read(first_image)))
+                return read_archive_image(z, first_image)
     except Exception as e:
         print(f"  [!] Failed to extract cover from {epub_path}: {e}")
     return None
