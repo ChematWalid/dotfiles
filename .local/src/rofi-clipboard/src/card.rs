@@ -5,6 +5,7 @@ use image::{Rgba, RgbaImage};
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use swash::scale::{image::Image, Render, ScaleContext, Scaler, Source};
@@ -260,15 +261,20 @@ impl Renderer {
     }
 
     pub fn render_pdf_preview(&self, pdf_path: &Path) -> Option<String> {
-        let prefix = self.cache_dir.join(format!("pdf_{:x}", {
-            let mut h = DefaultHasher::new();
-            pdf_path.hash(&mut h);
-            h.finish()
-        }));
+        let mut hasher = DefaultHasher::new();
+        pdf_path.hash(&mut hasher);
+        if let Ok(metadata) = pdf_path.metadata() {
+            metadata.dev().hash(&mut hasher);
+            metadata.ino().hash(&mut hasher);
+            metadata.len().hash(&mut hasher);
+            metadata.mtime().hash(&mut hasher);
+            metadata.mtime_nsec().hash(&mut hasher);
+        }
+        let prefix = self.cache_dir.join(format!("pdf_{:x}", hasher.finish()));
         let out_png = PathBuf::from(format!("{}-1.png", prefix.display()));
 
         if out_png.exists() {
-            return Some(out_png.to_string_lossy().into_owned());
+            return Some(self.optimize_image(&out_png.to_string_lossy()));
         }
 
         let status = Command::new("pdftoppm")

@@ -32,10 +32,14 @@ pub fn fetch_items(cache_dir: &Path) -> Result<Vec<CopyQItem>> {
             var rawText = isImage ? "" : str(read(i));
             var rawImg = "";
             if (isImage) {{
-                var b = read("image/png", i);
-                if (b.size() === 0) b = read("image/jpeg", i);
-                var sz = b.size();
-                rawImg = "raw_" + i + "_" + sz + ".png";
+                var imageMime = formats.indexOf("image/png") !== -1 ? "image/png" : "image/jpeg";
+                var b = read(imageMime, i);
+                if (b.size() === 0 && imageMime === "image/png") {{
+                    imageMime = "image/jpeg";
+                    b = read(imageMime, i);
+                }}
+                var extension = imageMime === "image/jpeg" ? "jpg" : "png";
+                rawImg = "raw_" + md5sum(b) + "." + extension;
                 var f = new File({} + '/' + rawImg);
                 if (!f.exists() && f.open(File.WriteOnly)) {{ f.write(b); f.close(); }}
             }}
