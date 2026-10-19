@@ -12,7 +12,10 @@ static qurl_toLocalFile_fn orig_qurl_toLocalFile = NULL;
 
 extern "C" {
 
-void _ZNK4QUrl11toLocalFileEv(void *ret, const void *self) {
+void qurl_to_local_file_interpose(void *ret, const void *self)
+    __asm__("_ZNK4QUrl11toLocalFileEv");
+
+void qurl_to_local_file_interpose(void *ret, const void *self) {
     if (!orig_qurl_toLocalFile) {
         orig_qurl_toLocalFile = (qurl_toLocalFile_fn)dlsym(RTLD_NEXT, "_ZNK4QUrl11toLocalFileEv");
     }
