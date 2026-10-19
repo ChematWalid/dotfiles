@@ -31,12 +31,10 @@ run_pamixer() {
 
 case "$action" in
     up)
-        run_pamixer -u
-        run_pamixer --allow-boost -i "$STEP"
+        run_pamixer --unmute --allow-boost --increase "$STEP"
         ;;
     down)
-        run_pamixer -u
-        run_pamixer -d "$STEP"
+        run_pamixer --unmute --decrease "$STEP"
         ;;
     mute)
         run_pamixer -t
