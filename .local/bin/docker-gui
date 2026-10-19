@@ -2,27 +2,34 @@
 # docker-gui — Launch or open Portainer GUI for Docker
 # Storage is on /mnt/drive2/docker-data/portainer
 
-PORT=9000
-DATA_DIR="/mnt/drive2/docker-data/portainer"
+set -euo pipefail
 
+readonly PORT=9000
+readonly DATA_DIR="/mnt/drive2/docker-data/portainer"
+
+# One inspect replaces two container listings and their grep subprocesses.
+container_state=$(docker inspect --format '{{.State.Status}}' portainer 2>/dev/null || true)
 mkdir -p "$DATA_DIR"
 
-if ! docker ps --format '{{.Names}}' | grep -q "^portainer$"; then
-    if docker ps -a --format '{{.Names}}' | grep -q "^portainer$"; then
-        echo "Starting existing Portainer container..."
-        docker start portainer >/dev/null
-    else
+case "$container_state" in
+    running)
+        ;;
+    "")
         echo "Launching Portainer CE on http://localhost:$PORT..."
         docker run -d \
-            -p $PORT:9000 \
-            -p 9443:9443 \
+            -p "${PORT}:9000" \
+            -p "9443:9443" \
             --name portainer \
             --restart=always \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$DATA_DIR":/data \
+            -v "$DATA_DIR:/data" \
             portainer/portainer-ce:latest
-    fi
-fi
+        ;;
+    *)
+        echo "Starting existing Portainer container..."
+        docker start portainer >/dev/null
+        ;;
+esac
 
 # Wait briefly for port to be ready
 sleep 1.5
