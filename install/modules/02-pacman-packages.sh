@@ -48,9 +48,11 @@ run_module() {
     done < "$DOTFILES_DIR/pkglist-pacman-names.txt"
 
     info "Installing ${#pkgs[@]} pacman packages..."
-    sudo pacman -S --needed --noconfirm "${pkgs[@]}" 2>/dev/null \
-      || warn "Some pacman packages may not exist in repos (may be AUR) — continuing"
-    log "Pacman packages installed"
+    if sudo pacman -S --needed --noconfirm "${pkgs[@]}"; then
+      log "Pacman packages installed"
+    else
+      warn "Pacman package installation failed; review the pacman output and rerun this module after resolving the error"
+    fi
   else
     warn "Skipped pacman packages installation"
   fi

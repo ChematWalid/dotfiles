@@ -17,9 +17,11 @@ run_module() {
         aur_pkgs+=("$pkg")
       done < "$DOTFILES_DIR/pkglist-aur-names.txt"
 
-      yay -S --needed --noconfirm "${aur_pkgs[@]}" 2>/dev/null \
-        || warn "Some AUR packages failed — check manually if needed"
-      log "AUR packages done"
+      if yay -S --needed --noconfirm "${aur_pkgs[@]}"; then
+        log "AUR packages installed"
+      else
+        warn "AUR package installation failed; review the yay output and rerun this module after resolving the error"
+      fi
     else
       warn "Skipped AUR packages installation"
     fi
