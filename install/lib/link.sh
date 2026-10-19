@@ -5,9 +5,18 @@
 
 safe_link() {
   local src="$1" dst="$2"
-  # If destination is already a symlink pointing directly to source, skip to avoid breaking active sockets
-  if [[ -L "$dst" ]] && [[ "$(readlink -f "$dst" 2>/dev/null)" == "$(readlink -f "$src" 2>/dev/null)" ]]; then
-    return 0
+  # Most installed links use the exact source path as their target. Compare it
+  # directly first so the common case needs only one readlink process.
+  if [[ -L "$dst" ]]; then
+    local existing_target
+    existing_target="$(readlink -- "$dst" 2>/dev/null)" || existing_target=""
+    if [[ "$existing_target" == "$src" ]]; then
+      return 0
+    fi
+    # Preserve canonical-path equality for links created through aliases.
+    if [[ "$(readlink -f "$dst" 2>/dev/null)" == "$(readlink -f "$src" 2>/dev/null)" ]]; then
+      return 0
+    fi
   fi
 
   mkdir -p "$(dirname "$dst")"
