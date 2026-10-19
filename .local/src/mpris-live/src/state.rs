@@ -8,6 +8,7 @@ pub struct MediaState {
     pub player: String,
     pub status: String,
     pub full_text: String,
+    pub full_text_chars: usize,
 }
 
 pub async fn query_current_state() -> MediaState {
@@ -48,11 +49,13 @@ pub async fn query_current_state() -> MediaState {
                 (true, false) => title.to_string(),
                 _ => artist.to_string(),
             };
+            let full_text_chars = full_text.chars().count();
 
             let st = MediaState {
                 player,
                 status: status.clone(),
                 full_text,
+                full_text_chars,
             };
 
             if status == "Playing" && playing.is_none() {

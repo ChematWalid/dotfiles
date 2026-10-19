@@ -6,8 +6,18 @@ use crate::config::{
 };
 use crate::state::MediaState;
 
+#[cfg(test)]
 pub fn get_marquee_slice(text: &str, offset: usize, hovering: bool) -> String {
     let char_count = text.chars().count();
+    get_marquee_slice_with_count(text, char_count, offset, hovering)
+}
+
+fn get_marquee_slice_with_count(
+    text: &str,
+    char_count: usize,
+    offset: usize,
+    hovering: bool,
+) -> String {
     if char_count <= MAX_CHARS {
         return text.to_string();
     }
@@ -33,7 +43,12 @@ pub fn render_polybar(state: &MediaState, scroll_pos: usize, hovering: bool) -> 
         (ICON_PLAY_BTN, COLOR_YELLOW)
     };
 
-    let display = get_marquee_slice(&state.full_text, scroll_pos, hovering);
+    let display = get_marquee_slice_with_count(
+        &state.full_text,
+        state.full_text_chars,
+        scroll_pos,
+        hovering,
+    );
     let p = &state.player;
 
     format!(
@@ -85,6 +100,7 @@ mod tests {
             player: "spotify".to_string(),
             status: "Playing".to_string(),
             full_text: "Artist - Song".to_string(),
+            full_text_chars: "Artist - Song".chars().count(),
         };
         let out = render_polybar(&state, 0, false);
         assert!(out.contains("Artist - Song"));

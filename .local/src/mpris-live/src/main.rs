@@ -41,7 +41,7 @@ async fn main() -> Result<()> {
     loop {
         let (should_scroll, stream_len) = {
             let current_state = state_rx.borrow();
-            let text_len = current_state.full_text.chars().count();
+            let text_len = current_state.full_text_chars;
             (
                 hovering && text_len > MAX_CHARS,
                 text_len + SEPARATOR.chars().count(),
