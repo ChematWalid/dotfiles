@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-current=$(setxkbmap -query 2>/dev/null | awk '/layout/{print $2}' | cut -d',' -f1)
+current=$(setxkbmap -query 2>/dev/null | awk '/layout/ {split($2, layouts, ","); print layouts[1]}')
 
 if [[ "$current" == "be" ]]; then
     setxkbmap -layout "ara,be" -option "grp:win_space_toggle"
