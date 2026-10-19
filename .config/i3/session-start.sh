@@ -8,6 +8,11 @@ systemctl --user import-environment DISPLAY XAUTHORITY
 LC_ALL=en_US.UTF-8 QT_QPA_PLATFORMTHEME=qt6ct \
     dbus-update-activation-environment DISPLAY XAUTHORITY LC_ALL QT_QPA_PLATFORMTHEME
 
+# .xprofile may still be applying input settings in the background while i3
+# starts. Reapply them now that the i3 display environment is ready so the
+# keyboard repeat rate does not fall back to the X server default.
+"${HOME}/.local/bin/apply-input-settings.sh"
+
 # Make the display compositor and tray host available before tray clients.
 systemctl --user start picom.service
 "${HOME}/.config/polybar/launch.sh" --show
