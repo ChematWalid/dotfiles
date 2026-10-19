@@ -49,7 +49,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
             tokio::select! {
                 Some(msg_result) = props_stream.next() => {
                     if msg_result.as_ref().map_or(true, affects_displayed_state) {
-                        let latest = query_current_state();
+                        let latest = query_current_state().await;
                         state.send_replace(latest);
                     }
                 }
@@ -58,7 +58,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
                         let body: Result<(String, String, String), _> = msg.body().deserialize();
                         if let Ok((name, _old, _new)) = body {
                             if name.starts_with("org.mpris.") {
-                                let latest = query_current_state();
+                                let latest = query_current_state().await;
                                 state.send_replace(latest);
                             }
                         }

@@ -12,7 +12,7 @@ use zbus::Connection;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     // Write initial state immediately
-    writer::write_output_atomic(&mpris::query_current_state());
+    writer::write_output_atomic(&mpris::query_current_state().await);
 
     // Connect to session D-Bus
     let conn = Connection::session()
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
             // MPRIS playback status or track property changed
             Some(msg_result) = props_stream.next() => {
                 if msg_result.as_ref().map_or(true, mpris::affects_displayed_state) {
-                    writer::write_output_atomic(&mpris::query_current_state());
+                    writer::write_output_atomic(&mpris::query_current_state().await);
                 }
             }
             // A D-Bus name appeared or disappeared
@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
                     let body: Result<(String, String, String), _> = msg.body().deserialize();
                     if let Ok((name, _old, _new)) = body {
                         if name.starts_with("org.mpris.") {
-                            writer::write_output_atomic(&mpris::query_current_state());
+                            writer::write_output_atomic(&mpris::query_current_state().await);
                         }
                     }
                 }

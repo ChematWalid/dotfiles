@@ -21,7 +21,7 @@ enum UiEvent {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    let current = query_current_state();
+    let current = query_current_state().await;
 
     let (state_tx, mut state_rx) = watch::channel(current);
     let (event_tx, mut event_rx) = mpsc::unbounded_channel();

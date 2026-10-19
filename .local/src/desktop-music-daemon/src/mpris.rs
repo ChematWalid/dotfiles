@@ -3,13 +3,14 @@
 use crate::config::{ICON_PAUSE, ICON_PLAY};
 use anyhow::Result;
 use std::collections::HashMap;
-use std::process::{Command as SyncCommand, Stdio};
+use std::process::Stdio;
+use tokio::process::Command;
 use zbus::{message::Type as MsgType, Connection, MatchRule, Message, MessageStream, OwnedVariant};
 
 /// Queries playerctl for the highest priority active player:
 /// Prefers Playing > Paused. Falls back to MPD via `mpc current`.
-pub fn query_current_state() -> String {
-    let out = SyncCommand::new("playerctl")
+pub async fn query_current_state() -> String {
+    let out = Command::new("playerctl")
         .args([
             "metadata",
             "-a",
@@ -17,7 +18,8 @@ pub fn query_current_state() -> String {
             "{{status}}:::{{artist}}:::{{title}}",
         ])
         .stderr(Stdio::null())
-        .output();
+        .output()
+        .await;
 
     if let Ok(out) = out {
         let stdout = String::from_utf8_lossy(&out.stdout);
@@ -25,13 +27,15 @@ pub fn query_current_state() -> String {
         let mut paused: Option<String> = None;
 
         for line in stdout.lines() {
-            let p: Vec<&str> = line.splitn(4, ":::").collect();
-            if p.len() < 3 {
+            let mut parts = line.splitn(4, ":::");
+            let (Some(status), Some(artist), Some(title)) =
+                (parts.next(), parts.next(), parts.next())
+            else {
                 continue;
-            }
-            let status = p[0].trim();
-            let artist = p[1].trim();
-            let title = p[2].trim();
+            };
+            let status = status.trim();
+            let artist = artist.trim();
+            let title = title.trim();
 
             if artist.is_empty() && title.is_empty() {
                 continue;
@@ -63,10 +67,11 @@ pub fn query_current_state() -> String {
     }
 
     // Fallback: mpc (MPD)
-    if let Ok(out) = SyncCommand::new("mpc")
+    if let Ok(out) = Command::new("mpc")
         .arg("current")
         .stderr(Stdio::null())
         .output()
+        .await
     {
         let mpc = String::from_utf8_lossy(&out.stdout).trim().to_string();
         if !mpc.is_empty() {

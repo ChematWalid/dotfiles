@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
-tokio = { version = "1", default-features = false, features = ["macros", "rt"] }
+tokio = { version = "1", default-features = false, features = ["macros", "process", "rt"] }
 zbus = { version = "6", default-features = false, features = ["tokio"] }
 futures-lite = "2"
 
