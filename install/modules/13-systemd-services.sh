@@ -11,7 +11,10 @@ run_module() {
     systemctl --user daemon-reload 2>/dev/null || true
     local svc
     systemctl --user disable --now sync-antigravity.timer 2>/dev/null || true
-    for svc in copyq greenclip i3-autoname mpd syncthing wireplumber desktop-music-daemon muslimtify sync-antigravity.service sync-antigravity.path; do
+    # CopyQ needs the live i3 DISPLAY/XAUTHORITY environment and is started by
+    # the i3 autostart hook after importing those credentials.
+    systemctl --user disable copyq.service 2>/dev/null || true
+    for svc in greenclip i3-autoname mpd syncthing wireplumber desktop-music-daemon muslimtify sync-antigravity.service sync-antigravity.path; do
       if systemctl --user enable "$svc" 2>/dev/null; then
         log "Enabled: $svc"
       else
