@@ -26,18 +26,31 @@ get_wall_dir() {
     echo "$dir"
 }
 
+apply_wallpaper() {
+    local wallpaper="$1"
+    if ! feh --bg-fill "$wallpaper"; then
+        printf 'wallpaper-rotate: feh could not apply wallpaper: %s\n' "$wallpaper" >&2
+        return 1
+    fi
+}
+
 pick_and_apply_wallpaper() {
     local wallpaper_dir
     wallpaper_dir=$(get_wall_dir)
+    if [[ ! -d "$wallpaper_dir" ]]; then
+        printf 'wallpaper-rotate: wallpaper directory is unavailable: %s\n' "$wallpaper_dir" >&2
+        return 0
+    fi
     local current=""
     if [[ -r "$STATE_FILE" ]]; then
         IFS= read -r current < "$STATE_FILE" || true
     fi
 
     local walls=()
-    mapfile -t walls < <(
+    mapfile -d '' -t walls < <(
         find -L "$wallpaper_dir" -maxdepth 3 -type f \
-             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \)
+             \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) \
+             -print0
     )
     local count=${#walls[@]}
 
@@ -66,8 +79,9 @@ pick_and_apply_wallpaper() {
         else
             wall="${walls[0]}"
         fi
-        echo "$wall" > "$STATE_FILE"
-        feh --bg-fill "$wall"
+        if apply_wallpaper "$wall"; then
+            printf '%s\n' "$wall" > "$STATE_FILE"
+        fi
     else
         printf 'wallpaper-rotate: no wallpaper images found in %s\n' "$wallpaper_dir" >&2
     fi
@@ -79,7 +93,9 @@ if [[ -r "$STATE_FILE" ]]; then
     IFS= read -r current_wall < "$STATE_FILE" || true
 fi
 if [[ -n "$current_wall" && -f "$current_wall" ]]; then
-    feh --bg-fill "$current_wall"
+    if ! apply_wallpaper "$current_wall"; then
+        pick_and_apply_wallpaper
+    fi
 else
     pick_and_apply_wallpaper
 fi
