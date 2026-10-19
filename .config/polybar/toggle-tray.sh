@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-TRAY_PID=$(pgrep -f "polybar tray" | head -1 || true)
+TRAY_PID=$(pgrep -o -f "polybar tray" || true)
 
 if [[ -z "$TRAY_PID" ]]; then
     DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.ini" > /tmp/polybar-tray.log 2>&1 &

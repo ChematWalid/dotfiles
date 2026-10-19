@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-MAIN_PID=$(pgrep -f "polybar main" | head -1 || true)
-TRAY_PID=$(pgrep -f "polybar tray" | head -1 || true)
+MAIN_PID=$(pgrep -o -f "polybar main" || true)
+TRAY_PID=$(pgrep -o -f "polybar tray" || true)
 
 if [[ -z "$MAIN_PID" ]]; then
     "${HOME}/.config/polybar/launch.sh" --show

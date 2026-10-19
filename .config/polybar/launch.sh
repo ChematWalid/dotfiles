@@ -51,7 +51,7 @@ DISPLAY="${DISPLAY:-:0}" setsid polybar tray -c "${HOME}/.config/polybar/config.
 # Wait for IPC socket to initialize and hide Polybar by default if requested
 if [[ "${1:-}" != "--show" ]]; then
     for _ in {1..20}; do
-        MAIN_PID=$(pgrep -f "polybar main" | head -1 || true)
+        MAIN_PID=$(pgrep -o -f "polybar main" || true)
         if [[ -n "$MAIN_PID" ]] && polybar-msg -p "$MAIN_PID" cmd hide 2>/dev/null; then
             break
         fi
@@ -61,7 +61,7 @@ fi
 
 # Always hide tray popup bar by default on launch
 for _ in {1..20}; do
-    TRAY_PID=$(pgrep -f "polybar tray" | head -1 || true)
+    TRAY_PID=$(pgrep -o -f "polybar tray" || true)
     if [[ -n "$TRAY_PID" ]] && polybar-msg -p "$TRAY_PID" cmd hide 2>/dev/null; then
         break
     fi
