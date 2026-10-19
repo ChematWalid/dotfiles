@@ -1,0 +1,9 @@
+[Unit]
+Description=Picom X11 compositor
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/picom --config %h/.config/picom/picom.conf
+Restart=on-failure
+RestartSec=1
