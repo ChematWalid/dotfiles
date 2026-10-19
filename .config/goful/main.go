@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -75,13 +77,28 @@ func loadTheme() Theme {
 	configPath := filepath.Join(home, ".config", "goful", "theme.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		_ = os.MkdirAll(filepath.Dir(configPath), 0755)
-		if b, err := json.MarshalIndent(mochaDefaults, "", "  "); err == nil {
-			_ = os.WriteFile(configPath, b, 0644)
+		if !errors.Is(err, os.ErrNotExist) {
+			fmt.Fprintf(os.Stderr, "goful: could not read theme %s: %v; using defaults\n", configPath, err)
+			return theme
+		}
+		if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "goful: could not create theme directory: %v\n", err)
+			return theme
+		}
+		b, err := json.MarshalIndent(mochaDefaults, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "goful: could not encode default theme: %v\n", err)
+			return theme
+		}
+		if err := os.WriteFile(configPath, b, 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "goful: could not write default theme %s: %v\n", configPath, err)
 		}
 		return theme
 	}
-	_ = json.Unmarshal(data, &theme)
+	if err := json.Unmarshal(data, &theme); err != nil {
+		fmt.Fprintf(os.Stderr, "goful: invalid theme %s: %v; using defaults\n", configPath, err)
+		return mochaDefaults
+	}
 	return theme
 }
 
