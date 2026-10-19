@@ -7,7 +7,7 @@ systemctl --user import-environment DISPLAY XAUTHORITY
 
 # Make the display compositor and tray host available before tray clients.
 systemctl --user start picom.service
-"${HOME}/.config/polybar/launch.sh"
+"${HOME}/.config/polybar/launch.sh" --show
 
 # Start the rest after the X11 display and Polybar tray are initialized.
 systemctl --user start \
