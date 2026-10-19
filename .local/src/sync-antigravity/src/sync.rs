@@ -25,23 +25,10 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         fs::create_dir_all(&paths.cli_brain)?;
     }
 
-    // 1. Backups
-    if !dry_run && paths.gui_proto.exists() {
-        fs::copy(
-            &paths.gui_proto,
-            paths.gui_dir.join("agyhub_summaries_proto.pb.bak"),
-        )?;
-    }
-    if !dry_run && paths.cli_db.exists() {
-        let backup_path = paths.cli_dir.join("conversation_summaries.db.bak");
-        fs::copy(&paths.cli_db, &backup_path)?;
-        fs::set_permissions(&backup_path, fs::Permissions::from_mode(0o600))?;
-    }
-
-    // 2. Read GUI proto
+    // 1. Read GUI proto
     let (gui_entries, mut raw_proto) = read_gui_proto(&paths.gui_proto)?;
 
-    // 3. Read CLI SQLite db
+    // 2. Read CLI SQLite db
     let cli_rows = fetch_cli_rows(&paths.cli_db)?;
 
     let cli_ids: HashSet<&str> = cli_rows
@@ -49,9 +36,7 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         .map(|row| row.conversation_id.as_str())
         .collect();
 
-    let mut synced_to_gui = 0;
-
-    // 4. GUI -> CLI
+    // 3. GUI -> CLI
     let imports: Vec<_> = gui_entries
         .iter()
         .filter(|(cid, _)| !cli_ids.contains(cid.as_str()))
@@ -69,25 +54,43 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
             )
         })
         .collect();
+    // 4. CLI -> GUI: collect missing entries before writes so backups are only
+    // needed when either catalog will actually change.
+    let cli_only_rows: Vec<_> = cli_rows
+        .iter()
+        .filter(|row| !gui_entries.contains_key(row.conversation_id.as_str()))
+        .collect();
+    let synced_to_gui = cli_only_rows.len();
+
+    if !dry_run && (!imports.is_empty() || !cli_only_rows.is_empty()) {
+        if paths.gui_proto.exists() {
+            fs::copy(
+                &paths.gui_proto,
+                paths.gui_dir.join("agyhub_summaries_proto.pb.bak"),
+            )?;
+        }
+        if paths.cli_db.exists() {
+            let backup_path = paths.cli_dir.join("conversation_summaries.db.bak");
+            fs::copy(&paths.cli_db, &backup_path)?;
+            fs::set_permissions(&backup_path, fs::Permissions::from_mode(0o600))?;
+        }
+    }
+
     let synced_to_cli = if dry_run {
         imports.len()
     } else {
         insert_cli_rows(&paths.cli_db, &imports)?
     };
 
-    // 5. CLI -> GUI
-    for row in &cli_rows {
-        if !gui_entries.contains_key(row.conversation_id.as_str()) {
-            let title = row.title.as_deref().unwrap_or("Untitled Conversation");
-            let step_count = row.step_count.unwrap_or(1);
-            let ts = parse_iso_ts(row.last_modified_time.as_deref());
-            let ws_uri = "file:///home/walid/E/Documents";
+    for row in cli_only_rows {
+        let title = row.title.as_deref().unwrap_or("Untitled Conversation");
+        let step_count = row.step_count.unwrap_or(1);
+        let ts = parse_iso_ts(row.last_modified_time.as_deref());
+        let ws_uri = "file:///home/walid/E/Documents";
 
-            let entry_bytes =
-                build_gui_proto_entry(&row.conversation_id, title, step_count, ts, ws_uri);
-            raw_proto.extend_from_slice(&entry_bytes);
-            synced_to_gui += 1;
-        }
+        let entry_bytes =
+            build_gui_proto_entry(&row.conversation_id, title, step_count, ts, ws_uri);
+        raw_proto.extend_from_slice(&entry_bytes);
     }
 
     if !dry_run && synced_to_gui > 0 && !raw_proto.is_empty() {
@@ -102,7 +105,7 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         fs::rename(&temp_path, &paths.gui_proto)?;
     }
 
-    // 6. Brain / Transcripts / Artifacts mirroring
+    // 5. Brain / Transcripts / Artifacts mirroring
     let mut files_linked = 0;
     let gui_ids = gui_entries.keys().map(String::as_str);
     let cli_only_ids = cli_rows.iter().filter_map(|row| {
