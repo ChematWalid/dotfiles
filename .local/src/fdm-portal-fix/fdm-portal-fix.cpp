@@ -1,14 +1,23 @@
 #include <QString>
-#include <QUrl>
 #include <dlfcn.h>
+#include <limits.h>
+#include <new>
+#include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
 typedef void (*qurl_toLocalFile_fn)(void *ret, const void *self);
-static qurl_toLocalFile_fn orig_qurl_toLocalFile = NULL;
+
+static qurl_toLocalFile_fn original_qurl_to_local_file() {
+    // Function-local static initialization is thread-safe in C++11 and later.
+    static const auto function = reinterpret_cast<qurl_toLocalFile_fn>(
+        dlsym(RTLD_NEXT, "_ZNK4QUrl11toLocalFileEv"));
+    return function;
+}
 
 extern "C" {
 
@@ -16,12 +25,12 @@ void qurl_to_local_file_interpose(void *ret, const void *self)
     __asm__("_ZNK4QUrl11toLocalFileEv");
 
 void qurl_to_local_file_interpose(void *ret, const void *self) {
-    if (!orig_qurl_toLocalFile) {
-        orig_qurl_toLocalFile = (qurl_toLocalFile_fn)dlsym(RTLD_NEXT, "_ZNK4QUrl11toLocalFileEv");
+    const qurl_toLocalFile_fn original = original_qurl_to_local_file();
+    if (!original) {
+        new (ret) QString();
+        return;
     }
-    if (orig_qurl_toLocalFile) {
-        orig_qurl_toLocalFile(ret, self);
-    }
+    original(ret, self);
 
     void *caller = __builtin_return_address(0);
     Dl_info info;
@@ -42,11 +51,15 @@ void qurl_to_local_file_interpose(void *ret, const void *self) {
     const char *home = getenv("HOME");
     if (!home || home[0] != '/') return;
 
-    char fdm_cache[1024];
-    snprintf(fdm_cache, sizeof(fdm_cache), "%s/.cache/fdm_last_selected_folder", home);
+    char fdm_cache[PATH_MAX];
+    const int fdm_cache_len = snprintf(
+        fdm_cache, sizeof(fdm_cache), "%s/.cache/fdm_last_selected_folder", home);
+    if (fdm_cache_len < 0 || (size_t)fdm_cache_len >= sizeof(fdm_cache)) return;
 
-    char last_used[1024];
-    snprintf(last_used, sizeof(last_used), "%s/.cache/last_used_directory", home);
+    char last_used[PATH_MAX];
+    const int last_used_len = snprintf(
+        last_used, sizeof(last_used), "%s/.cache/last_used_directory", home);
+    if (last_used_len < 0 || (size_t)last_used_len >= sizeof(last_used)) return;
 
     struct stat st;
     time_t now = time(NULL);
@@ -62,7 +75,7 @@ void qurl_to_local_file_interpose(void *ret, const void *self) {
         return;
     }
 
-    char chosen_folder[1024] = {0};
+    char chosen_folder[PATH_MAX] = {0};
     bool found = false;
 
     // 1. Check fdm_last_selected_folder first (within 10s)
