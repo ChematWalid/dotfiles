@@ -21,6 +21,12 @@ for module_script in mpris-live.sh datetime-tail.sh; do
     fi
 done
 
+if [[ ! -x "${HOME}/.config/polybar/network-eth-live" ]]; then
+    printf 'Polybar network event helper is missing or not executable: %s\n' \
+        "${HOME}/.config/polybar/network-eth-live" >&2
+    exit 1
+fi
+
 if [[ ! -x "${HOME}/.local/bin/polybar-datetime" ]]; then
     printf 'Polybar datetime helper is missing or not executable: %s\n' \
         "${HOME}/.local/bin/polybar-datetime" >&2
