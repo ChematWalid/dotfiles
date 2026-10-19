@@ -6,7 +6,6 @@ mod icons;
 mod ipc;
 mod workspace;
 
-use regex::Regex;
 use std::io::Read;
 use std::thread;
 use std::time::Duration;
@@ -21,11 +20,10 @@ fn main() {
         std::process::exit(1);
     }
 
-    let re_ws = Regex::new(r"^(\d+)").expect("Valid regex");
     let mut client = I3Client::new(sock_path.clone());
 
     // Initial update
-    update_workspaces(&mut client, &re_ws);
+    update_workspaces(&mut client);
 
     // Event listener subscription loop
     loop {
@@ -43,7 +41,7 @@ fn main() {
                 }
 
                 if event_changes_workspace_icons(ev_type, &ev_body) {
-                    update_workspaces(&mut client, &re_ws);
+                    update_workspaces(&mut client);
                 }
             },
             Err(_) => {

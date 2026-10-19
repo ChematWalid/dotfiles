@@ -2,113 +2,120 @@
 
 use crate::icons::{get_icon, is_ignored};
 use crate::ipc::I3Client;
-use regex::Regex;
 use serde_json::Value;
 
-pub fn get_workspace_number(name: &str, re: &Regex) -> String {
-    if let Some(caps) = re.captures(name) {
-        if let Some(m) = caps.get(1) {
-            return m.as_str().to_string();
-        }
+pub fn get_workspace_number(name: &str) -> &str {
+    let digits = name.bytes().take_while(u8::is_ascii_digit).count();
+    if digits == 0 {
+        name
+    } else {
+        &name[..digits]
     }
-    name.to_string()
 }
 
 pub fn find_workspaces<'a>(node: &'a Value, out: &mut Vec<&'a Value>) {
-    if node.get("type").and_then(|t| t.as_str()) == Some("workspace") {
-        if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-            if !name.starts_with("__") {
-                out.push(node);
-            }
+    if node.get("type").and_then(Value::as_str) == Some("workspace") {
+        if node
+            .get("name")
+            .and_then(Value::as_str)
+            .is_some_and(|name| !name.starts_with("__"))
+        {
+            out.push(node);
         }
         return;
     }
-    if let Some(nodes) = node.get("nodes").and_then(|n| n.as_array()) {
-        for n in nodes {
-            find_workspaces(n, out);
-        }
-    }
-    if let Some(floating) = node.get("floating_nodes").and_then(|n| n.as_array()) {
-        for n in floating {
-            find_workspaces(n, out);
+
+    for key in ["nodes", "floating_nodes"] {
+        if let Some(nodes) = node.get(key).and_then(Value::as_array) {
+            for child in nodes {
+                find_workspaces(child, out);
+            }
         }
     }
 }
 
-pub fn find_leaves<'a>(node: &'a Value, leaves: &mut Vec<&'a Value>) {
+fn collect_icons(node: &Value, icons: &mut Vec<&'static str>) {
     let nodes = node
         .get("nodes")
-        .and_then(|n| n.as_array())
+        .and_then(Value::as_array)
         .map(Vec::as_slice)
         .unwrap_or(&[]);
     let floating = node
         .get("floating_nodes")
-        .and_then(|n| n.as_array())
+        .and_then(Value::as_array)
         .map(Vec::as_slice)
         .unwrap_or(&[]);
 
     if nodes.is_empty() && floating.is_empty() {
-        if node.get("window").is_some() || node.get("name").is_some() {
-            leaves.push(node);
+        if node.get("window").is_none() && node.get("name").is_none() {
+            return;
         }
-    } else {
-        for n in nodes {
-            find_leaves(n, leaves);
+
+        let name = node.get("name").and_then(Value::as_str).unwrap_or("");
+        let (class, instance) = node
+            .get("window_properties")
+            .map(|props| {
+                (
+                    props.get("class").and_then(Value::as_str).unwrap_or(""),
+                    props.get("instance").and_then(Value::as_str).unwrap_or(""),
+                )
+            })
+            .unwrap_or(("", ""));
+
+        if !is_ignored(class, instance, name) {
+            let icon = get_icon(class, instance, name);
+            if !icons.contains(&icon) {
+                icons.push(icon);
+            }
         }
-        for n in floating {
-            find_leaves(n, leaves);
-        }
+        return;
+    }
+
+    for child in nodes.iter().chain(floating) {
+        collect_icons(child, icons);
     }
 }
 
-pub fn update_workspaces(client: &mut I3Client, re_ws: &Regex) {
+pub fn update_workspaces(client: &mut I3Client) {
     let tree = match client.get_tree() {
-        Ok(t) => t,
+        Ok(tree) => tree,
         Err(_) => return,
     };
 
     let mut workspaces = Vec::new();
     find_workspaces(&tree, &mut workspaces);
 
-    for ws in workspaces {
-        let ws_name = match ws.get("name").and_then(|n| n.as_str()) {
-            Some(n) => n,
-            None => continue,
+    for workspace in workspaces {
+        let Some(workspace_name) = workspace.get("name").and_then(Value::as_str) else {
+            continue;
         };
 
-        let ws_num = get_workspace_number(ws_name, re_ws);
-        let mut leaves = Vec::new();
-        find_leaves(ws, &mut leaves);
+        let workspace_number = get_workspace_number(workspace_name);
+        let mut icons = Vec::new();
+        collect_icons(workspace, &mut icons);
 
-        let mut icons: Vec<&str> = Vec::new();
-        for w in leaves {
-            let name = w.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            let (cls, inst) = if let Some(props) = w.get("window_properties") {
-                (
-                    props.get("class").and_then(|c| c.as_str()).unwrap_or(""),
-                    props.get("instance").and_then(|i| i.as_str()).unwrap_or(""),
-                )
-            } else {
-                ("", "")
-            };
-
-            if (w.get("window").is_some() || !name.is_empty()) && !is_ignored(cls, inst, name) {
-                let icon = get_icon(cls, inst, name);
-                if !icons.contains(&icon) {
-                    icons.push(icon);
-                }
-            }
-        }
-
-        let new_name = if !icons.is_empty() {
-            format!("{} {}", ws_num, icons.join(" "))
+        let new_name = if icons.is_empty() {
+            workspace_number.to_owned()
         } else {
-            ws_num
+            format!("{workspace_number} {}", icons.join(" "))
         };
 
-        if ws_name != new_name {
-            let cmd = format!("rename workspace \"{}\" to \"{}\"", ws_name, new_name);
-            let _ = client.run_command(&cmd);
+        if workspace_name != new_name {
+            let command = format!("rename workspace \"{workspace_name}\" to \"{new_name}\"");
+            let _ = client.run_command(&command);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::get_workspace_number;
+
+    #[test]
+    fn extracts_numeric_workspace_prefix_without_allocating() {
+        assert_eq!(get_workspace_number("3: browser"), "3");
+        assert_eq!(get_workspace_number("12 "), "12");
+        assert_eq!(get_workspace_number("web"), "web");
+        assert_eq!(get_workspace_number("٣ browser"), "٣ browser");
     }
 }
