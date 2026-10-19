@@ -21,6 +21,12 @@ for module_script in mpris-live.sh datetime-tail.sh; do
     fi
 done
 
+if [[ ! -x "${HOME}/.local/bin/polybar-datetime" ]]; then
+    printf 'Polybar datetime helper is missing or not executable: %s\n' \
+        "${HOME}/.local/bin/polybar-datetime" >&2
+    exit 1
+fi
+
 # Terminate existing Polybar and child module instances gracefully
 killall polybar 2>/dev/null || true
 pkill -x "mpris-live" 2>/dev/null || true
