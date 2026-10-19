@@ -30,6 +30,12 @@ pub fn fetch_items(cache_dir: &Path) -> Result<Vec<CopyQItem>> {
             var isImage = formats.indexOf("image/png") !== -1 || formats.indexOf("image/jpeg") !== -1;
             var isFiles = formats.indexOf("text/uri-list") !== -1;
             var rawText = isImage ? "" : str(read(i));
+            // The preview card is fixed-size, so returning arbitrarily large clipboard
+            // text only bloats CopyQ's JSON response and the Rust renderer's work.
+            // The selected item itself remains unchanged in CopyQ for paste().
+            if (rawText.length > 8192) {{
+                rawText = rawText.slice(0, 8192) + NL + "… [preview truncated]";
+            }}
             var rawImg = "";
             if (isImage) {{
                 var imageMime = formats.indexOf("image/png") !== -1 ? "image/png" : "image/jpeg";
