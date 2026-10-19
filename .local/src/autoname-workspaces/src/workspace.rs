@@ -35,6 +35,19 @@ pub fn find_workspaces<'a>(node: &'a Value, out: &mut Vec<&'a Value>) {
     }
 }
 
+fn quote_i3_string(value: &str) -> String {
+    let mut quoted = String::with_capacity(value.len() + 2);
+    quoted.push('"');
+    for character in value.chars() {
+        if matches!(character, '"' | '\\') {
+            quoted.push('\\');
+        }
+        quoted.push(character);
+    }
+    quoted.push('"');
+    quoted
+}
+
 fn collect_icons(node: &Value, icons: &mut Vec<&'static str>) {
     let nodes = node
         .get("nodes")
@@ -83,7 +96,7 @@ pub fn update_workspaces(client: &mut I3Client) -> io::Result<()> {
     let mut workspaces = Vec::new();
     find_workspaces(&tree, &mut workspaces);
 
-    let mut first_error = None;
+    let mut commands = Vec::with_capacity(workspaces.len());
     for workspace in workspaces {
         let Some(workspace_name) = workspace.get("name").and_then(Value::as_str) else {
             continue;
@@ -100,14 +113,18 @@ pub fn update_workspaces(client: &mut I3Client) -> io::Result<()> {
         };
 
         if workspace_name != new_name {
-            let command = format!("rename workspace \"{workspace_name}\" to \"{new_name}\"");
-            if let Err(error) = client.run_command(&command) {
-                first_error.get_or_insert(error);
-            }
+            commands.push(format!(
+                "rename workspace {} to {}",
+                quote_i3_string(workspace_name),
+                quote_i3_string(&new_name)
+            ));
         }
     }
 
-    first_error.map_or(Ok(()), Err)
+    if commands.is_empty() {
+        return Ok(());
+    }
+    client.run_command(&commands.join("; "))
 }
 
 #[cfg(test)]
