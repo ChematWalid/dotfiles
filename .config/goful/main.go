@@ -122,15 +122,15 @@ func setCatppuccinMocha(t Theme) {
 }
 
 func main() {
-	is_tmux := false
+	is_tmux := os.Getenv("TMUX") != ""
+	if !is_tmux {
+		term := os.Getenv("TERM")
+		is_tmux = strings.Contains(os.Getenv("TERM_PROGRAM"), "tmux") ||
+			strings.HasPrefix(term, "tmux-")
+	}
+
 	widget.Init()
 	defer widget.Fini()
-
-	if runtime.GOOS == "darwin" {
-		is_tmux = strings.Contains(os.Getenv("TERM_PROGRAM"), "tmux")
-	} else {
-		is_tmux = strings.Contains(os.Getenv("TERM"), "screen")
-	}
 	// Change a terminal title.
 	if is_tmux {
 		os.Stdout.WriteString("\033kgoful\033") // for tmux
