@@ -16,10 +16,9 @@ fi
 readonly CLASS_REGEX="$1"
 shift
 
-# Query i3 window tree for matching window class
-if i3-msg -t get_tree 2>/dev/null | jq -e --arg cls "${CLASS_REGEX}" '.. | select(.window_properties?.class? != null) | select(.window_properties.class | test($cls; "i"))' >/dev/null 2>&1; then
-    # Move the existing window to the current workspace and focus it
-    i3-msg "[class=\"(?i)${CLASS_REGEX}\"] move workspace current, focus" >/dev/null 2>&1
+# Let i3 match, move, and focus in one IPC request. A missing match returns
+# nonzero, so no full-tree query or jq process is needed before launching.
+if i3-msg "[class=\"(?i)${CLASS_REGEX}\"] move workspace current, focus" >/dev/null 2>&1; then
     # Ping the command in the background so if the window was minimized/withdrawn to tray, it un-hides
     nohup "$@" >/dev/null 2>&1 &
 else
