@@ -26,8 +26,15 @@ case "$action" in
         ;;
 esac
 
-muted=$(pamixer --get-mute 2>/dev/null || echo "false")
-vol=$(pamixer --get-volume 2>/dev/null || echo "50")
+volume_state=$(pamixer --get-volume-human 2>/dev/null || echo "50%")
+if [[ "$volume_state" == "muted" ]]; then
+    muted=true
+    vol=0
+else
+    muted=false
+    vol="${volume_state%%%}"
+    [[ "$vol" =~ ^[0-9]+$ ]] || vol=50
+fi
 
 if [[ "$muted" == "true" ]] || [[ "$vol" -eq 0 ]]; then
     icon="audio-volume-muted"
