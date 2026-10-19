@@ -7,7 +7,7 @@ use crate::config::{DEFAULT_ICON, IGNORE_CLASSES};
 // application match.
 const ICON_MAP: &[(&[&str], &str)] = &[
     // Terminals
-    (&["kitty"], "󰆍"),
+    (&["kitty", "scratchpad_term"], "󰆍"),
     (
         &[
             "alacritty",
@@ -123,6 +123,7 @@ mod tests {
     #[test]
     fn test_icon_lookup_terminals() {
         assert_eq!(get_icon("kitty", "kitty", "kitty"), "󰆍");
+        assert_eq!(get_icon("scratchpad_term", "scratchpad_term", ""), "󰆍");
         assert_eq!(get_icon("Alacritty", "alacritty", ""), "");
     }
 
