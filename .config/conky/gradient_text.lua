@@ -9,6 +9,29 @@ local function hex_to_rgba(hex, alpha)
     return r, g, b, (alpha or 1.0)
 end
 
+local function make_color_stop(offset, hex)
+    local r, g, b, a = hex_to_rgba(hex)
+    return { offset = offset, r = r, g = g, b = b, a = a }
+end
+
+local clock_stops = {
+    make_color_stop(0.00, "#cba6f7"),
+    make_color_stop(0.33, "#f5c2e7"),
+    make_color_stop(0.66, "#f2cdcd"),
+    make_color_stop(1.00, "#f5e0dc"),
+}
+
+local date_stops = {
+    make_color_stop(0.00, "#89b4fa"),
+    make_color_stop(0.35, "#74c7ec"),
+    make_color_stop(0.70, "#89dceb"),
+    make_color_stop(1.00, "#a6e3a1"),
+}
+
+local home = os.getenv("HOME") or "."
+local runtime_dir = os.getenv("XDG_RUNTIME_DIR") or (home .. "/.cache")
+local music_path = runtime_dir .. "/conky-music.txt"
+
 local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x, y, align, angle_deg, color_stops, stroke_color, stroke_width, shadow_color, shadow_ox, shadow_oy)
     if not text or text == "" then return end
 
@@ -57,8 +80,7 @@ local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x
 
     local pat = cairo_pattern_create_linear(x0, y0, x0 + w * cos_a, y0 + h * sin_a)
     for _, stop in ipairs(color_stops) do
-        local r, g, b, a = hex_to_rgba(stop.hex, stop.alpha or 1.0)
-        cairo_pattern_add_color_stop_rgba(pat, stop.offset, r, g, b, a)
+        cairo_pattern_add_color_stop_rgba(pat, stop.offset, stop.r, stop.g, stop.b, stop.a)
     end
 
     cairo_set_source(cr, pat)
@@ -84,29 +106,11 @@ function conky_gradient_overlay()
 
         local center_x = conky_window.width / 2.0
 
-        -- Option A: Clock Gradient (Mauve -> Pink -> Flamingo -> Rosewater at 45 deg)
-        local clock_stops = {
-            { offset = 0.00, hex = "#cba6f7" }, -- Mauve
-            { offset = 0.33, hex = "#f5c2e7" }, -- Pink
-            { offset = 0.66, hex = "#f2cdcd" }, -- Flamingo
-            { offset = 1.00, hex = "#f5e0dc" }, -- Rosewater
-        }
-
-        -- Option A: Date & Music Gradient (Blue -> Sapphire -> Sky -> Green at 45 deg)
-        local date_stops = {
-            { offset = 0.00, hex = "#89b4fa" }, -- Blue
-            { offset = 0.35, hex = "#74c7ec" }, -- Sapphire
-            { offset = 0.70, hex = "#89dceb" }, -- Sky
-            { offset = 1.00, hex = "#a6e3a1" }, -- Green
-        }
-
         local time_text = conky_parse("${time %H:%M}")
         local date_text = conky_parse("${time %A, %B %d}")
-        
+
         local music_text = ""
-        local home = os.getenv("HOME") or "."
-        local runtime_dir = os.getenv("XDG_RUNTIME_DIR") or (home .. "/.cache")
-        local f = io.open(runtime_dir .. "/conky-music.txt", "r")
+        local f = io.open(music_path, "r")
         if f then
             music_text = f:read("*all") or ""
             f:close()
