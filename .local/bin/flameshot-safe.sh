@@ -76,16 +76,22 @@ case "$MODE" in
 
     delay)
         SECS="${2:-3}"
-        MS=$(( SECS * 1000 ))
-        set +e
-        flameshot gui -d "$MS" 2>/dev/null
-        FS_EXIT=$?
-        set -e
-        if [ "$FS_EXIT" -ne 0 ] && [ "$FS_EXIT" -ne 2 ]; then
-            if maim -u "$OUT_FILE" 2>/dev/null; then
-                copy_to_clipboards "$OUT_FILE"
-                dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screenshot Captured" "Saved to Screenshots & copied to clipboard"
+        if ! [[ "$SECS" =~ ^[0-9]+$ ]]; then
+            dunstify -a "screenshot" -u critical "Screenshot failed" "Delay must be a whole number of seconds"
+            exit 2
+        fi
+
+        # Capture the root window directly after waiting. Starting Flameshot's
+        # selector first can dismiss transient menus and hover previews.
+        if maim -u -d "$SECS" "$OUT_FILE" 2>/dev/null; then
+            copy_to_clipboards "$OUT_FILE"
+            dunstify -a "screenshot" -u normal -i "$OUT_FILE" "📸 Screenshot Captured" "Saved to Screenshots & copied to clipboard"
+            if command -v feh >/dev/null 2>&1; then
+                feh --auto-zoom --scale-down "$OUT_FILE" >/dev/null 2>&1 &
             fi
+        else
+            dunstify -a "screenshot" -u critical "Screenshot failed" "Could not capture the screen"
+            exit 1
         fi
         ;;
 
