@@ -115,8 +115,11 @@ run_module() {
 
     # ── Cheatsheets & Documentation (tealdeer & navi) ───────────────────────────
     if [[ -x "$DOTFILES_DIR/.local/bin/sync-cheats" ]]; then
-      "$DOTFILES_DIR/.local/bin/sync-cheats" >/dev/null 2>&1 || true
-      log "Tealdeer and Navi custom cheatsheets synchronized (100% coverage)"
+      if "$DOTFILES_DIR/.local/bin/sync-cheats"; then
+        log "Tealdeer and Navi custom cheatsheets synchronized"
+      else
+        warn "Tealdeer and Navi cheatsheet synchronization failed; review the output above"
+      fi
     fi
 
     # ── Custom Zsh completions ─────────────────────────────────────────────────
