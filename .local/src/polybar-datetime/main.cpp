@@ -107,7 +107,12 @@ std::string format_output(int mode) {
     if (std::strftime(buffer.data(), buffer.size(), format, &local_time) == 0) {
         return {};
     }
-    return "%{F" + std::string{color} + "}" + std::string{icon} + "%{F-} " + buffer.data();
+
+    std::string output;
+    output.reserve(64);
+    output.append("%{F").append(color).append("}");
+    output.append(icon).append("%{F-} ").append(buffer.data());
+    return output;
 }
 
 void emit_if_changed(int mode, std::string& previous) {
