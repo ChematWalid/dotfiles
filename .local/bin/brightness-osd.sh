@@ -54,19 +54,26 @@ if [[ -e "${backlight_devices[0]}" ]]; then
     bright="${bright%%%}"
 elif command -v ddcutil >/dev/null 2>&1; then
     # Desktop monitor: use DDC/CI VCP feature 0x10 (brightness).
+    # This display's VCP xDF query has failed in the journal. Its DDC/CI
+    # brightness reads work, so skip the preliminary protocol checks and use
+    # the known MCCS version. We read the value below for the OSD, making
+    # ddcutil's extra setvcp verification transaction redundant.
     case "$action" in
         up)
-            if ! ddcutil --mccs 2.2 --display 1 setvcp 10 + "$STEP" >/dev/null; then
+            if ! ddcutil --skip-ddc-checks --noverify --mccs 2.2 --display 1 \
+                setvcp 10 + "$STEP" >/dev/null; then
                 action_failed=true
             fi
             ;;
         down)
-            if ! ddcutil --mccs 2.2 --display 1 setvcp 10 - "$STEP" >/dev/null; then
+            if ! ddcutil --skip-ddc-checks --noverify --mccs 2.2 --display 1 \
+                setvcp 10 - "$STEP" >/dev/null; then
                 action_failed=true
             fi
             ;;
     esac
-    if ! brightness_info=$(ddcutil --mccs 2.2 --display 1 getvcp 10 --brief 2>/dev/null); then
+    if ! brightness_info=$(ddcutil --skip-ddc-checks --mccs 2.2 --display 1 \
+        getvcp 10 --brief 2>/dev/null); then
         report_error 'Could not read DDC/CI monitor brightness.'
         exit 1
     fi
