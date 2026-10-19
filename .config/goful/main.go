@@ -334,21 +334,21 @@ func config(g *app.Goful, is_tmux bool) {
 		"g", "tar.gz  ", func() { g.Shell(`tar cvfz %x.tgz %m`, -7) },
 		"b", "tar.bz2 ", func() { g.Shell(`tar cvfj %x.bz2 %m`, -7) },
 		"x", "tar.xz  ", func() { g.Shell(`tar cvfJ %x.txz %m`, -7) },
-		"r", "rar     ", func() { g.Shell(`rar u %x.rar %m`, -7) },
+		"r", "7z archive", func() { g.Shell(`bsdtar -c --format 7zip -f %x.7z %m`, -7) },
 
 		"Z", "extract zip for %m", func() { g.Shell(`for i in %m; do unzip "$i" -d ./; done`, -6) },
 		"T", "extract tar for %m", func() { g.Shell(`for i in %m; do tar -C ./ -xvf "$i"; done`, -6) },
 		"G", "extract tgz for %m", func() { g.Shell(`for i in %m; do tar -C ./ -xvzf "$i"; done`, -6) },
 		"B", "extract bz2 for %m", func() { g.Shell(`for i in %m; do tar -C ./ -xvjf "$i"; done`, -6) },
 		"X", "extract txz for %m", func() { g.Shell(`for i in %m; do tar -C ./ -xvJf "$i"; done`, -6) },
-		"R", "extract rar for %m", func() { g.Shell(`for i in %m; do unrar x "$i" -C ./; done`, -6) },
+		"R", "extract rar for %m", func() { g.Shell(`for i in %m; do bsdtar -C ./ -xf "$i"; done`, -6) },
 
 		"1", "find . *.zip extract", func() { g.Shell(`find . -type f -name "*.zip" -print0 | xargs -0 -r -n1 unzip -d ./`) },
 		"2", "find . *.tar extract", func() { g.Shell(`find . -type f -name "*.tar" -print0 | xargs -0 -r -n1 tar -C ./ -xvf`) },
 		"3", "find . *.tgz extract", func() { g.Shell(`find . -type f -name "*.tgz" -print0 | xargs -0 -r -n1 tar -C ./ -xvzf`) },
 		"4", "find . *.bz2 extract", func() { g.Shell(`find . -type f -name "*.bz2" -print0 | xargs -0 -r -n1 tar -C ./ -xvjf`) },
 		"5", "find . *.txz extract", func() { g.Shell(`find . -type f -name "*.txz" -print0 | xargs -0 -r -n1 tar -C ./ -xvJf`) },
-		"6", "find . *.rar extract", func() { g.Shell(`find . -type f -name "*.rar" -print0 | xargs -0 -r -n1 unrar x`) },
+		"6", "find . *.rar extract", func() { g.Shell(`find . -type f -name "*.rar" -print0 | xargs -0 -r -n1 bsdtar -C ./ -xf`) },
 	)
 
 	menu.Add("bookmark",
@@ -415,7 +415,7 @@ func config(g *app.Goful, is_tmux bool) {
 			".bz2": func() { g.Shell("tar -C %D -xvjf %f") },
 			".xz":  func() { g.Shell("tar -C %D -xvJf %f") },
 			".txz": func() { g.Shell("tar -C %D -xvJf %f") },
-			".rar": func() { g.Shell("unrar x %f -C %D") },
+			".rar": func() { g.Shell("bsdtar -C %D -xf %f") },
 
 			".go": func() { g.Shell("go run %f") },
 			".py": func() { g.Shell("python %f") },
