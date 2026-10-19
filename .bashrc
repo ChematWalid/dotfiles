@@ -60,9 +60,11 @@ _source_cached_bash_init() {
     source "$cache"
 }
 
-_source_cached_bash_init starship \
-    "${XDG_CACHE_HOME:-$HOME/.cache}/bash/starship/init.bash" \
-    starship init bash || :
+if [[ "${TERM:-dumb}" != dumb ]]; then
+    _source_cached_bash_init starship \
+        "${XDG_CACHE_HOME:-$HOME/.cache}/bash/starship/init.bash" \
+        starship init bash || :
+fi
 _source_cached_bash_init zoxide \
     "${XDG_CACHE_HOME:-$HOME/.cache}/bash/zoxide/init.bash" \
     zoxide init bash || :
