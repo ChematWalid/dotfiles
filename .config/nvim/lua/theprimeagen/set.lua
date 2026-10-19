@@ -33,14 +33,96 @@ vim.opt.colorcolumn = "80"
 -- Allow switching buffers with unsaved changes in background
 vim.opt.hidden = true
 
--- Auto-save on insert leave, text changed, or focus lost
-vim.api.nvim_create_autocmd({ "InsertLeave", "TextChanged", "FocusLost" }, {
-    pattern = "*",
+-- Debounce text-change autosaves so typing does not cause a disk write for
+-- every edit. Keep immediate saves when leaving Insert mode or the editor.
+local uv = vim.uv or vim.loop
+local autosave_delay_ms = 500
+local autosave_timers = {}
+local autosave_generations = {}
+
+local function cancel_autosave(buf)
+    local timer = autosave_timers[buf]
+    if timer then
+        autosave_timers[buf] = nil
+        autosave_generations[buf] = (autosave_generations[buf] or 0) + 1
+        timer:stop()
+        timer:close()
+    end
+end
+
+local function save_buffer(buf)
+    cancel_autosave(buf)
+    if not vim.api.nvim_buf_is_valid(buf)
+        or not vim.bo[buf].modified
+        or vim.bo[buf].buftype ~= ""
+        or vim.api.nvim_buf_get_name(buf) == ""
+        or vim.bo[buf].filetype == "" then
+        return
+    end
+
+    vim.api.nvim_buf_call(buf, function()
+        vim.cmd("silent! write")
+    end)
+end
+
+local function schedule_autosave(buf)
+    if not vim.api.nvim_buf_is_valid(buf) then
+        return
+    end
+
+    local timer = autosave_timers[buf]
+    autosave_generations[buf] = (autosave_generations[buf] or 0) + 1
+    local generation = autosave_generations[buf]
+    if not timer then
+        timer = uv.new_timer()
+        autosave_timers[buf] = timer
+    else
+        timer:stop()
+    end
+
+    timer:start(autosave_delay_ms, 0, vim.schedule_wrap(function()
+        if autosave_timers[buf] ~= timer or autosave_generations[buf] ~= generation then
+            return
+        end
+        autosave_timers[buf] = nil
+        autosave_generations[buf] = generation + 1
+        timer:close()
+        save_buffer(buf)
+    end))
+end
+
+local autosave_group = vim.api.nvim_create_augroup("UserAutoSave", { clear = true })
+vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = autosave_group,
+    callback = function(event)
+        schedule_autosave(event.buf)
+    end,
+    desc = "Debounced autosave after editing",
+})
+
+vim.api.nvim_create_autocmd({ "InsertLeave", "FocusLost" }, {
+    group = autosave_group,
+    callback = function(event)
+        save_buffer(event.buf)
+    end,
+    desc = "Save edited buffer when editing pauses or focus leaves Neovim",
+})
+
+vim.api.nvim_create_autocmd("BufWipeout", {
+    group = autosave_group,
+    callback = function(event)
+        cancel_autosave(event.buf)
+    end,
+    desc = "Release pending autosave timer when a buffer closes",
+})
+
+vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = autosave_group,
     callback = function()
-        if vim.bo.modified and vim.bo.buftype == "" and vim.fn.expand("%") ~= "" and vim.bo.filetype ~= "" then
-            vim.cmd("silent! write")
+        for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            save_buffer(buf)
         end
     end,
-    desc = "Auto-save buffer on change",
+    desc = "Save pending edits before Neovim exits",
 })
 
