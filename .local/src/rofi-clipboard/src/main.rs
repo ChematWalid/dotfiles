@@ -24,7 +24,7 @@ fn main() -> Result<()> {
 
     if let Some(idx) = run_rofi(&items, &renderer, &cache_dir) {
         if idx < items.len() {
-            select_and_paste(items[idx].i);
+            select_and_paste(items[idx].i)?;
         }
     }
 

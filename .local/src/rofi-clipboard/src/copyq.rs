@@ -1,11 +1,9 @@
 //! CopyQ query and clipboard dispatch operations.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use std::path::Path;
 use std::process::Command;
-use std::thread;
-use std::time::Duration;
 
 #[derive(Debug, Deserialize)]
 pub struct CopyQItem {
@@ -62,10 +60,12 @@ pub fn fetch_items(cache_dir: &Path) -> Result<Vec<CopyQItem>> {
     serde_json::from_str(&out_str).context("Failed to parse CopyQ JSON output")
 }
 
-pub fn select_and_paste(item_idx: usize) {
-    let _ = Command::new("copyq")
-        .args(["select", &item_idx.to_string()])
-        .status();
-    thread::sleep(Duration::from_millis(80));
-    let _ = Command::new("copyq").arg("paste").status();
+pub fn select_and_paste(item_idx: usize) -> Result<()> {
+    let script = format!("select({item_idx}); paste();");
+    let status = Command::new("copyq").args(["eval", &script]).status();
+    let status = status.context("Failed to run CopyQ selection and paste")?;
+    if !status.success() {
+        bail!("CopyQ failed to select and paste clipboard item {item_idx}");
+    }
+    Ok(())
 }
