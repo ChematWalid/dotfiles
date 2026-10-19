@@ -20,7 +20,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let renderer = Renderer::new(cache_dir.clone());
+    let renderer = Renderer::new(cache_dir.clone())?;
 
     if let Some(idx) = run_rofi(&items, &renderer, &cache_dir)? {
         if idx < items.len() {

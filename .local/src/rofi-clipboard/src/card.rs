@@ -1,6 +1,6 @@
 //! High-performance card image renderer using swash and image.
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use image::imageops::FilterType;
 use image::{ImageFormat, Rgba, RgbaImage};
 use std::collections::hash_map::DefaultHasher;
@@ -15,9 +15,15 @@ use swash::FontRef;
 
 use crate::theme::{ACCENT_COLOR, BG_COLOR, CARD_H, CARD_W, FG_COLOR, HEADER_BG, MUTED_COLOR};
 
-fn valid_font(data: Vec<u8>) -> Option<Vec<u8>> {
-    let valid = FontRef::from_index(&data, 0).is_some();
-    valid.then_some(data)
+fn read_font(candidates: &[&str]) -> Result<Vec<u8>> {
+    for path in candidates {
+        if let Ok(data) = fs::read(path) {
+            if FontRef::from_index(&data, 0).is_some() {
+                return Ok(data);
+            }
+        }
+    }
+    bail!("no valid font found; tried {}", candidates.join(", "))
 }
 
 pub struct Renderer {
@@ -34,26 +40,22 @@ struct TextStyle {
 }
 
 impl Renderer {
-    pub fn new(cache_dir: PathBuf) -> Self {
-        let regular_bytes = fs::read("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf")
-            .or_else(|_| fs::read("/usr/share/fonts/TTF/DejaVuSans.ttf"))
-            .unwrap_or_default();
-        let bold_bytes = fs::read("/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Bold.ttf")
-            .or_else(|_| fs::read("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"))
-            .unwrap_or_default();
+    pub fn new(cache_dir: PathBuf) -> Result<Self> {
+        let font_regular = read_font(&[
+            "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        ])?;
+        let font_bold = read_font(&[
+            "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Bold.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+        ])
+        .unwrap_or_else(|_| font_regular.clone());
 
-        let font_regular = valid_font(regular_bytes).unwrap_or_else(|| {
-            let fallback = fs::read("/usr/share/fonts/TTF/DejaVuSans.ttf")
-                .expect("DejaVuSans font must exist");
-            valid_font(fallback).expect("DejaVuSans font must be valid")
-        });
-        let font_bold = valid_font(bold_bytes).unwrap_or_else(|| font_regular.clone());
-
-        Renderer {
+        Ok(Renderer {
             font_regular,
             font_bold,
             cache_dir,
-        }
+        })
     }
 
     fn draw_char(
@@ -365,7 +367,7 @@ mod tests {
             std::env::temp_dir().join(format!("rofi-clipboard-card-test-{}", std::process::id()));
         fs::create_dir_all(&cache_dir).unwrap();
 
-        let renderer = Renderer::new(cache_dir.clone());
+        let renderer = Renderer::new(cache_dir.clone()).unwrap();
         let path = renderer
             .render_text_card("󰆍", "Renderer test", "font migration", "A rendered body")
             .unwrap();
