@@ -133,6 +133,12 @@ case "$MODE" in
         ;;
 
     *)
-        run_flameshot gui 2>/dev/null || maim -u "$OUT_FILE" 2>/dev/null
+        set +e
+        run_flameshot gui 2>/dev/null
+        FS_EXIT=$?
+        set -e
+        if [ "$FS_EXIT" -ne 0 ] && [ "$FS_EXIT" -ne 2 ]; then
+            capture_fallback "📸 Screenshot Captured" "Direct capture saved to Screenshots" || exit 1
+        fi
         ;;
 esac

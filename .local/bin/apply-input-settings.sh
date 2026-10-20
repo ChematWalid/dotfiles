@@ -22,9 +22,15 @@ apply_input() {
     done <<< "$keyboard_state"
 
     if [[ "$current_layout" != "be,ara" || "$current_options" != "grp:win_space_toggle" ]]; then
-        if setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" \
-            -option "" -option "grp:win_space_toggle" 2>/dev/null; then
+        if setxkbmap -option "" 2>/dev/null && \
+           setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null; then
             keyboard_map_changed=true
+            # If custom user XKB symbols exist, compile and overlay them into the running server
+            if [[ -d "${HOME}/.config/xkb" ]]; then
+                setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" \
+                    -option "" -option "grp:win_space_toggle" -print 2>/dev/null \
+                    | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" >/dev/null 2>&1 || true
+            fi
         else
             printf 'apply-input-settings: could not apply the Belgian/Arabic keyboard layout\n' >&2
         fi

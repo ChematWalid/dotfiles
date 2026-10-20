@@ -58,22 +58,22 @@ if [[ -z "$layout_name" ]]; then
         flag="🇧🇪"
     fi
 
-    if [[ -d "${HOME}/.config/xkb" ]]; then
-        if ! setxkbmap -I"${HOME}/.config/xkb" -layout "$layouts" \
-            -option "" -option "grp:win_space_toggle" 2>/dev/null; then
-            report_error "could not apply the $layout_name layout"
-            exit 1
+    if setxkbmap -layout "$layouts" -option "" -option "grp:win_space_toggle" 2>/dev/null; then
+        if [[ -d "${HOME}/.config/xkb" ]]; then
+            setxkbmap -I"${HOME}/.config/xkb" -layout "$layouts" \
+                -option "" -option "grp:win_space_toggle" -print 2>/dev/null \
+                | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" >/dev/null 2>&1 || true
         fi
-    elif ! setxkbmap -layout "$layouts" -option "" -option "grp:win_space_toggle" 2>/dev/null; then
+    else
         report_error "could not apply the $layout_name layout"
         exit 1
     fi
-fi
 
-# Ensure repeat rate (250ms delay, 50 repeats/sec) is preserved
-if ! xset r rate 250 50 2>/dev/null; then
-    report_error 'layout changed, but could not restore the keyboard repeat rate'
-    exit 1
+    # Ensure repeat rate (250ms delay, 50 repeats/sec) is preserved after setxkbmap resets it
+    if ! xset r rate 250 50 2>/dev/null; then
+        report_error 'layout changed, but could not restore the keyboard repeat rate'
+        exit 1
+    fi
 fi
 
 if command -v dunstify >/dev/null 2>&1; then

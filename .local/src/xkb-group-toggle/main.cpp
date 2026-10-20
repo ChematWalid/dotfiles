@@ -5,10 +5,24 @@
 #include <string_view>
 
 int main(int argc, char* argv[]) {
-    Display* dpy = XOpenDisplay(nullptr);
+    if (argc > 1) {
+        std::string_view arg(argv[1]);
+        if (arg == "-h" || arg == "--help") {
+            std::cout << "Usage: xkb-group-toggle [get|toggle|0|1|be|ara]\n";
+            return 0;
+        }
+    }
+
+    int reason = 0;
+    int major = XkbMajorVersion;
+    int minor = XkbMinorVersion;
+    Display* dpy = XkbOpenDisplay(nullptr, nullptr, nullptr, &major, &minor, &reason);
     if (!dpy) {
-        std::cerr << "xkb-group-toggle: unable to open X11 display\n";
-        return 1;
+        dpy = XOpenDisplay(nullptr);
+        if (!dpy) {
+            std::cerr << "xkb-group-toggle: unable to open X11 display\n";
+            return 1;
+        }
     }
 
     XkbStateRec state;
