@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+
 <actions>
 <action>
 	<icon>utilities-terminal</icon>
@@ -9,8 +9,8 @@
 	<description>Open a terminal window in the current directory</description>
 	<range></range>
 	<patterns>*</patterns>
-	<startup-notify/>
-	<directories/>
+	<startup-notify />
+	<directories />
 </action>
 <action>
 	<icon>dialog-password</icon>
@@ -21,12 +21,12 @@
 	<description>Lock or Unlock encrypted folder vault</description>
 	<range></range>
 	<patterns>*</patterns>
-	<startup-notify/>
-	<directories/>
-	<audio-files/>
-	<image-files/>
-	<other-files/>
-	<text-files/>
-	<video-files/>
+	<startup-notify />
+	<directories />
+	<audio-files />
+	<image-files />
+	<other-files />
+	<text-files />
+	<video-files />
 </action>
-</actions>
+<action><icon>document-save-as</icon><name>Convert with Filee</name><unique-id>filee-convert</unique-id><command>'/home/walid/.local/share/filee/application/Filee' --convert %F</command><description>Convert with Filee</description><patterns>*</patterns><audio-files /><image-files /><other-files /><text-files /><video-files /></action></actions>

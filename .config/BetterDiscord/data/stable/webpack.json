@@ -28,5 +28,7 @@
     "core-themeattributes-messageHook": "10822",
     "core-themeattributes-VoiceUserComponent": "481947",
     "core-themeattributes-ChatAvatar": "622868",
-    "core-ChannelActions": "730852"
+    "core-ChannelActions": "730852",
+    "bd-core-modal-TransitionGroup": "868285",
+    "core-react-focus-rings": "559106"
 }

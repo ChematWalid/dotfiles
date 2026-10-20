@@ -14,7 +14,6 @@
         "updateInterval": 4
     },
     "store": {
-        "bdAddonStore": true,
         "alwaysEnable": false,
         "addonEmbeds": true
     },
@@ -39,7 +38,11 @@
         "transparency": false,
         "removeMinimumSize": false,
         "frame": false,
-        "inAppTrafficLights": false
+        "roundedCorners": true,
+        "acceptFirstMouse": false,
+        "vibrancy": "none",
+        "visualEffectState": "followWindow",
+        "backgroundMaterial": "auto"
     },
     "developer": {
         "debugLogs": false,
@@ -48,7 +51,7 @@
         "reactDevTools": false,
         "inspectElement": false,
         "devToolsWarning": false,
-        "recovery": true,
+        "webpackSourceViewer": true,
         "canary": false
     }
 }
