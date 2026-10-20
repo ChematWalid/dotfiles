@@ -31,7 +31,7 @@ A fully themed **Catppuccin Mocha** desktop on Arch Linux, built around **i3wm**
 | Notifications | Dunst (Catppuccin, click-to-focus, OSD bypass for volume/brightness) |
 | Prompt | Starship |
 | File manager | lf · Yazi · Thunar |
-| Clipboard | CopyQ + Greenclip |
+| Clipboard | CopyQ |
 | Music | MPD + Ncmpcpp + CAVA visualizer |
 | Password manager | Bitwarden CLI + rbw + rofi-rbw |
 | GTK theme | catppuccin-gtk-theme-mocha |

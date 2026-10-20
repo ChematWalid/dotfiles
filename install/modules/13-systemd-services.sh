@@ -17,7 +17,7 @@ run_module() {
     # CopyQ needs the live i3 DISPLAY/XAUTHORITY environment and is started by
     # the i3 autostart hook after importing those credentials.
     systemctl --user disable copyq.service 2>/dev/null || true
-    for svc in greenclip rustdesk i3-autoname mpd syncthing wireplumber desktop-music-daemon muslimtify sync-antigravity.service sync-antigravity.path; do
+    for svc in rustdesk i3-autoname mpd syncthing wireplumber desktop-music-daemon muslimtify sync-antigravity.service sync-antigravity.path; do
       if systemctl --user enable "$svc"; then
         log "Enabled: $svc"
       else

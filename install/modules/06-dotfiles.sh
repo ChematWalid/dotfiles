@@ -46,7 +46,7 @@ run_module() {
     local config_dirs=(
       alacritty atuin bat BetterDiscord broot btop cava conky copyq
       delta direnv dunst eza fastfetch fish flameshot fselect fzf
-      environment.d gh-dash gitui glow gtk-3.0 gtk-4.0 i3 khal kitty lazydocker
+      environment.d gh-dash gitui glow gtk-3.0 gtk-4.0 hypr i3 khal kitty lazydocker
       lazygit lf mise mpd mpv ncmpcpp nvim picom polybar qbittorrent
       qBittorrent qt5ct qt6ct rofi songrec spicetify starship superfile systemd
       tealdeer thefuck Thunar tmux tumbler xfce4 xsettingsd yazi zellij zsh zsh-plugins
@@ -69,7 +69,7 @@ run_module() {
     fi
 
     # Standalone .config files
-    for file in chrome-flags.conf greenclip.toml rofi-rbw.rc starship.toml; do
+    for file in chrome-flags.conf rofi-rbw.rc starship.toml; do
       if [[ -f "$DOTFILES_DIR/.config/$file" ]]; then
         safe_link "$DOTFILES_DIR/.config/$file" "$HOME/.config/$file"
       fi

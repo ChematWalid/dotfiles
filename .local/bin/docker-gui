@@ -31,8 +31,24 @@ case "$container_state" in
         ;;
 esac
 
-# Wait briefly for port to be ready
-sleep 1.5
+# Return as soon as Portainer's unauthenticated status endpoint is ready. This
+# avoids a fixed delay when the container is already serving, while still
+# handling cold starts where `docker run` returns before the web server binds.
+if command -v curl >/dev/null 2>&1; then
+    ready=false
+    for _ in {1..50}; do
+        if curl --fail --silent --connect-timeout 0.1 --max-time 0.1 \
+            "http://127.0.0.1:${PORT}/api/system/status" >/dev/null 2>&1; then
+            ready=true
+            break
+        fi
+        sleep 0.1
+    done
+
+    if [[ "$ready" != true ]]; then
+        printf 'Portainer did not report ready within 10 seconds; opening it anyway.\n' >&2
+    fi
+fi
 
 # Open in default browser
 if command -v xdg-open >/dev/null 2>&1; then

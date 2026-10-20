@@ -96,6 +96,29 @@ local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x
     cairo_pattern_destroy(pat)
 end
 
+local default_font = "JetBrainsMono Nerd Font"
+local arabic_font = "Noto Sans Arabic"
+
+local function contains_arabic(text)
+    if not text then return false end
+    -- Check for UTF-8 byte sequences of Arabic unicode blocks:
+    -- Arabic (0600-06FF): \216\128 - \219\191
+    -- Arabic Supplement (0750-077F): \221\144 - \221\191
+    -- Arabic Extended-A (08A0-08FF): \224\162\160 - \224\163\191
+    -- Arabic Presentation Forms-A/B: \239\173\144 - \239\187\191
+    return text:find("[\216-\219][\128-\191]") ~= nil
+        or text:find("\221[\144-\191]") ~= nil
+        or text:find("\224[\162-\163][\160-\191]") ~= nil
+        or text:find("\239[\173-\187][\144-\191]") ~= nil
+end
+
+local function select_font(text, fallback_font)
+    if contains_arabic(text) then
+        return arabic_font
+    end
+    return fallback_font or default_font
+end
+
 function conky_gradient_overlay()
     if conky_window == nil then return end
 
@@ -110,8 +133,9 @@ function conky_gradient_overlay()
     end
 
     local ok, err = pcall(function()
-        -- Use Conky's active draw buffer so Cairo output participates in
-        -- double-buffer presentation instead of writing around it.
+        -- Conky 1.25 exposes its active X11/double-buffer drawing surface
+        -- through this backend-neutral API; the legacy Xlib constructor is
+        -- not available in its Lua bindings.
         local cs = conky_surface()
         if not cs then return end
         local cr = cairo_create(cs)
@@ -120,14 +144,14 @@ function conky_gradient_overlay()
 
         -- 1. Clock (98pt Bold)
         draw_gradient_text(
-            cr, time_text, "JetBrainsMono Nerd Font", 98, CAIRO_FONT_WEIGHT_BOLD,
+            cr, time_text, select_font(time_text), 98, CAIRO_FONT_WEIGHT_BOLD,
             center_x, 120, "center", clock_stops,
             3.2, 3.5, 3.5
         )
 
         -- 2. Date (28pt Bold)
         draw_gradient_text(
-            cr, date_text, "JetBrainsMono Nerd Font", 28, CAIRO_FONT_WEIGHT_BOLD,
+            cr, date_text, select_font(date_text), 28, CAIRO_FONT_WEIGHT_BOLD,
             center_x, 195, "center", date_stops,
             2.4, 2.5, 2.5
         )
@@ -135,7 +159,7 @@ function conky_gradient_overlay()
         -- 3. Now Playing (22pt Bold)
         if music_text ~= "" then
             draw_gradient_text(
-                cr, music_text, "JetBrainsMono Nerd Font", 22, CAIRO_FONT_WEIGHT_BOLD,
+                cr, music_text, select_font(music_text), 22, CAIRO_FONT_WEIGHT_BOLD,
                 center_x, 260, "center", date_stops,
                 2.4, 2.5, 2.5
             )
