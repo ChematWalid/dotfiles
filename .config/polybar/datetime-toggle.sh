@@ -6,7 +6,7 @@ set -euo pipefail
 
 readonly STATE_DIR="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
 readonly STATE_FILE="${STATE_DIR}/polybar-datetime-state"
-mkdir -p "$STATE_DIR"
+[[ -d "$STATE_DIR" ]] || mkdir -p "$STATE_DIR"
 state=0
 if [[ -r "$STATE_FILE" ]]; then
     IFS= read -r state < "$STATE_FILE" || true
