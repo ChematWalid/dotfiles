@@ -54,9 +54,11 @@ capture_fallback() {
 
 # Force the available English translation and use qt6ct for Papirus-Dark icon
 # lookup, independent of conflicting session-level portal theme overrides.
+# Explicitly disable Qt portal routing to preserve legacy direct X11 capture.
 run_flameshot() {
-    LC_ALL=en_US.UTF-8 QT_QPA_PLATFORMTHEME=qt6ct command flameshot "$@"
+    LC_ALL=en_US.UTF-8 QT_QPA_PLATFORMTHEME=qt6ct QT_USE_PORTAL=0 command flameshot "$@"
 }
+
 
 case "$MODE" in
     overlay)

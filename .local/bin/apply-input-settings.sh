@@ -5,7 +5,7 @@
 set -euo pipefail
 
 apply_input() {
-    local fallback_failed=false
+    local keyboard_map_changed=false
 
     # 1. Keyboard Layouts. Hotplug and resume events can arrive in bursts;
     # preserve the user's currently selected layout when the configured map is
@@ -22,22 +22,18 @@ apply_input() {
     done <<< "$keyboard_state"
 
     if [[ "$current_layout" != "be,ara" || "$current_options" != "grp:win_space_toggle" ]]; then
-        if [[ -d "${HOME}/.config/xkb" ]]; then
-            if ! setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" \
-                -option "" -option "grp:win_space_toggle" -print \
-                | xkbcomp -I"${HOME}/.config/xkb" - "${DISPLAY:-:0}" 2>/dev/null; then
-                setxkbmap -option "" 2>/dev/null || fallback_failed=true
-                setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null \
-                    || fallback_failed=true
-            fi
+        if setxkbmap -I"${HOME}/.config/xkb" -layout "be,ara" \
+            -option "" -option "grp:win_space_toggle" 2>/dev/null; then
+            keyboard_map_changed=true
         else
-            setxkbmap -option "" 2>/dev/null || true
-            setxkbmap -layout "be,ara" -option "grp:win_space_toggle" 2>/dev/null \
-                || fallback_failed=true
+            printf 'apply-input-settings: could not apply the Belgian/Arabic keyboard layout\n' >&2
         fi
     fi
-    if [[ "$fallback_failed" == true ]]; then
-        printf 'apply-input-settings: could not apply the Belgian/Arabic keyboard layout\n' >&2
+
+    # i3 resolves keysym bindings against the active XKB map when it loads.
+    # Re-grab them after changing layouts so Alt/Super shortcuts keep working.
+    if [[ "$keyboard_map_changed" == true ]] && command -v i3-msg >/dev/null 2>&1; then
+        i3-msg reload >/dev/null 2>&1 || true
     fi
 
     # Read the X server state once and avoid spawning three setters on every

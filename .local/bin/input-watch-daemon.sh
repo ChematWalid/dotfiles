@@ -35,6 +35,10 @@ fi
 
 while IFS= read -r -u "$udev_fd" line; do
     if [[ "$line" =~ ^UDEV.*[[:space:]](add|bind|change)[[:space:]]/ ]]; then
+        # Drain subsequent burst events arriving within 100ms
+        while IFS= read -r -u "$udev_fd" -t 0.1 next_line; do
+            :
+        done
         "$APPLY_SCRIPT"
     fi
 done
