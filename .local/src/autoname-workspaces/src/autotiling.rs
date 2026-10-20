@@ -9,7 +9,8 @@ use serde_json::Value;
 
 use crate::ipc::{
     event_change, get_i3_socket_path, is_stream_disconnect, is_transient_ipc_error,
-    subscribe_events_with_payload, wait_for_i3_socket_after_failure, I3Client,
+    subscribe_events_with_payload, wait_for_i3_socket_after_failure, wait_for_i3_socket_startup,
+    I3Client,
 };
 
 const WINDOW_EVENT: u32 = 0x8000_0003;
@@ -19,8 +20,13 @@ const EVENT_SUBSCRIPTION: &str = r#"["window", "mode"]"#;
 pub fn run() {
     let mut socket_path = get_i3_socket_path();
     if socket_path.is_empty() {
-        eprintln!("autotiling: i3 socket path not found; is i3 running?");
-        std::process::exit(1);
+        socket_path = match wait_for_i3_socket_startup() {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!("autotiling: could not watch for i3 startup: {error}");
+                std::process::exit(1);
+            }
+        };
     }
 
     let mut client = I3Client::new(socket_path.clone());
@@ -106,7 +112,7 @@ fn autotile_focused(client: &mut I3Client) -> std::io::Result<()> {
 }
 
 fn find_focused(root: &Value) -> Option<(&Value, &Value)> {
-    let mut pending = VecDeque::new();
+    let mut pending = VecDeque::with_capacity(32);
     for key in ["nodes", "floating_nodes"] {
         if let Some(children) = root.get(key).and_then(Value::as_array) {
             pending.extend(children.iter().map(|child| (child, root)));

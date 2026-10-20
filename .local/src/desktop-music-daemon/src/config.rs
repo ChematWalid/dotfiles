@@ -22,3 +22,6 @@ pub fn output_paths() -> Result<(PathBuf, PathBuf)> {
 // Nerd Font Glyphs (matching Polybar mpris-live)
 pub const ICON_PLAY: &str = "\u{f03e4}"; // 󰏤 Pause bars || (when playing)
 pub const ICON_PAUSE: &str = "\u{f040a}"; // 󰐊 Play triangle ▶ (when paused)
+
+/// Maximum character length for desktop music display before safe UTF-8 truncation.
+pub const MAX_DISPLAY_CHARS: usize = 65;

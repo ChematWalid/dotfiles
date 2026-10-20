@@ -10,10 +10,13 @@ use anyhow::Result;
 use card::Renderer;
 use copyq::{fetch_items, select_and_paste};
 use rofi::run_rofi;
-use theme::cache_dir;
+use theme::{cache_dir, prune_cache};
 
 fn main() -> Result<()> {
     let cache_dir = cache_dir()?;
+    if let Err(error) = prune_cache(&cache_dir) {
+        eprintln!("rofi-clipboard: initial cache pruning failed: {error}");
+    }
 
     let items = fetch_items(&cache_dir)?;
     if items.is_empty() {
@@ -22,10 +25,15 @@ fn main() -> Result<()> {
 
     let renderer = Renderer::new(cache_dir.clone())?;
 
-    if let Some(idx) = run_rofi(&items, &renderer, &cache_dir)? {
+    let selection = run_rofi(&items, &renderer, &cache_dir)?;
+    if let Some(idx) = selection {
         if idx < items.len() {
             select_and_paste(items[idx].i)?;
         }
+    }
+
+    if let Err(error) = prune_cache(&cache_dir) {
+        eprintln!("rofi-clipboard: final cache pruning failed: {error}");
     }
 
     Ok(())

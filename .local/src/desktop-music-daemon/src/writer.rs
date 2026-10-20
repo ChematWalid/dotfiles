@@ -15,6 +15,10 @@ pub struct OutputWriter {
 impl OutputWriter {
     pub fn new() -> Result<Self> {
         let (output, temporary) = output_paths()?;
+        Self::with_paths(output, temporary)
+    }
+
+    pub fn with_paths(output: PathBuf, temporary: PathBuf) -> Result<Self> {
         let last_written = match fs::read_to_string(&output) {
             Ok(text) => Some(text),
             Err(error) if error.kind() == io::ErrorKind::NotFound => None,
@@ -76,12 +80,24 @@ mod tests {
 
     #[test]
     fn test_atomic_write() {
-        let (output, _) = output_paths().unwrap();
-        let mut writer = OutputWriter::new().unwrap();
+        let test_dir = std::env::temp_dir().join(format!("music-test-{}", std::process::id()));
+        let _ = fs::create_dir_all(&test_dir);
+        let output = test_dir.join("test-conky-music.txt");
+        let temporary = test_dir.join("test-conky-music.txt.tmp");
+
+        let mut writer = OutputWriter::with_paths(output.clone(), temporary.clone()).unwrap();
         writer.write("Test Track").unwrap();
-        let read = fs::read_to_string(output).unwrap();
+        let read = fs::read_to_string(&output).unwrap();
         assert_eq!(read, "Test Track");
-        // Clean up
-        writer.write("").unwrap();
+
+        // Verify deduplication: writing same string is a no-op
+        writer.write("Test Track").unwrap();
+        assert_eq!(fs::read_to_string(&output).unwrap(), "Test Track");
+
+        // Overwrite
+        writer.write("New Track").unwrap();
+        assert_eq!(fs::read_to_string(&output).unwrap(), "New Track");
+
+        let _ = fs::remove_dir_all(&test_dir);
     }
 }

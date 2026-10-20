@@ -26,26 +26,23 @@ pub fn parse_varint(buf: &[u8], mut pos: usize) -> Option<(u64, usize)> {
     None
 }
 
-pub fn encode_varint(mut val: u64) -> Vec<u8> {
-    let mut res = Vec::new();
+fn append_varint(res: &mut Vec<u8>, mut val: u64) {
     while val > 0x7f {
         res.push(((val & 0x7f) as u8) | 0x80);
         val >>= 7;
     }
     res.push((val & 0x7f) as u8);
-    res
 }
 
-pub fn encode_field(field_num: u32, wire_type: u32, data: &[u8]) -> Vec<u8> {
-    let tag = (field_num << 3) | wire_type;
-    let mut res = encode_varint(tag as u64);
-    if wire_type == 0 {
-        res.extend_from_slice(data);
-    } else if wire_type == 2 {
-        res.extend_from_slice(&encode_varint(data.len() as u64));
-        res.extend_from_slice(data);
-    }
-    res
+fn append_varint_field(output: &mut Vec<u8>, field_num: u32, value: u64) {
+    append_varint(output, (field_num << 3) as u64);
+    append_varint(output, value);
+}
+
+fn append_bytes_field(output: &mut Vec<u8>, field_num: u32, value: &[u8]) {
+    append_varint(output, ((field_num << 3) | 2) as u64);
+    append_varint(output, value.len() as u64);
+    output.extend_from_slice(value);
 }
 
 #[derive(Debug, Clone, Default)]
@@ -229,24 +226,35 @@ pub fn build_gui_proto_entry(
     ts: u64,
     ws_uri: &str,
 ) -> Vec<u8> {
-    let mut ts_bytes = encode_field(1, 0, &encode_varint(ts));
-    ts_bytes.extend_from_slice(&encode_field(2, 0, &encode_varint(0)));
+    let mut ts_bytes = Vec::with_capacity(16);
+    append_varint_field(&mut ts_bytes, 1, ts);
+    append_varint_field(&mut ts_bytes, 2, 0);
 
-    let mut summary = Vec::new();
-    summary.extend_from_slice(&encode_field(1, 2, title.as_bytes()));
-    summary.extend_from_slice(&encode_field(2, 0, &encode_varint(step_count.max(1))));
-    summary.extend_from_slice(&encode_field(3, 2, &ts_bytes));
-    summary.extend_from_slice(&encode_field(7, 2, &ts_bytes));
+    let mut summary = Vec::with_capacity(
+        title
+            .len()
+            .saturating_add(ws_uri.len().saturating_mul(2))
+            .saturating_add(64),
+    );
+    append_bytes_field(&mut summary, 1, title.as_bytes());
+    append_varint_field(&mut summary, 2, step_count.max(1));
+    append_bytes_field(&mut summary, 3, &ts_bytes);
+    append_bytes_field(&mut summary, 7, &ts_bytes);
 
     if !ws_uri.is_empty() {
-        let mut ws_bytes = encode_field(1, 2, ws_uri.as_bytes());
-        ws_bytes.extend_from_slice(&encode_field(2, 2, ws_uri.as_bytes()));
-        summary.extend_from_slice(&encode_field(9, 2, &ws_bytes));
+        let mut ws_bytes = Vec::with_capacity(ws_uri.len().saturating_mul(2).saturating_add(20));
+        append_bytes_field(&mut ws_bytes, 1, ws_uri.as_bytes());
+        append_bytes_field(&mut ws_bytes, 2, ws_uri.as_bytes());
+        append_bytes_field(&mut summary, 9, &ws_bytes);
     }
 
-    let mut entry = encode_field(1, 2, cid.as_bytes());
-    entry.extend_from_slice(&encode_field(2, 2, &summary));
-    encode_field(1, 2, &entry)
+    let mut entry = Vec::with_capacity(cid.len().saturating_add(summary.len()).saturating_add(20));
+    append_bytes_field(&mut entry, 1, cid.as_bytes());
+    append_bytes_field(&mut entry, 2, &summary);
+
+    let mut output = Vec::with_capacity(entry.len().saturating_add(10));
+    append_bytes_field(&mut output, 1, &entry);
+    output
 }
 
 #[cfg(test)]

@@ -10,7 +10,7 @@ use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::raw::{c_char, c_int};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::net::UnixStream;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
 use std::time::Duration;
@@ -84,6 +84,47 @@ pub fn get_i3_socket_path() -> String {
         }
     }
     String::new()
+}
+
+/// Wait for i3 to create its IPC socket during session startup without
+/// repeatedly restarting the daemon or polling the compositor.
+pub fn wait_for_i3_socket_startup() -> io::Result<String> {
+    let runtime_dir = env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .ok_or_else(|| io::Error::other("XDG_RUNTIME_DIR is not set"))?;
+    let socket_dir = ["I3SOCK", "SWAYSOCK"]
+        .into_iter()
+        .find_map(|variable| env::var_os(variable).map(PathBuf::from))
+        .and_then(|path| path.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| runtime_dir.join("i3"));
+    let parent_dir = socket_dir
+        .parent()
+        .unwrap_or(runtime_dir.as_path())
+        .to_path_buf();
+    let mut parent_watcher = watch_directory(&parent_dir)?;
+    let mut socket_watcher = if socket_dir.is_dir() {
+        Some(watch_directory(&socket_dir)?)
+    } else {
+        None
+    };
+
+    loop {
+        let socket_path = get_i3_socket_path();
+        if !socket_path.is_empty() {
+            return Ok(socket_path);
+        }
+
+        if socket_watcher.is_none() && socket_dir.is_dir() {
+            socket_watcher = Some(watch_directory(&socket_dir)?);
+            continue;
+        }
+
+        if let Some(watcher) = socket_watcher.as_mut() {
+            wait_for_directory_entry(watcher)?;
+        } else {
+            wait_for_directory_entry(&mut parent_watcher)?;
+        }
+    }
 }
 
 /// Block on an inotify event while i3 replaces its IPC socket, then return the
@@ -193,7 +234,10 @@ fn wait_for_directory_entry(watcher: &mut File) -> io::Result<()> {
                     .position(|byte| *byte == 0)
                     .unwrap_or(name.len());
                 let name = &name[..name_len];
-                if name.starts_with(b"ipc-socket.") || name.starts_with(b"sway-ipc.") {
+                if name == b"i3"
+                    || name.starts_with(b"ipc-socket.")
+                    || name.starts_with(b"sway-ipc.")
+                {
                     return Ok(());
                 }
             }
@@ -205,6 +249,15 @@ fn wait_for_directory_entry(watcher: &mut File) -> io::Result<()> {
 pub struct I3Client {
     sock_path: String,
     stream: Option<UnixStream>,
+    read_buf: Vec<u8>,
+    send_buf: Vec<u8>,
+}
+
+#[derive(Deserialize)]
+struct CommandReply<'a> {
+    success: Option<bool>,
+    #[serde(borrow)]
+    error: Option<&'a str>,
 }
 
 impl I3Client {
@@ -212,36 +265,41 @@ impl I3Client {
         Self {
             sock_path,
             stream: None,
+            read_buf: Vec::with_capacity(16384),
+            send_buf: Vec::with_capacity(256),
         }
     }
 
-    fn ensure_connected(&mut self) -> Result<&mut UnixStream, std::io::Error> {
+    fn ensure_connected(&mut self) -> Result<(), std::io::Error> {
         if self.stream.is_none() {
             let s = UnixStream::connect(&self.sock_path)?;
             self.stream = Some(s);
         }
-        Ok(self.stream.as_mut().unwrap())
+        Ok(())
     }
 
     pub fn send_message(
         &mut self,
         msg_type: u32,
         payload: &str,
-    ) -> Result<Vec<u8>, std::io::Error> {
-        let stream = self.ensure_connected()?;
+    ) -> Result<&[u8], std::io::Error> {
+        self.ensure_connected()?;
 
-        let mut msg = Vec::with_capacity(14 + payload.len());
-        msg.extend_from_slice(b"i3-ipc");
-        msg.extend_from_slice(&(payload.len() as u32).to_ne_bytes());
-        msg.extend_from_slice(&msg_type.to_ne_bytes());
-        msg.extend_from_slice(payload.as_bytes());
+        self.send_buf.clear();
+        self.send_buf.reserve(14 + payload.len());
+        self.send_buf.extend_from_slice(b"i3-ipc");
+        self.send_buf.extend_from_slice(&(payload.len() as u32).to_ne_bytes());
+        self.send_buf.extend_from_slice(&msg_type.to_ne_bytes());
+        self.send_buf.extend_from_slice(payload.as_bytes());
 
-        if let Err(e) = stream.write_all(&msg) {
+        let stream = self.stream.as_mut().unwrap();
+        if let Err(e) = stream.write_all(&self.send_buf) {
             self.stream = None;
             return Err(e);
         }
 
         let mut header = [0u8; 14];
+        let stream = self.stream.as_mut().unwrap();
         if let Err(e) = stream.read_exact(&mut header) {
             self.stream = None;
             return Err(e);
@@ -264,31 +322,29 @@ impl I3Client {
         }
 
         let len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
-        let mut body = vec![0u8; len];
-        if let Err(e) = stream.read_exact(&mut body) {
+        self.read_buf.resize(len, 0);
+        let stream = self.stream.as_mut().unwrap();
+        if let Err(e) = stream.read_exact(&mut self.read_buf) {
             self.stream = None;
             return Err(e);
         }
 
-        Ok(body)
+        Ok(&self.read_buf)
     }
 
     pub fn get_tree(&mut self) -> Result<Value, std::io::Error> {
         let body = self.send_message(4, "")?;
-        serde_json::from_slice(&body)
+        serde_json::from_slice(body)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
     }
 
     pub fn run_command(&mut self, cmd: &str) -> Result<(), std::io::Error> {
         let body = self.send_message(0, cmd)?;
-        let replies: Vec<Value> = serde_json::from_slice(&body)
+        let replies: Vec<CommandReply<'_>> = serde_json::from_slice(body)
             .map_err(|error| std::io::Error::new(std::io::ErrorKind::InvalidData, error))?;
         for reply in replies {
-            if reply.get("success").and_then(Value::as_bool) != Some(true) {
-                let detail = reply
-                    .get("error")
-                    .or_else(|| reply.get("parse_error"))
-                    .unwrap_or(&reply);
+            if reply.success != Some(true) {
+                let detail = reply.error.unwrap_or("unknown i3 error");
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::InvalidInput,
                     format!("i3 rejected command: {detail}"),
@@ -301,6 +357,11 @@ impl I3Client {
 
 pub fn subscribe_events(sock_path: &str) -> Result<UnixStream, std::io::Error> {
     subscribe_events_with_payload(sock_path, r#"["window", "workspace"]"#)
+}
+
+#[derive(Deserialize)]
+struct SubscriptionReply {
+    success: Option<bool>,
 }
 
 pub fn subscribe_events_with_payload(
@@ -334,12 +395,12 @@ pub fn subscribe_events_with_payload(
     }
     let mut body = vec![0u8; len];
     stream.read_exact(&mut body)?;
-    let reply: Value = serde_json::from_slice(&body)
+    let reply: SubscriptionReply = serde_json::from_slice(&body)
         .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
-    if reply.get("success").and_then(Value::as_bool) != Some(true) {
+    if reply.success != Some(true) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("i3 rejected event subscription: {reply}"),
+            "i3 rejected event subscription",
         ));
     }
 

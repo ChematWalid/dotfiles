@@ -110,7 +110,11 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
     for row in cli_only_rows {
         let title = row.title.as_deref().unwrap_or("Untitled Conversation");
         let step_count = row.step_count.unwrap_or(1);
-        let ts = parse_iso_ts(row.last_modified_time.as_deref());
+        let ts = parse_iso_ts(
+            row.last_user_input_time
+                .as_deref()
+                .or(row.last_modified_time.as_deref()),
+        );
         let entry_bytes =
             build_gui_proto_entry(&row.conversation_id, title, step_count, ts, &ws_uri);
         raw_proto.extend_from_slice(&entry_bytes);
@@ -141,9 +145,15 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         let c_brain = paths.cli_brain.join(cid);
 
         if g_brain.exists() && !c_brain.exists() {
-            files_linked += usize::from(link_if_missing(&g_brain, &c_brain, dry_run)?);
+            match link_if_missing(&g_brain, &c_brain, dry_run) {
+                Ok(linked) => files_linked += usize::from(linked),
+                Err(err) => eprintln!("sync-antigravity: could not link brain {cid}: {err}"),
+            }
         } else if c_brain.exists() && !g_brain.exists() {
-            files_linked += usize::from(link_if_missing(&c_brain, &g_brain, dry_run)?);
+            match link_if_missing(&c_brain, &g_brain, dry_run) {
+                Ok(linked) => files_linked += usize::from(linked),
+                Err(err) => eprintln!("sync-antigravity: could not link brain {cid}: {err}"),
+            }
         }
 
         let filename = format!("{cid}.json");
@@ -151,9 +161,15 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
         let c_conv = paths.cli_convs.join(filename);
 
         if g_conv.exists() && !c_conv.exists() {
-            files_linked += usize::from(link_if_missing(&g_conv, &c_conv, dry_run)?);
+            match link_if_missing(&g_conv, &c_conv, dry_run) {
+                Ok(linked) => files_linked += usize::from(linked),
+                Err(err) => eprintln!("sync-antigravity: could not link conversation {cid}: {err}"),
+            }
         } else if c_conv.exists() && !g_conv.exists() {
-            files_linked += usize::from(link_if_missing(&c_conv, &g_conv, dry_run)?);
+            match link_if_missing(&c_conv, &g_conv, dry_run) {
+                Ok(linked) => files_linked += usize::from(linked),
+                Err(err) => eprintln!("sync-antigravity: could not link conversation {cid}: {err}"),
+            }
         }
     }
 

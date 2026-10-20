@@ -12,7 +12,8 @@ use std::time::Duration;
 
 use ipc::{
     event_changes_workspace_icons, get_i3_socket_path, is_stream_disconnect,
-    is_transient_ipc_error, subscribe_events, wait_for_i3_socket_after_failure, I3Client,
+    is_transient_ipc_error, subscribe_events, wait_for_i3_socket_after_failure,
+    wait_for_i3_socket_startup, I3Client,
 };
 use workspace::update_workspaces;
 
@@ -24,8 +25,13 @@ fn main() {
 
     let mut sock_path = get_i3_socket_path();
     if sock_path.is_empty() {
-        eprintln!("Error: i3 socket path not found. Is i3 running?");
-        std::process::exit(1);
+        sock_path = match wait_for_i3_socket_startup() {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!("autoname-workspaces: could not watch for i3 startup: {error}");
+                std::process::exit(1);
+            }
+        };
     }
 
     let mut client = I3Client::new(sock_path.clone());

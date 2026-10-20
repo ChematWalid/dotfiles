@@ -93,7 +93,7 @@ fn collect_icons(node: &Value, icons: &mut Vec<&'static str>) {
 pub fn update_workspaces(client: &mut I3Client) -> io::Result<()> {
     let tree = client.get_tree()?;
 
-    let mut workspaces = Vec::new();
+    let mut workspaces = Vec::with_capacity(10);
     find_workspaces(&tree, &mut workspaces);
 
     let mut commands = Vec::with_capacity(workspaces.len());
@@ -109,7 +109,13 @@ pub fn update_workspaces(client: &mut I3Client) -> io::Result<()> {
         let new_name = if icons.is_empty() {
             workspace_number.to_owned()
         } else {
-            format!("{workspace_number} {}", icons.join(" "))
+            let mut name = String::with_capacity(workspace_number.len() + 1 + icons.len() * 4);
+            name.push_str(workspace_number);
+            for icon in &icons {
+                name.push(' ');
+                name.push_str(icon);
+            }
+            name
         };
 
         if workspace_name != new_name {

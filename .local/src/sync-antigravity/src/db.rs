@@ -16,7 +16,59 @@ pub struct CliRow {
     pub preview: Option<String>,
     pub step_count: Option<u64>,
     pub last_modified_time: Option<String>,
+    pub last_user_input_time: Option<String>,
     pub workspace_uris: Option<String>,
+}
+
+pub fn run_sqlite_with_retry(
+    db_path: &Path,
+    extra_args: &[&str],
+    sql: &str,
+) -> Result<std::process::Output, Box<dyn Error>> {
+    let mut attempts = 0;
+    let max_attempts = 5;
+    let mut delay = std::time::Duration::from_millis(100);
+
+    loop {
+        let mut cmd = Command::new("sqlite3");
+        cmd.args(["-cmd", ".timeout 5000"]);
+        cmd.args(extra_args);
+        cmd.arg(db_path).arg(sql);
+
+        let output = cmd.output()?;
+        if output.status.success() {
+            return Ok(output);
+        }
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let is_locked = stderr.contains("database is locked")
+            || stderr.contains("database table is locked")
+            || stderr.contains("busy");
+
+        attempts += 1;
+        if is_locked && attempts < max_attempts {
+            std::thread::sleep(delay);
+            delay = (delay * 2).min(std::time::Duration::from_millis(1000));
+            continue;
+        }
+
+        return Err(io::Error::other(format!(
+            "SQLite operation failed (after {attempts} attempt(s)): {}",
+            stderr.trim()
+        ))
+        .into());
+    }
+}
+
+pub fn table_has_column(db_path: &Path, table: &str, column: &str) -> bool {
+    let sql = format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name='{column}';");
+    Command::new("sqlite3")
+        .args(["-cmd", ".timeout 5000"])
+        .arg(db_path)
+        .arg(&sql)
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim() == "1")
+        .unwrap_or(false)
 }
 
 pub fn fetch_cli_rows(db_path: &Path) -> Result<Vec<CliRow>, Box<dyn Error>> {
@@ -31,24 +83,30 @@ pub fn fetch_cli_rows(db_path: &Path) -> Result<Vec<CliRow>, Box<dyn Error>> {
         .into());
     }
 
-    let sql = "SELECT COALESCE(json_group_array(json_object(\
-        'conversation_id', conversation_id,\
-        'title', title,\
-        'preview', preview,\
-        'step_count', step_count,\
-        'last_modified_time', last_modified_time,\
-        'workspace_uris', workspace_uris\
-    )), '[]') FROM conversation_summaries;";
+    let has_last_user_input =
+        table_has_column(db_path, "conversation_summaries", "last_user_input_time");
+    let sql = if has_last_user_input {
+        "SELECT COALESCE(json_group_array(json_object(\
+            'conversation_id', conversation_id,\
+            'title', title,\
+            'preview', preview,\
+            'step_count', step_count,\
+            'last_modified_time', last_modified_time,\
+            'last_user_input_time', last_user_input_time,\
+            'workspace_uris', workspace_uris\
+        )), '[]') FROM conversation_summaries;"
+    } else {
+        "SELECT COALESCE(json_group_array(json_object(\
+            'conversation_id', conversation_id,\
+            'title', title,\
+            'preview', preview,\
+            'step_count', step_count,\
+            'last_modified_time', last_modified_time,\
+            'workspace_uris', workspace_uris\
+        )), '[]') FROM conversation_summaries;"
+    };
 
-    let output = Command::new("sqlite3").arg(db_path).arg(sql).output()?;
-    if !output.status.success() {
-        return Err(io::Error::other(format!(
-            "Could not read Antigravity CLI database: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ))
-        .into());
-    }
-
+    let output = run_sqlite_with_retry(db_path, &[], sql)?;
     let rows = serde_json::from_slice::<Vec<CliRow>>(&output.stdout)?;
     Ok(rows)
 }
@@ -184,8 +242,10 @@ pub fn insert_cli_rows(
         return Ok(0);
     }
 
+    let has_last_user_input =
+        table_has_column(db_path, "conversation_summaries", "last_user_input_time");
     let workspace_uris = sql_quote("[]")?;
-    let mut sql = String::from("PRAGMA busy_timeout=5000;\nBEGIN IMMEDIATE;\n");
+    let mut sql = String::from("BEGIN IMMEDIATE;\n");
     for (cid, title, step_count, last_modified_unix) in rows {
         let cid = sql_quote(cid)?;
         let title = sql_quote(title)?;
@@ -193,48 +253,39 @@ pub fn insert_cli_rows(
         let timestamp = last_modified_unix
             .map(|seconds| format!("strftime('%Y-%m-%d %H:%M:%f+00:00', {seconds}, 'unixepoch')"))
             .unwrap_or_else(|| "strftime('%Y-%m-%d %H:%M:%f+00:00', 'now')".to_owned());
-        sql.push_str(&format!(
-            "INSERT OR IGNORE INTO conversation_summaries (\
-                conversation_id, title, preview, step_count, last_modified_time, \
-                workspace_uris, last_user_input_time\
-            ) VALUES (\
-                {cid}, {title}, {title}, {step_count}, {timestamp}, {workspace_uris}, {timestamp}\
-            ); SELECT changes();\n"
-        ));
+        if has_last_user_input {
+            sql.push_str(&format!(
+                "INSERT OR IGNORE INTO conversation_summaries (\
+                    conversation_id, title, preview, step_count, last_modified_time, \
+                    workspace_uris, last_user_input_time\
+                ) VALUES (\
+                    {cid}, {title}, {title}, {step_count}, {timestamp}, {workspace_uris}, {timestamp}\
+                ); SELECT changes();\n"
+            ));
+        } else {
+            sql.push_str(&format!(
+                "INSERT OR IGNORE INTO conversation_summaries (\
+                    conversation_id, title, preview, step_count, last_modified_time, \
+                    workspace_uris\
+                ) VALUES (\
+                    {cid}, {title}, {title}, {step_count}, {timestamp}, {workspace_uris}\
+                ); SELECT changes();\n"
+            ));
+        }
     }
     sql.push_str("COMMIT;\n");
 
-    let output = Command::new("sqlite3")
-        .arg("-bail")
-        .arg(db_path)
-        .arg(sql)
-        .output()?;
-    if !output.status.success() {
-        return Err(io::Error::other(format!(
-            "Could not insert Antigravity conversations: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ))
-        .into());
-    }
+    let output = run_sqlite_with_retry(db_path, &["-bail"], &sql)?;
     std::fs::set_permissions(db_path, std::fs::Permissions::from_mode(0o600))?;
     let changes = String::from_utf8(output.stdout)?;
-    let mut result_lines = changes.lines();
-    if result_lines
-        .next()
-        .and_then(|line| line.parse::<u64>().ok())
-        != Some(5_000)
-    {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "SQLite did not return the configured busy timeout",
-        )
-        .into());
-    }
+    let result_lines = changes.lines();
     let mut inserted = 0;
     let mut statements = 0;
     for line in result_lines {
-        inserted += line.parse::<usize>()?;
-        statements += 1;
+        if let Ok(count) = line.parse::<usize>() {
+            inserted += count;
+            statements += 1;
+        }
     }
     if statements != rows.len() {
         return Err(io::Error::new(
@@ -291,6 +342,36 @@ mod tests {
             std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
             0o600
         );
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn inserts_and_fetches_using_legacy_schema_without_last_user_input_time() {
+        let path = std::env::temp_dir().join(format!(
+            "sync-antigravity-legacy-{}-{}.db",
+            std::process::id(),
+            now_unix_seconds()
+        ));
+        let schema = "CREATE TABLE conversation_summaries (\
+            conversation_id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', \
+            preview TEXT NOT NULL DEFAULT '', step_count INTEGER NOT NULL DEFAULT 0, \
+            last_modified_time DATETIME NOT NULL, workspace_uris TEXT NOT NULL\
+        );";
+        let created = Command::new("sqlite3")
+            .arg(&path)
+            .arg(schema)
+            .status()
+            .unwrap();
+        assert!(created.success());
+
+        assert!(!table_has_column(&path, "conversation_summaries", "last_user_input_time"));
+        assert!(insert_cli_row(&path, "legacy-id", "legacy title", 1, Some(100)).unwrap());
+        let rows = fetch_cli_rows(&path).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].conversation_id, "legacy-id");
+        assert_eq!(rows[0].title.as_deref(), Some("legacy title"));
+        assert!(rows[0].last_user_input_time.is_none());
 
         let _ = std::fs::remove_file(path);
     }

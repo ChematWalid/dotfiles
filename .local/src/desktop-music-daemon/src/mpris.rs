@@ -80,6 +80,7 @@ pub async fn query_current_state(conn: &Connection) -> String {
             (false, true) => artist,
             (true, true) => continue,
         };
+        let full = truncate_text(&full, crate::config::MAX_DISPLAY_CHARS);
         let text = format!("{icon} {full}");
 
         if status == "Playing" {
@@ -92,6 +93,19 @@ pub async fn query_current_state(conn: &Connection) -> String {
         return text;
     }
     query_mpd().await
+}
+
+/// Truncates a string to at most `max_chars` Unicode characters safely.
+/// Preserves UTF-8 character boundaries to prevent indexing panics on multi-byte characters
+/// (such as Arabic, CJK, emoji, and accented glyphs).
+pub fn truncate_text(text: &str, max_chars: usize) -> String {
+    let char_count = text.chars().count();
+    if char_count <= max_chars {
+        return text.to_string();
+    }
+    let mut truncated: String = text.chars().take(max_chars.saturating_sub(1)).collect();
+    truncated.push('…');
+    truncated
 }
 
 async fn query_mpd() -> String {
@@ -107,6 +121,7 @@ async fn query_mpd() -> String {
     let current = String::from_utf8_lossy(&output.stdout);
     let current = current.trim();
     if !current.is_empty() {
+        let current = truncate_text(current, crate::config::MAX_DISPLAY_CHARS);
         return format!("{} {current}", ICON_PLAY);
     }
     String::new()
@@ -119,6 +134,7 @@ pub async fn setup_dbus_streams(conn: &Connection) -> Result<(MessageStream, Mes
         .interface("org.freedesktop.DBus.Properties")
         .member("PropertiesChanged")
         .path("/org/mpris/MediaPlayer2")
+        .arg(0, "org.mpris.MediaPlayer2.Player")
         .build()?;
 
     let name_rule = MatchRule::builder()
@@ -150,4 +166,51 @@ pub fn affects_displayed_state(message: &Message) -> bool {
     ["PlaybackStatus", "Metadata"].iter().any(|property| {
         changed.contains_key(*property) || invalidated.iter().any(|key| key == property)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncate_text_within_bounds() {
+        assert_eq!(truncate_text("Short Song", 65), "Short Song");
+        assert_eq!(truncate_text("Exact Length", 12), "Exact Length");
+    }
+
+    #[test]
+    fn test_truncate_text_exceeding_bounds() {
+        let long_text = "This is a very long artist and track name that surely exceeds thirty characters limit";
+        let truncated = truncate_text(long_text, 30);
+        assert_eq!(truncated.chars().count(), 30);
+        assert!(truncated.ends_with('…'));
+    }
+
+    #[test]
+    fn test_truncate_text_multibyte_utf8() {
+        // Arabic multi-byte characters (2 bytes each)
+        let arabic = "فيروز - قمرة يا قمرة يا شمعة مضواية تنزل على الحارة وتفرش حكاية";
+        let truncated = truncate_text(arabic, 20);
+        assert_eq!(truncated.chars().count(), 20);
+        assert!(truncated.ends_with('…'));
+
+        // CJK multi-byte characters (3 bytes each)
+        let cjk = "久石譲 - あの夏へ (Spirited Away Soundtrack Original Album)";
+        let truncated_cjk = truncate_text(cjk, 15);
+        assert_eq!(truncated_cjk.chars().count(), 15);
+        assert!(truncated_cjk.ends_with('…'));
+
+        // Emoji characters (4 bytes each)
+        let emoji = "🎵🎶🎧🎹🎸🎺🎻🥁🎵🎶🎧🎹🎸🎺🎻🥁";
+        let truncated_emoji = truncate_text(emoji, 5);
+        assert_eq!(truncated_emoji.chars().count(), 5);
+        assert!(truncated_emoji.ends_with('…'));
+    }
+
+    #[test]
+    fn test_truncate_text_edge_cases() {
+        assert_eq!(truncate_text("", 65), "");
+        assert_eq!(truncate_text("A", 0), "…");
+        assert_eq!(truncate_text("AB", 1), "…");
+    }
 }
