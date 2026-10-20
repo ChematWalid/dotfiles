@@ -4,6 +4,8 @@ After=i3-session.target
 PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
 ConditionEnvironment=XAUTHORITY
+StartLimitIntervalSec=30s
+StartLimitBurst=5
 
 [Service]
 Type=simple

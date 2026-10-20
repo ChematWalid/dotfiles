@@ -1,5 +1,7 @@
 [Unit]
 Description=Desktop Music Now-Playing Daemon (MPRIS events → Conky)
+StartLimitIntervalSec=30s
+StartLimitBurst=5
 
 [Service]
 Type=simple

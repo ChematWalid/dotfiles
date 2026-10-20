@@ -4,7 +4,8 @@ After=i3-session.target picom.service
 PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
 ConditionEnvironment=XAUTHORITY
-StartLimitIntervalSec=0
+StartLimitIntervalSec=30s
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
@@ -12,5 +13,5 @@ ExecStart=%h/.config/polybar/launch.sh
 ExecStop=%h/.config/polybar/launch.sh --stop
 RemainAfterExit=yes
 Restart=on-failure
-RestartSec=5s
+RestartSec=3s
 TimeoutStopSec=3s

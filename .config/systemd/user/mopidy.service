@@ -5,11 +5,13 @@ Wants=sound.target
 After=sound.target
 Wants=network.target
 After=network.target
+StartLimitIntervalSec=30s
+StartLimitBurst=5
 
 [Service]
 ExecStart=%h/.local/bin/mopidy
 Restart=on-failure
-RestartSec=5
+RestartSec=3
 
 [Install]
 WantedBy=default.target

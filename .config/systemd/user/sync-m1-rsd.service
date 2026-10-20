@@ -1,0 +1,18 @@
+[Unit]
+Description=Auto-sync M1 - RSD to Google Drive with File Watcher
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=30s
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/sync-m1-rsd-watcher.sh
+Restart=always
+RestartSec=3
+Nice=19
+IOSchedulingClass=2
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=default.target

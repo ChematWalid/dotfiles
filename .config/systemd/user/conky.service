@@ -5,13 +5,14 @@ After=picom.service i3-session.target
 PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
 ConditionEnvironment=XAUTHORITY
-StartLimitIntervalSec=0
+StartLimitIntervalSec=30s
+StartLimitBurst=5
 
 [Service]
 Type=simple
-ExecStart=%h/.local/opt/conky-1.25.3/bin/conky -c %h/.config/conky/conky.conf -q
+ExecStart=/usr/bin/conky -c %h/.config/conky/conky.conf -q
 Restart=always
-RestartSec=1
+RestartSec=2
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
 Environment=XDG_CURRENT_DESKTOP=i3
 
