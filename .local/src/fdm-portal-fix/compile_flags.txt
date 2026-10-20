@@ -1,0 +1,4 @@
+-I/usr/include/qt6
+-I/usr/include/qt6/QtCore
+-DQT_CORE_LIB
+-std=c++17

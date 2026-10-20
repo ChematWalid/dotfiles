@@ -32,6 +32,7 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
         .interface("org.freedesktop.DBus.Properties")
         .member("PropertiesChanged")
         .path("/org/mpris/MediaPlayer2")
+        .arg(0, "org.mpris.MediaPlayer2.Player")
         .build()?;
 
     let name_rule = MatchRule::builder()
