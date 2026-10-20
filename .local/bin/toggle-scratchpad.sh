@@ -159,7 +159,7 @@ if [[ -z "$scratch_ws" ]]; then
         exit 1
     fi
 
-    run_i3_command "[id=\"$window_id\"] scratchpad show, floating enable, resize set 900 550, move position center, focus"
+    run_i3_command "[id=\"$window_id\"] focus, move position center"
     exit 0
 fi
 

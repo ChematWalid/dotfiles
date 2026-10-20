@@ -2,7 +2,7 @@
 
 # Global timeout controls to prevent terminal delay on deep directories & HDD mounts
 command_timeout = 1500
-scan_timeout = 60
+scan_timeout = 1000
 
 format = """
 [](#3B4252)\
