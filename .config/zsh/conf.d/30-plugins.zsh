@@ -15,6 +15,20 @@ plugins=(
 # Custom completions directory
 fpath=(~/.zsh/completions $fpath)
 
+# Fast compinit: bypass re-scanning 1000+ completion files on every shell launch
+# Re-audit once every 24 hours or when dump file is missing/empty
+SHORT_HOST="${HOST/.*/}"
+export ZSH_COMPDUMP="${ZDOTDIR:-$HOME}/.zcompdump-${SHORT_HOST}-${ZSH_VERSION}"
+compinit() {
+    unfunction compinit
+    autoload -Uz compinit
+    if [[ -s "$ZSH_COMPDUMP" && ( -n "$ZSH_COMPDUMP"(#qN.mh-24) || -n "$ZSH_COMPDUMP.zwc"(#qN.mh-24) ) ]]; then
+        compinit -C "$@"
+    else
+        compinit "$@"
+    fi
+}
+
 # Load Oh-My-Zsh
 [ -s "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 

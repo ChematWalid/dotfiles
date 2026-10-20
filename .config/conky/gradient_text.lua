@@ -97,7 +97,16 @@ local function draw_gradient_text(cr, text, font_face, font_size, font_weight, x
 end
 
 local default_font = "JetBrainsMono Nerd Font"
-local arabic_font = "Noto Sans Arabic"
+local arabic_font = "DejaVu Sans"
+
+local bidi = nil
+local bidi_loaded, bidi_mod = pcall(function()
+    package.cpath = (home .. "/.config/conky/?.so;") .. package.cpath
+    return require("bidi")
+end)
+if bidi_loaded and type(bidi_mod) == "table" and type(bidi_mod.shape) == "function" then
+    bidi = bidi_mod
+end
 
 local function contains_arabic(text)
     if not text then return false end
@@ -112,11 +121,16 @@ local function contains_arabic(text)
         or text:find("\239[\173-\187][\144-\191]") ~= nil
 end
 
-local function select_font(text, fallback_font)
+local function shape_if_needed(text)
+    if not text or text == "" then return "", default_font end
     if contains_arabic(text) then
-        return arabic_font
+        if bidi then
+            return bidi.shape(text), arabic_font
+        else
+            return text, arabic_font
+        end
     end
-    return fallback_font or default_font
+    return text, default_font
 end
 
 function conky_gradient_overlay()
@@ -132,6 +146,10 @@ function conky_gradient_overlay()
         music_text = music_text:gsub("^%s*(.-)%s*$", "%1")
     end
 
+    local time_str, time_font = shape_if_needed(time_text)
+    local date_str, date_font = shape_if_needed(date_text)
+    local music_str, music_font = shape_if_needed(music_text)
+
     local ok, err = pcall(function()
         -- Conky 1.25 exposes its active X11/double-buffer drawing surface
         -- through this backend-neutral API; the legacy Xlib constructor is
@@ -144,22 +162,22 @@ function conky_gradient_overlay()
 
         -- 1. Clock (98pt Bold)
         draw_gradient_text(
-            cr, time_text, select_font(time_text), 98, CAIRO_FONT_WEIGHT_BOLD,
+            cr, time_str, time_font, 98, CAIRO_FONT_WEIGHT_BOLD,
             center_x, 120, "center", clock_stops,
             3.2, 3.5, 3.5
         )
 
         -- 2. Date (28pt Bold)
         draw_gradient_text(
-            cr, date_text, select_font(date_text), 28, CAIRO_FONT_WEIGHT_BOLD,
+            cr, date_str, date_font, 28, CAIRO_FONT_WEIGHT_BOLD,
             center_x, 195, "center", date_stops,
             2.4, 2.5, 2.5
         )
 
         -- 3. Now Playing (22pt Bold)
-        if music_text ~= "" then
+        if music_str ~= "" then
             draw_gradient_text(
-                cr, music_text, select_font(music_text), 22, CAIRO_FONT_WEIGHT_BOLD,
+                cr, music_str, music_font, 22, CAIRO_FONT_WEIGHT_BOLD,
                 center_x, 260, "center", date_stops,
                 2.4, 2.5, 2.5
             )
