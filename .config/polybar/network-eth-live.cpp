@@ -14,6 +14,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <net/if.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -21,6 +22,10 @@ namespace {
 
 constexpr std::string_view default_interface = "enp4s0";
 constexpr std::size_t receive_buffer_size = std::size_t{64} * 1024U;
+
+[[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
+    return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
+}
 
 class UniqueFd {
 public:
@@ -46,9 +51,12 @@ private:
     if (header->nlmsg_type != RTM_NEWLINK && header->nlmsg_type != RTM_DELLINK) {
         return false;
     }
+    if (header->nlmsg_len < NLMSG_LENGTH(sizeof(ifinfomsg))) {
+        return false;
+    }
 
     const auto* info = reinterpret_cast<const ifinfomsg*>(NLMSG_DATA(header));
-    if (static_cast<unsigned int>(info->ifi_index) == interface_index) {
+    if (interface_index != 0 && static_cast<unsigned int>(info->ifi_index) == interface_index) {
         return true;
     }
 
@@ -82,8 +90,15 @@ private:
     }
 
     if (header->nlmsg_type == RTM_NEWADDR || header->nlmsg_type == RTM_DELADDR) {
+        if (header->nlmsg_len < NLMSG_LENGTH(sizeof(ifaddrmsg))) {
+            return false;
+        }
         const auto* info = reinterpret_cast<const ifaddrmsg*>(NLMSG_DATA(header));
-        return info->ifa_index == interface_index;
+        if (interface_index == 0) {
+            const std::string name_str{interface_name};
+            interface_index = ::if_nametoindex(name_str.c_str());
+        }
+        return interface_index != 0 && static_cast<unsigned int>(info->ifa_index) == interface_index;
     }
 
     return header->nlmsg_type == NLMSG_OVERRUN;
@@ -140,11 +155,14 @@ int main(int argc, char* argv[]) {
         argc == 2 ? std::string{argv[1]} : std::string{default_interface};
     unsigned int interface_index = ::if_nametoindex(interface_name.c_str());
 
-    UniqueFd netlink_socket{::socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, NETLINK_ROUTE)};
+    UniqueFd netlink_socket{::socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_ROUTE)};
     if (netlink_socket.get() < 0) {
         std::cerr << "network-eth-live: socket: " << std::strerror(errno) << '\n';
         return 1;
     }
+
+    constexpr int rcvbuf_size = 128 * 1024;
+    ::setsockopt(netlink_socket.get(), SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size));
 
     sockaddr_nl local_address{};
     local_address.nl_family = AF_NETLINK;
@@ -158,24 +176,56 @@ int main(int argc, char* argv[]) {
     std::string previous_status;
     print_if_changed(interface_name, previous_status);
 
+    pollfd descriptor{netlink_socket.get(), POLLIN, 0};
     alignas(nlmsghdr) std::array<char, receive_buffer_size> buffer{};
+
     while (true) {
-        const auto received = ::recv(netlink_socket.get(), buffer.data(), buffer.size(), 0);
-        if (received < 0) {
+        const int result = ::poll(&descriptor, 1, -1);
+        if (result < 0) {
             if (errno == EINTR) {
                 continue;
             }
-            std::cerr << "network-eth-live: recv: " << std::strerror(errno) << '\n';
+            std::cerr << "network-eth-live: poll: " << std::strerror(errno) << '\n';
             return 1;
         }
 
+        if (has_event(descriptor.revents, POLLERR | POLLHUP | POLLNVAL)) {
+            std::cerr << "network-eth-live: netlink error or hangup\n";
+            return 1;
+        }
+
+        if (!has_event(descriptor.revents, POLLIN)) {
+            continue;
+        }
+
         bool refresh = false;
-        std::size_t remaining = static_cast<std::size_t>(received);
-        for (auto* header = reinterpret_cast<nlmsghdr*>(buffer.data());
-             NLMSG_OK(header, remaining); header = NLMSG_NEXT(header, remaining)) {
-            if (is_target_event(header, interface_name, interface_index)) {
-                refresh = true;
-                break;
+        for (;;) {
+            const auto received = ::recv(netlink_socket.get(), buffer.data(), buffer.size(), 0);
+            if (received < 0) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    break;
+                }
+                if (errno == ENOBUFS) {
+                    // Buffer overrun: kernel dropped messages. Refresh state and continue.
+                    refresh = true;
+                    break;
+                }
+                std::cerr << "network-eth-live: recv: " << std::strerror(errno) << '\n';
+                return 1;
+            }
+            if (received == 0) {
+                return 0; // EOF on netlink socket
+            }
+
+            std::size_t remaining = static_cast<std::size_t>(received);
+            for (auto* header = reinterpret_cast<nlmsghdr*>(buffer.data());
+                 NLMSG_OK(header, remaining); header = NLMSG_NEXT(header, remaining)) {
+                if (is_target_event(header, interface_name, interface_index)) {
+                    refresh = true;
+                }
             }
         }
 

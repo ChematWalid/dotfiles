@@ -90,7 +90,7 @@ std::string format_output(int mode) {
         return {};
     }
 
-    std::array<char, 64> buffer{};
+    std::array<char, 128> buffer{};
     const char* format = "%d %b %H:%M:%S";
     std::string_view icon = "󰃰";
     std::string_view color = "#b4befe";
@@ -109,7 +109,7 @@ std::string format_output(int mode) {
     }
 
     std::string output;
-    output.reserve(64);
+    output.reserve(128);
     output.append("%{F").append(color).append("}");
     output.append(icon).append("%{F-} ").append(buffer.data());
     return output;
@@ -133,7 +133,7 @@ bool state_file_changed(int inotify_fd) {
             if (errno == EINTR) {
                 continue;
             }
-            if (errno == EAGAIN) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 return changed;
             }
             throw std::system_error(errno, std::generic_category(), "read inotify events");
@@ -142,37 +142,48 @@ bool state_file_changed(int inotify_fd) {
             return changed;
         }
 
-        for (std::size_t offset = 0; offset < static_cast<std::size_t>(bytes_read);) {
+        std::size_t offset = 0;
+        const auto total_bytes = static_cast<std::size_t>(bytes_read);
+        while (offset + sizeof(inotify_event) <= total_bytes) {
             const auto* event = reinterpret_cast<const inotify_event*>(buffer.data() + offset);
-            if (event->len > 0 && std::string_view{event->name} == state_filename) {
-                changed = true;
+            const std::size_t event_size = sizeof(inotify_event) + event->len;
+            if (offset + event_size > total_bytes) {
+                break;
             }
-            offset += sizeof(inotify_event) + event->len;
+            if (event->len > 0) {
+                const std::size_t name_len = ::strnlen(event->name, event->len);
+                if (std::string_view{event->name, name_len} == state_filename) {
+                    changed = true;
+                }
+            }
+            offset += event_size;
         }
     }
 }
 
-FileDescriptor make_second_timer() {
-    FileDescriptor timer_fd{timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC)};
-    if (timer_fd.get() < 0) {
-        throw std::system_error(errno, std::generic_category(), "create clock timer");
-    }
-
+void arm_second_timer(int timer_fd) {
     timespec now{};
     if (clock_gettime(CLOCK_REALTIME, &now) < 0) {
         throw std::system_error(errno, std::generic_category(), "read system clock");
     }
 
-    constexpr long nanoseconds_per_second = 1'000'000'000L;
-    const long delay = nanoseconds_per_second - now.tv_nsec;
     itimerspec timer{};
-    timer.it_value.tv_sec = delay / nanoseconds_per_second;
-    timer.it_value.tv_nsec = delay % nanoseconds_per_second;
+    timer.it_value.tv_sec = now.tv_sec + 1;
+    timer.it_value.tv_nsec = 0;
     timer.it_interval.tv_sec = 1;
+    timer.it_interval.tv_nsec = 0;
 
-    if (timerfd_settime(timer_fd.get(), 0, &timer, nullptr) < 0) {
+    if (timerfd_settime(timer_fd, TFD_TIMER_ABSTIME | TFD_TIMER_CANCEL_ON_SET, &timer, nullptr) < 0) {
         throw std::system_error(errno, std::generic_category(), "arm clock timer");
     }
+}
+
+FileDescriptor make_second_timer() {
+    FileDescriptor timer_fd{timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC | TFD_NONBLOCK)};
+    if (timer_fd.get() < 0) {
+        throw std::system_error(errno, std::generic_category(), "create clock timer");
+    }
+    arm_second_timer(timer_fd.get());
     return timer_fd;
 }
 
@@ -182,7 +193,8 @@ FileDescriptor make_state_watcher(const std::string& state_directory) {
         throw std::system_error(errno, std::generic_category(), "create state watcher");
     }
 
-    constexpr std::uint32_t mask = IN_CLOSE_WRITE | IN_MOVED_TO | IN_CREATE | IN_DELETE;
+    constexpr std::uint32_t mask =
+        IN_CLOSE_WRITE | IN_MOVED_TO | IN_MOVED_FROM | IN_CREATE | IN_DELETE | IN_ATTRIB;
     if (inotify_add_watch(inotify_fd.get(), state_directory.c_str(), mask) < 0) {
         throw std::system_error(errno, std::generic_category(), "watch state directory");
     }
@@ -216,6 +228,11 @@ int main() {
                 throw std::system_error(errno, std::generic_category(), "wait for clock events");
             }
 
+            if (has_event(watched_fds[0].revents, POLLERR | POLLHUP | POLLNVAL) ||
+                has_event(watched_fds[1].revents, POLLERR | POLLHUP | POLLNVAL)) {
+                throw std::system_error(EIO, std::generic_category(), "clock or state descriptor hangup/error");
+            }
+
             const bool state_changed =
                 has_event(watched_fds[1].revents, POLLIN) && state_file_changed(inotify_fd.get());
             if (state_changed) {
@@ -225,8 +242,15 @@ int main() {
             const bool timer_expired = has_event(watched_fds[0].revents, POLLIN);
             if (timer_expired) {
                 std::uint64_t expirations{};
-                if (read(timer_fd.get(), &expirations, sizeof(expirations)) < 0 && errno != EINTR) {
-                    throw std::system_error(errno, std::generic_category(), "read clock timer");
+                const ssize_t timer_bytes = read(timer_fd.get(), &expirations, sizeof(expirations));
+                if (timer_bytes < 0) {
+                    if (errno == ECANCELED) {
+                        // Clock was changed discontinuously (e.g. NTP or suspend/resume).
+                        // Must rearm the timerfd, otherwise read() will continue to fail with ECANCELED!
+                        arm_second_timer(timer_fd.get());
+                    } else if (errno != EINTR && errno != EAGAIN) {
+                        throw std::system_error(errno, std::generic_category(), "read clock timer");
+                    }
                 }
                 emit_if_changed(mode, previous);
             }

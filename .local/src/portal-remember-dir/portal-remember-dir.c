@@ -7,20 +7,22 @@
 #include <unistd.h>
 
 static char *last_saved_directory = NULL;
+static GMutex dir_mutex;
 
-static gboolean ensure_parent_directory(const char *file_path, const char *label) {
+static gboolean ensure_parent_directory(const char *file_path) {
     char *directory = g_path_get_dirname(file_path);
     gboolean ok = g_mkdir_with_parents(directory, 0700) == 0;
     if (!ok) {
-        g_warning("Could not create the %s directory", label);
+        g_warning("Could not create parent directory for %s", file_path);
     }
     g_free(directory);
     return ok;
 }
 
 static void update_qt_project_conf(const char *path) {
-    const char *home = g_get_home_dir();
     if (!path) return;
+    const char *home = g_get_home_dir();
+    if (!home) return;
     char *conf_path = g_build_filename(home, ".config", "QtProject.conf", NULL);
     char *contents = NULL;
     GError *read_error = NULL;
@@ -58,7 +60,7 @@ static void update_qt_project_conf(const char *path) {
     if (!g_file_set_contents(conf_path, updated->str, -1, &error)) {
         g_warning("Could not update the Qt file chooser location preference: %s",
                   error->message);
-        g_error_free(error);
+        g_clear_error(&error);
     }
     g_string_free(updated, TRUE);
     g_strfreev(lines);
@@ -69,16 +71,25 @@ static void update_qt_project_conf(const char *path) {
 
 static void save_last_dir(const char *dir) {
     if (!dir || dir[0] != '/') return;
-    if (g_strcmp0(last_saved_directory, dir) == 0) return;
+
+    g_mutex_lock(&dir_mutex);
+    if (g_strcmp0(last_saved_directory, dir) == 0) {
+        g_mutex_unlock(&dir_mutex);
+        return;
+    }
+    g_mutex_unlock(&dir_mutex);
 
     struct stat st;
     if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode)) return;
 
     const char *home = g_get_home_dir();
-    char *cache_path = g_build_filename(g_get_user_cache_dir(), "last_used_directory", NULL);
-    char *fdm_cache = g_build_filename(home, ".cache", "fdm_last_selected_folder", NULL);
+    if (!home) return;
+
+    const char *cache_dir = g_get_user_cache_dir();
+    char *cache_path = g_build_filename(cache_dir, "last_used_directory", NULL);
+    char *fdm_cache = g_build_filename(cache_dir, "fdm_last_selected_folder", NULL);
     GError *error = NULL;
-    if (ensure_parent_directory(cache_path, "remembered-directory cache")) {
+    if (ensure_parent_directory(cache_path)) {
         if (!g_file_set_contents(cache_path, dir, -1, &error)) {
             g_warning("Could not save the remembered-directory cache: %s", error->message);
             g_clear_error(&error);
@@ -87,7 +98,7 @@ static void save_last_dir(const char *dir) {
         }
     }
 
-    if (ensure_parent_directory(fdm_cache, "download-manager directory cache")) {
+    if (ensure_parent_directory(fdm_cache)) {
         if (!g_file_set_contents(fdm_cache, dir, -1, &error)) {
             g_warning("Could not save the download-manager directory cache: %s", error->message);
             g_clear_error(&error);
@@ -100,8 +111,10 @@ static void save_last_dir(const char *dir) {
 
     update_qt_project_conf(dir);
 
+    g_mutex_lock(&dir_mutex);
     g_free(last_saved_directory);
     last_saved_directory = g_strdup(dir);
+    g_mutex_unlock(&dir_mutex);
 }
 
 static char* load_last_dir(void) {
@@ -131,14 +144,16 @@ static int is_default_generic_path(const char *path) {
     if (!path || path[0] == '\0') return 1;
 
     const char *home = g_get_home_dir();
-
-    // Is it home?
-    if (strcmp(path, home) == 0) return 1;
+    if (!home) return 0;
 
     size_t homelen = strlen(home);
-    if (strncmp(path, home, homelen) == 0 && (path[homelen] == '\0' || strcmp(path + homelen, "/") == 0)) {
-        return 1;
+    size_t pathlen = strlen(path);
+    while (pathlen > 1 && path[pathlen - 1] == '/') {
+        pathlen--;
     }
+
+    // Is it home?
+    if (pathlen == homelen && strncmp(path, home, homelen) == 0) return 1;
 
     // Default download directories that apps fall back to
     const char *defaults[] = {
@@ -151,12 +166,15 @@ static int is_default_generic_path(const char *path) {
 
     for (int i = 0; defaults[i]; ++i) {
         char *default_path = g_build_filename(home, defaults[i], NULL);
-        gboolean matches = strcmp(path, default_path) == 0;
+        size_t dlen = strlen(default_path);
+        while (dlen > 1 && default_path[dlen - 1] == '/') {
+            dlen--;
+        }
+        gboolean matches = (pathlen == dlen && strncmp(path, default_path, dlen) == 0);
         g_free(default_path);
         if (matches) return 1;
     }
 
-    // Check if it's inside Telegram cache
     return 0;
 }
 
@@ -182,8 +200,16 @@ static void on_location_entry_activate(GtkEntry *entry, gpointer user_data) {
     char *resolved;
     if (raw_path[0] == '~') {
         const char *home = g_get_home_dir();
-        if (raw_path[1] == '/' || raw_path[1] == '\0') {
+        if (home && (raw_path[1] == '/' || raw_path[1] == '\0')) {
             resolved = g_strdup_printf("%s%s", home, raw_path + 1);
+        } else {
+            resolved = g_strdup(raw_path);
+        }
+    } else if (raw_path[0] != '/') {
+        char *current = gtk_file_chooser_get_current_folder(chooser);
+        if (current) {
+            resolved = g_build_filename(current, raw_path, NULL);
+            g_free(current);
         } else {
             resolved = g_strdup(raw_path);
         }
@@ -192,8 +218,8 @@ static void on_location_entry_activate(GtkEntry *entry, gpointer user_data) {
     }
 
     size_t len = strlen(resolved);
-    if (len > 1 && resolved[len - 1] == '/') {
-        resolved[len - 1] = '\0';
+    while (len > 1 && resolved[len - 1] == '/') {
+        resolved[--len] = '\0';
     }
 
     if (g_file_test(resolved, G_FILE_TEST_IS_DIR)) {
@@ -211,12 +237,12 @@ static void on_current_folder_changed(GtkFileChooser *chooser, gpointer user_dat
     }
 }
 
-static void attach_typable_location_bar(GtkWidget *widget, GtkFileChooser *chooser) {
-    if (!widget) return;
+static gboolean attach_typable_location_bar(GtkWidget *widget, GtkFileChooser *chooser) {
+    if (!widget) return FALSE;
     const char *name = gtk_widget_get_name(widget);
-    if (name && strcmp(name, "pathbarbox") == 0) {
+    if (name && strcmp(name, "pathbarbox") == 0 && GTK_IS_BOX(widget)) {
         if (g_object_get_data(G_OBJECT(widget), "typable_bar_installed")) {
-            return;
+            return TRUE;
         }
         g_object_set_data(G_OBJECT(widget), "typable_bar_installed", GINT_TO_POINTER(1));
 
@@ -242,20 +268,26 @@ static void attach_typable_location_bar(GtkWidget *widget, GtkFileChooser *choos
 
         g_signal_connect(entry, "activate", G_CALLBACK(on_location_entry_activate), chooser);
         g_signal_connect(entry, "icon-press", G_CALLBACK(on_location_entry_icon_press), chooser);
-        g_signal_connect(chooser, "current-folder-changed", G_CALLBACK(on_current_folder_changed), entry);
+        g_signal_connect_object(chooser, "current-folder-changed", G_CALLBACK(on_current_folder_changed), entry, 0);
 
         gtk_box_pack_start(GTK_BOX(widget), entry, TRUE, TRUE, 4);
         gtk_widget_show(entry);
-        return;
+        return TRUE;
     }
 
     if (GTK_IS_CONTAINER(widget)) {
         GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+        gboolean found = FALSE;
         for (GList *l = children; l != NULL; l = l->next) {
-            attach_typable_location_bar(GTK_WIDGET(l->data), chooser);
+            if (attach_typable_location_bar(GTK_WIDGET(l->data), chooser)) {
+                found = TRUE;
+                break;
+            }
         }
         g_list_free(children);
+        return found;
     }
+    return FALSE;
 }
 
 // Function pointer typedefs
@@ -271,10 +303,14 @@ static orig_get_filename_fn orig_get_filename = NULL;
 static orig_get_filenames_fn orig_get_filenames = NULL;
 static orig_widget_show_fn orig_widget_show = NULL;
 
-#define RESOLVE_NEXT(target, symbol_name)                 \
-    do {                                                  \
-        void *symbol = dlsym(RTLD_NEXT, (symbol_name));   \
-        memcpy(&(target), &symbol, sizeof(target));       \
+#define RESOLVE_NEXT(target, symbol_name)                    \
+    do {                                                     \
+        union {                                              \
+            void *sym;                                       \
+            __typeof__(target) fn;                           \
+        } _u;                                                \
+        _u.sym = dlsym(RTLD_NEXT, (symbol_name));            \
+        (target) = _u.fn;                                    \
     } while (0)
 
 __attribute__((constructor))
@@ -287,6 +323,9 @@ static void init(void) {
 }
 
 gboolean gtk_file_chooser_set_current_folder(GtkFileChooser *chooser, const gchar *filename) {
+    if (!chooser || !GTK_IS_FILE_CHOOSER(chooser)) {
+        return FALSE;
+    }
     if (!orig_set_current_folder) {
         RESOLVE_NEXT(orig_set_current_folder, "gtk_file_chooser_set_current_folder");
     }
@@ -317,6 +356,9 @@ void gtk_widget_show(GtkWidget *widget) {
 
     if (GTK_IS_FILE_CHOOSER(widget)) {
         GtkFileChooser *chooser = GTK_FILE_CHOOSER(widget);
+        if (!orig_set_current_folder) {
+            RESOLVE_NEXT(orig_set_current_folder, "gtk_file_chooser_set_current_folder");
+        }
         gpointer initialized = g_object_get_data(G_OBJECT(chooser), "remember_dir_initialized");
         if (!initialized) {
             gchar *current = gtk_file_chooser_get_current_folder(chooser);
@@ -333,7 +375,11 @@ void gtk_widget_show(GtkWidget *widget) {
             g_object_set_data(G_OBJECT(chooser), "remember_dir_initialized", GINT_TO_POINTER(1));
         }
 
-        attach_typable_location_bar(widget, chooser);
+        if (g_object_get_data(G_OBJECT(chooser), "location_bar_attached") == NULL) {
+            if (attach_typable_location_bar(widget, chooser)) {
+                g_object_set_data(G_OBJECT(chooser), "location_bar_attached", GINT_TO_POINTER(1));
+            }
+        }
     }
 
     if (orig_widget_show) {
