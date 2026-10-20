@@ -322,6 +322,13 @@ impl I3Client {
         }
 
         let len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
+        if len > 16 * 1024 * 1024 {
+            self.stream = None;
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("oversized i3 IPC response length {len}"),
+            ));
+        }
         self.read_buf.resize(len, 0);
         let stream = self.stream.as_mut().unwrap();
         if let Err(e) = stream.read_exact(&mut self.read_buf) {
@@ -386,6 +393,12 @@ pub fn subscribe_events_with_payload(
         ));
     }
     let len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
+    if len > 1024 * 1024 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("oversized i3 subscription reply length {len}"),
+        ));
+    }
     let reply_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
     if reply_type != 2 {
         return Err(io::Error::new(

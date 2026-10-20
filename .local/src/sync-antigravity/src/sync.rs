@@ -129,7 +129,10 @@ pub fn run_sync(quiet_if_no_changes: bool, dry_run: bool) -> Result<(), Box<dyn 
                 .as_nanos()
         ));
         fs::write(&temp_path, &raw_proto)?;
-        fs::rename(&temp_path, &paths.gui_proto)?;
+        if let Err(error) = fs::rename(&temp_path, &paths.gui_proto) {
+            let _ = fs::remove_file(&temp_path);
+            return Err(error.into());
+        }
     }
 
     // 5. Brain / Transcripts / Artifacts mirroring

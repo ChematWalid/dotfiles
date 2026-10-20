@@ -5,11 +5,12 @@ use anyhow::{Context, Result};
 use futures_lite::StreamExt;
 use std::collections::HashMap;
 use tokio::sync::watch;
-use zbus::{message::Type as MsgType, Connection, MatchRule, Message, MessageStream, OwnedVariant};
+use zbus::{message::Type as MsgType, Connection, MatchRule, Message, MessageStream};
 
 fn affects_displayed_state(message: &Message) -> bool {
-    let body: Result<(String, HashMap<String, OwnedVariant>, Vec<String>), _> =
-        message.body().deserialize();
+    let body_ref = message.body();
+    let body: Result<(&str, HashMap<&str, zbus::Variant>, Vec<&str>), _> =
+        body_ref.deserialize();
     let Ok((interface, changed, invalidated)) = body else {
         return true;
     };
@@ -71,7 +72,8 @@ pub async fn start_dbus_listener(state: watch::Sender<MediaState>) -> Result<()>
                 message = name_stream.next() => {
                     match message {
                         Some(Ok(message)) => {
-                            let body: Result<(String, String, String), _> = message.body().deserialize();
+                            let body_ref = message.body();
+                            let body: Result<(&str, &str, &str), _> = body_ref.deserialize();
                             if let Ok((name, _old, _new)) = body {
                                 if name.starts_with("org.mpris.") {
                                     let latest = query_current_state(&conn).await;

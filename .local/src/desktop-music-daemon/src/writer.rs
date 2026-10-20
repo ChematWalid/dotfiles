@@ -42,8 +42,10 @@ impl OutputWriter {
         }
 
         if let Some(parent) = self.output.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("could not create {}", parent.display()))?;
+            if !parent.is_dir() {
+                fs::create_dir_all(parent)
+                    .with_context(|| format!("could not create {}", parent.display()))?;
+            }
         }
 
         let mut file = OpenOptions::new()

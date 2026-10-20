@@ -53,8 +53,16 @@ pub fn run() {
                 }
                 break;
             }
+            if &header[..6] != b"i3-ipc" {
+                eprintln!("autotiling: invalid i3 IPC event header magic");
+                break;
+            }
 
             let body_len = u32::from_ne_bytes(header[6..10].try_into().unwrap()) as usize;
+            if body_len > 16 * 1024 * 1024 {
+                eprintln!("autotiling: oversized i3 event length {body_len}");
+                break;
+            }
             let event_type = u32::from_ne_bytes(header[10..14].try_into().unwrap());
             body.resize(body_len, 0);
             if let Err(error) = events.read_exact(&mut body) {

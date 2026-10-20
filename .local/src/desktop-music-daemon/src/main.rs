@@ -44,7 +44,8 @@ async fn main() -> Result<()> {
             message = name_stream.next() => {
                 match message {
                     Some(Ok(message)) => {
-                        let body: Result<(String, String, String), _> = message.body().deserialize();
+                        let body_ref = message.body();
+                        let body: Result<(&str, &str, &str), _> = body_ref.deserialize();
                         if let Ok((name, _old, _new)) = body {
                             if name.starts_with("org.mpris.") {
                                 report_write_error(output.write(&mpris::query_current_state(&conn).await));

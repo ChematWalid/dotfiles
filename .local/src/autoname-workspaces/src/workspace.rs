@@ -103,7 +103,7 @@ pub fn update_workspaces(client: &mut I3Client) -> io::Result<()> {
         };
 
         let workspace_number = get_workspace_number(workspace_name);
-        let mut icons = Vec::new();
+        let mut icons = Vec::with_capacity(8);
         collect_icons(workspace, &mut icons);
 
         let new_name = if icons.is_empty() {

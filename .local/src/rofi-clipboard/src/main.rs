@@ -14,10 +14,6 @@ use theme::{cache_dir, prune_cache};
 
 fn main() -> Result<()> {
     let cache_dir = cache_dir()?;
-    if let Err(error) = prune_cache(&cache_dir) {
-        eprintln!("rofi-clipboard: initial cache pruning failed: {error}");
-    }
-
     let items = fetch_items(&cache_dir)?;
     if items.is_empty() {
         return Ok(());

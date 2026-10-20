@@ -99,11 +99,25 @@ pub async fn query_current_state(conn: &Connection) -> String {
 /// Preserves UTF-8 character boundaries to prevent indexing panics on multi-byte characters
 /// (such as Arabic, CJK, emoji, and accented glyphs).
 pub fn truncate_text(text: &str, max_chars: usize) -> String {
-    let char_count = text.chars().count();
-    if char_count <= max_chars {
+    if max_chars == 0 {
+        return String::new();
+    }
+    let mut char_indices = text.char_indices();
+    if char_indices.nth(max_chars).is_none() {
         return text.to_string();
     }
-    let mut truncated: String = text.chars().take(max_chars.saturating_sub(1)).collect();
+
+    let target_chars = max_chars.saturating_sub(1);
+    let end_byte = if target_chars == 0 {
+        0
+    } else {
+        text.char_indices()
+            .nth(target_chars)
+            .map(|(idx, _)| idx)
+            .unwrap_or(text.len())
+    };
+    let mut truncated = String::with_capacity(end_byte + '…'.len_utf8());
+    truncated.push_str(&text[..end_byte]);
     truncated.push('…');
     truncated
 }
@@ -154,8 +168,9 @@ pub async fn setup_dbus_streams(conn: &Connection) -> Result<(MessageStream, Mes
 /// Return true only for player properties that affect the displayed track.
 /// Unknown signal bodies are refreshed conservatively to avoid stale output.
 pub fn affects_displayed_state(message: &Message) -> bool {
-    let body: Result<(String, HashMap<String, OwnedVariant>, Vec<String>), _> =
-        message.body().deserialize();
+    let body_ref = message.body();
+    let body: Result<(&str, HashMap<&str, zbus::Variant>, Vec<&str>), _> =
+        body_ref.deserialize();
     let Ok((interface, changed, invalidated)) = body else {
         return true;
     };
@@ -163,7 +178,8 @@ pub fn affects_displayed_state(message: &Message) -> bool {
         return false;
     }
 
-    ["PlaybackStatus", "Metadata"].iter().any(|property| {
+    let watched = ["PlaybackStatus", "Metadata"];
+    watched.iter().any(|property| {
         changed.contains_key(*property) || invalidated.iter().any(|key| key == property)
     })
 }
@@ -210,7 +226,7 @@ mod tests {
     #[test]
     fn test_truncate_text_edge_cases() {
         assert_eq!(truncate_text("", 65), "");
-        assert_eq!(truncate_text("A", 0), "…");
+        assert_eq!(truncate_text("A", 0), "");
         assert_eq!(truncate_text("AB", 1), "…");
     }
 }

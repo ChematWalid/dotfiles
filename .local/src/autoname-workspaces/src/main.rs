@@ -72,7 +72,15 @@ fn main() {
                 }
                 break;
             }
+            if &ev_header[..6] != b"i3-ipc" {
+                eprintln!("autoname-workspaces: invalid i3 IPC event header magic");
+                break;
+            }
             let ev_len = u32::from_ne_bytes(ev_header[6..10].try_into().unwrap()) as usize;
+            if ev_len > 16 * 1024 * 1024 {
+                eprintln!("autoname-workspaces: oversized i3 event length {ev_len}");
+                break;
+            }
             let ev_type = u32::from_ne_bytes(ev_header[10..14].try_into().unwrap());
             ev_body.resize(ev_len, 0);
             if let Err(error) = event_stream.read_exact(&mut ev_body) {

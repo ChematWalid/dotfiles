@@ -31,7 +31,7 @@ pub fn run_sqlite_with_retry(
 
     loop {
         let mut cmd = Command::new("sqlite3");
-        cmd.args(["-cmd", ".timeout 5000"]);
+        cmd.args(["-batch", "-cmd", ".timeout 5000"]);
         cmd.args(extra_args);
         cmd.arg(db_path).arg(sql);
 
@@ -61,12 +61,11 @@ pub fn run_sqlite_with_retry(
 }
 
 pub fn table_has_column(db_path: &Path, table: &str, column: &str) -> bool {
+    if !db_path.exists() {
+        return false;
+    }
     let sql = format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name='{column}';");
-    Command::new("sqlite3")
-        .args(["-cmd", ".timeout 5000"])
-        .arg(db_path)
-        .arg(&sql)
-        .output()
+    run_sqlite_with_retry(db_path, &[], &sql)
         .map(|out| String::from_utf8_lossy(&out.stdout).trim() == "1")
         .unwrap_or(false)
 }
