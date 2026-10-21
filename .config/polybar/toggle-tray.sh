@@ -17,14 +17,26 @@ TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
     END { print tray; print main }
 ')
 
+if [[ -z "$TRAY_WINDOW" ]] || ! pgrep -u "${UID:-$(id -u)}" -x stalonetray >/dev/null; then
+    stalonetray_bin="$(command -v stalonetray || true)"
+    if [[ -z "$stalonetray_bin" && -x "${HOME}/.local/bin/stalonetray" ]]; then
+        stalonetray_bin="${HOME}/.local/bin/stalonetray"
+    fi
+    if [[ -n "$stalonetray_bin" && -f "${HOME}/.config/polybar/stalonetrayrc" ]]; then
+        DISPLAY="${DISPLAY:-:0}" setsid "$stalonetray_bin" \
+            -c "${HOME}/.config/polybar/stalonetrayrc" > /tmp/stalonetray.log 2>&1 &
+        TRAY_WINDOW=$(timeout 3s xdotool search --sync --class --limit 1 '^stalonetray$' 2>/dev/null || true)
+    fi
+fi
+
 if [[ -z "$TRAY_WINDOW" ]]; then
-    printf 'Stalonetray is not running; restart the Polybar user service first.\n' >&2
+    printf 'Stalonetray is not running and could not be started; check /tmp/stalonetray.log\n' >&2
     exit 1
 fi
 
 TRAY_INFO=$(xwininfo -id "$TRAY_WINDOW" 2>/dev/null || true)
 if [[ -z "$TRAY_INFO" ]]; then
-    printf 'Stalonetray is not running; restart the Polybar user service first.\n' >&2
+    printf 'Stalonetray window not accessible.\n' >&2
     exit 1
 fi
 

@@ -39,7 +39,7 @@ style = "bold sapphire"
 truncation_length = 3
 
 [git_branch]
-symbol = " "
+symbol = " "
 style = "bold mauve"
 
 [git_status]
