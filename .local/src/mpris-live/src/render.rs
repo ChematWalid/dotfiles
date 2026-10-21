@@ -65,9 +65,11 @@ pub fn render_polybar(state: &MediaState, scroll_pos: usize, hovering: bool) -> 
         (ICON_PLAY_BTN, COLOR_YELLOW)
     };
 
+    let shaped = crate::bidi::shape_bidi(&state.full_text);
+    let shaped_chars = shaped.chars().count();
     let display = get_marquee_slice_with_count(
-        &state.full_text,
-        state.full_text_chars,
+        &shaped,
+        shaped_chars,
         scroll_pos,
         hovering,
     );
@@ -128,5 +130,20 @@ mod tests {
         let out = render_polybar(&state, 0, false);
         assert!(out.contains("Artist - Song"));
         assert!(out.contains("playerctl -p spotify"));
+    }
+
+    #[test]
+    fn test_render_polybar_arabic() {
+        let state = MediaState {
+            player: "spotify".to_string(),
+            status: "Playing".to_string(),
+            full_text: "Wegz - واحد وعشرين".to_string(),
+            full_text_chars: "Wegz - واحد وعشرين".chars().count(),
+        };
+        let out = render_polybar(&state, 0, false);
+        assert!(out.contains("Wegz - "));
+        assert!(out.contains("playerctl -p spotify"));
+        // Confirm Arabic is shaped rather than remaining raw
+        assert!(!out.contains("واحد وعشرين"));
     }
 }

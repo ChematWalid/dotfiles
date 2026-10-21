@@ -1,6 +1,7 @@
 //! mpris-live — Real-time MPRIS status module for Polybar.
 //! Zero polling, event-driven architecture using zbus 5 and x11rb.
 
+mod bidi;
 mod config;
 mod dbus;
 mod render;
