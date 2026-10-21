@@ -46,7 +46,7 @@ alias gdl='gallery-dl'
 alias cls='clear'
 alias update='yay -Syu && sync-cheats'
 alias cleanup='sudo pacman -Rns $(pacman -Qtdq) 2>/dev/null; sudo paccache -r; yay -Sc --noconfirm'
-alias recompile-zsh='for f in ~/.zshrc ~/.config/zsh/conf.d/*.zsh ~/.zcompdump*; do [[ -f "$f" ]] && zcompile "$f"; done'
+alias recompile-zsh='for f in ~/.zshrc ~/.config/zsh/conf.d/*.zsh ~/.zcompdump*; do [[ -f "$f" && "$f" != *.zwc ]] && zcompile "$f"; done'
 
 # Text Processing & AST Search
 alias sed='sd'

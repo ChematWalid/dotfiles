@@ -95,6 +95,6 @@ run_module() {
 
   # Pre-compile zsh configs and completion dumps to bytecode
   if command -v zsh &>/dev/null; then
-    zsh -c 'for f in ~/.zshrc ~/.config/zsh/conf.d/*.zsh ~/.zcompdump*; do [[ -f "$f" ]] && zcompile "$f" 2>/dev/null || true; done' 2>/dev/null || true
+    zsh -c 'for f in ~/.zshrc ~/.config/zsh/conf.d/*.zsh ~/.zcompdump*; do [[ -f "$f" && "$f" != *.zwc ]] && zcompile "$f" 2>/dev/null || true; done' 2>/dev/null || true
   fi
 }
