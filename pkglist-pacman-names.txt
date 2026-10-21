@@ -41,6 +41,7 @@ ctop
 cups
 cups-pk-helper
 dbeaver
+ddcutil
 dex
 difftastic
 direnv
@@ -64,6 +65,7 @@ figlet
 firefox
 fish
 flameshot
+fribidi
 fzf
 gdu
 gimp
@@ -93,6 +95,7 @@ i3blocks
 i3status
 imagemagick
 imv
+inotify-tools
 intel-media-driver
 intel-ucode
 jdk-openjdk
@@ -111,6 +114,7 @@ lib32-mesa
 lib32-vulkan-nouveau
 libgepub
 libgsf
+libnotify
 libopenraw
 libpulse
 libreoffice-fresh
@@ -183,6 +187,7 @@ qt5ct
 qt6ct
 rbw
 rclone
+ripdrag
 ripgrep
 rofi
 rofi-calc
@@ -209,6 +214,9 @@ syncthing
 system-config-printer
 task
 tealdeer
+tesseract
+tesseract-data-ara
+tesseract-data-eng
 texlive-basic
 texlive-binextra
 texlive-fontsrecommended
@@ -266,6 +274,7 @@ yarn
 yazi
 yt-dlp
 zellij
+zenity
 zip
 zoxide
 zram-generator

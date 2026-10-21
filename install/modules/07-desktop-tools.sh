@@ -69,6 +69,54 @@ run_module() {
           warn "Failed to compile scratchpad_override"
         fi
       fi
+
+      # fdm-portal-fix (Qt6 portal file-dialog fix shared library)
+      if [[ -d "$DOTFILES_DIR/.local/src/fdm-portal-fix" ]] && command -v g++ &>/dev/null; then
+        info "Compiling fdm-portal-fix (C++ shared library)..."
+        if g++ -fPIC -shared -O2 -Wall -Wextra -I/usr/include/qt6 -I/usr/include/qt6/QtCore \
+          "$DOTFILES_DIR/.local/src/fdm-portal-fix/fdm-portal-fix.cpp" \
+          -lQt6Core -o "$HOME/.local/lib/libfdm-portal-fix.so" -ldl 2>/dev/null; then
+          log "libfdm-portal-fix.so installed → ~/.local/lib/libfdm-portal-fix.so"
+        else
+          warn "Failed to compile fdm-portal-fix"
+        fi
+      fi
+
+      # lua-bidi (Conky Arabic BiDi shaping shared library)
+      if [[ -d "$DOTFILES_DIR/.local/src/lua-bidi" ]] && command -v make &>/dev/null; then
+        info "Compiling lua-bidi (C Lua module)..."
+        if make -C "$DOTFILES_DIR/.local/src/lua-bidi" all && \
+           make -C "$DOTFILES_DIR/.local/src/lua-bidi" install DESTDIR="$HOME/.config/conky"; then
+          log "lua-bidi installed → ~/.config/conky/bidi.so"
+        else
+          warn "Failed to compile lua-bidi"
+        fi
+      fi
+
+      # xkb-group-toggle (X11 layout toggler)
+      if [[ -d "$DOTFILES_DIR/.local/src/xkb-group-toggle" ]] && command -v make &>/dev/null; then
+        info "Compiling xkb-group-toggle (C++)..."
+        if make -C "$DOTFILES_DIR/.local/src/xkb-group-toggle" all && \
+           install_native_binary "$DOTFILES_DIR/.local/src/xkb-group-toggle/xkb-group-toggle" xkb-group-toggle; then
+          log "xkb-group-toggle installed → ~/.local/bin/xkb-group-toggle"
+        else
+          warn "Failed to compile xkb-group-toggle"
+        fi
+      fi
+
+      # polybar-datetime (Polybar datetime & prayer time helper)
+      if [[ -d "$DOTFILES_DIR/.local/src/polybar-datetime" ]] && command -v cmake &>/dev/null && command -v g++ &>/dev/null; then
+        info "Compiling polybar-datetime (CMake C++)..."
+        local dt_build="$build_dir/polybar-datetime"
+        mkdir -p "$dt_build"
+        if cmake -B "$dt_build" -S "$DOTFILES_DIR/.local/src/polybar-datetime" -DCMAKE_BUILD_TYPE=Release && \
+           cmake --build "$dt_build" && \
+           install_native_binary "$dt_build/polybar-datetime" polybar-datetime; then
+          log "polybar-datetime installed → ~/.local/bin/polybar-datetime"
+        else
+          warn "Failed to compile polybar-datetime"
+        fi
+      fi
     else
       warn "gcc not found — skipping C helpers compilation"
     fi

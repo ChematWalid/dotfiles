@@ -92,7 +92,7 @@ run_module() {
     # ── ~/.local/bin scripts ────────────────────────────────────────────────────
     mkdir -p "$HOME/.local/bin"
     local native_bin
-    local -a native_bins=(desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live x11-grab-probe)
+    local -a native_bins=(desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live x11-grab-probe polybar-datetime xkb-group-toggle)
     for script in "$DOTFILES_DIR/.local/bin"/*; do
       [[ -f "$script" || -L "$script" ]] || continue
       native_bin="$(basename "$script")"

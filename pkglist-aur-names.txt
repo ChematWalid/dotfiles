@@ -16,13 +16,14 @@ ferdium
 fselect
 google-chrome
 i3lock-color
-i3lock-color-debug
 ivpn
 ivpn-ui
+muslimtify
 papirus-folders-catppuccin-git
 pipes.sh
 postman-bin
 projectlibre
+rofi-bluetooth-git
 rustdesk
 sddm-theme-catppuccin-git
 snapd
@@ -32,4 +33,3 @@ tdrop
 timg
 visual-studio-code-bin
 yay
-yay-debug
