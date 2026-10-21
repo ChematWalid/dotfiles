@@ -73,6 +73,7 @@ systemctl --user start i3-session.target
 # Make the display compositor and tray host available before tray clients.
 systemctl --user start picom.service || true
 systemctl --user restart polybar.service || true
+systemctl --user start dunst.service || true
 
 start_copyq_once() {
     local runtime_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"

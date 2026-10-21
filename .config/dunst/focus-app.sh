@@ -48,17 +48,17 @@ APP_CLASS_MAP["alacritty"]="Alacritty"
 WM_CLASS="${APP_CLASS_MAP[$APP]:-$APP}"
 
 # 1. Search by exact window class
-WIN_ID=$(DISPLAY=:0 xdotool search --classname "$WM_CLASS" 2>/dev/null | tail -1)
+WIN_ID=$(DISPLAY="${DISPLAY:-:0}" xdotool search --classname "$WM_CLASS" 2>/dev/null | tail -1)
 
 # 2. Fallback: search by case-insensitive class / name
 if [ -z "$WIN_ID" ]; then
-    WIN_ID=$(DISPLAY=:0 xdotool search --class "$WM_CLASS" 2>/dev/null | tail -1)
+    WIN_ID=$(DISPLAY="${DISPLAY:-:0}" xdotool search --class "$WM_CLASS" 2>/dev/null | tail -1)
 fi
 if [ -z "$WIN_ID" ]; then
-    WIN_ID=$(DISPLAY=:0 xdotool search --name "$APP" 2>/dev/null | tail -1)
+    WIN_ID=$(DISPLAY="${DISPLAY:-:0}" xdotool search --name "$APP" 2>/dev/null | tail -1)
 fi
 
 # 3. If window found, focus it via i3
 if [ -n "$WIN_ID" ]; then
-    DISPLAY=:0 i3-msg "[id=$WIN_ID] focus"
+    DISPLAY="${DISPLAY:-:0}" i3-msg "[id=$WIN_ID] focus"
 fi

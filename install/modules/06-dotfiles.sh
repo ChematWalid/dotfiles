@@ -57,6 +57,14 @@ run_module() {
       fi
     done
 
+    # Ensure systemd user service drop-in overrides (such as dunst.service.d) are supported
+    if [[ -d "$HOME/.config/systemd/user" && ! -L "$HOME/.config/systemd" ]]; then
+      for dropin in "$DOTFILES_DIR/.config/systemd/user"/*.d; do
+        [[ -d "$dropin" ]] || continue
+        safe_link "$dropin" "$HOME/.config/systemd/user/$(basename "$dropin")"
+      done
+    fi
+
     # Keep OAuth credentials in the user's private config directory, never in
     # the dotfiles checkout. Do not symlink or replace this directory.
     mkdir -p "$HOME/.config/rclone"

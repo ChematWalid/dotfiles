@@ -12,3 +12,6 @@ Type=simple
 ExecStart=%h/.local/bin/autoname-workspaces
 Restart=always
 RestartSec=2
+
+[Install]
+WantedBy=i3-session.target
