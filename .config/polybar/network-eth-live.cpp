@@ -20,8 +20,34 @@
 
 namespace {
 
-constexpr std::string_view default_interface = "enp4s0";
 constexpr std::size_t receive_buffer_size = std::size_t{64} * 1024U;
+
+[[nodiscard]] std::string detect_default_interface() {
+    struct ifaddrs* ifaddr = nullptr;
+    if (::getifaddrs(&ifaddr) == -1) {
+        return "eth0";
+    }
+    std::string candidate;
+    for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_name) continue;
+        std::string_view name{ifa->ifa_name};
+        if (name == "lo" || name.rfind("wl", 0) == 0 || name.rfind("docker", 0) == 0 ||
+            name.rfind("br-", 0) == 0 || name.rfind("veth", 0) == 0 ||
+            name.rfind("tailscale", 0) == 0 || name.rfind("tun", 0) == 0 ||
+            name.rfind("tap", 0) == 0) {
+            continue;
+        }
+        if (name.rfind("en", 0) == 0 || name.rfind("eth", 0) == 0) {
+            candidate = ifa->ifa_name;
+            break;
+        }
+        if (candidate.empty()) {
+            candidate = ifa->ifa_name;
+        }
+    }
+    ::freeifaddrs(ifaddr);
+    return candidate.empty() ? "eth0" : candidate;
+}
 
 [[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
     return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
@@ -151,9 +177,18 @@ int main(int argc, char* argv[]) {
         return 2;
     }
 
-    const std::string interface_name =
-        argc == 2 ? std::string{argv[1]} : std::string{default_interface};
+    std::string interface_name;
+    if (argc == 2) {
+        interface_name = argv[1];
+    } else {
+        interface_name = detect_default_interface();
+    }
+
     unsigned int interface_index = ::if_nametoindex(interface_name.c_str());
+    if (interface_index == 0 && argc == 2) {
+        interface_name = detect_default_interface();
+        interface_index = ::if_nametoindex(interface_name.c_str());
+    }
 
     UniqueFd netlink_socket{::socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_ROUTE)};
     if (netlink_socket.get() < 0) {
