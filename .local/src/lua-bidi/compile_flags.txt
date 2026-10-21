@@ -1,4 +1,4 @@
--I/usr/include
+-I/usr/include/lua5.4
 -std=c11
 -Wall
 -Wextra

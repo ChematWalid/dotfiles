@@ -106,6 +106,8 @@ local bidi_loaded, bidi_mod = pcall(function()
 end)
 if bidi_loaded and type(bidi_mod) == "table" and type(bidi_mod.shape) == "function" then
     bidi = bidi_mod
+else
+    io.stderr:write("Conky Lua Warning: failed to load bidi.so: " .. tostring(bidi_mod) .. "\n")
 end
 
 local function contains_arabic(text)
@@ -133,6 +135,99 @@ local function shape_if_needed(text)
     return text, default_font
 end
 
+local function draw_gradient_music(cr, raw_text, font_size, font_weight, center_x, y, color_stops, stroke_width, shadow_ox, shadow_oy)
+    if not raw_text or raw_text == "" then return end
+
+    -- Extract Nerd Font icon prefix if present (e.g. \u{f03e4} or \u{f040a})
+    local icon, song = raw_text:match("^([\238-\243][\128-\191]+%s*)(.*)$")
+    if not icon then
+        icon = ""
+        song = raw_text
+    end
+
+    local song_str, song_font = shape_if_needed(song)
+    local icon_font = default_font
+
+    -- Measure icon extents
+    local icon_adv = 0
+    if icon ~= "" then
+        cairo_select_font_face(cr, icon_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+        cairo_set_font_size(cr, font_size)
+        local icon_ext = cairo_text_extents_t:create()
+        cairo_text_extents(cr, icon, icon_ext)
+        icon_adv = icon_ext.x_advance
+    end
+
+    -- Measure song extents
+    cairo_select_font_face(cr, song_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+    cairo_set_font_size(cr, font_size)
+    local song_ext = cairo_text_extents_t:create()
+    cairo_text_extents(cr, song_str, song_ext)
+
+    local total_w = icon_adv + song_ext.width
+    local draw_x = center_x - (total_w / 2.0)
+    local song_x = draw_x + icon_adv
+
+    -- 1. Drop Shadow Pass
+    if shadow_color then
+        cairo_set_source_rgba(cr, shadow_color.r, shadow_color.g, shadow_color.b, shadow_color.a)
+        if icon ~= "" then
+            cairo_select_font_face(cr, icon_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+            cairo_set_font_size(cr, font_size)
+            cairo_move_to(cr, draw_x + shadow_ox, y + shadow_oy)
+            cairo_text_path(cr, icon)
+            cairo_fill(cr)
+        end
+        cairo_select_font_face(cr, song_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+        cairo_set_font_size(cr, font_size)
+        cairo_move_to(cr, song_x + shadow_ox, y + shadow_oy)
+        cairo_text_path(cr, song_str)
+        cairo_fill(cr)
+    end
+
+    -- 2. Stroke Border Pass
+    if stroke_color and stroke_width and stroke_width > 0 then
+        cairo_set_source_rgba(cr, stroke_color.r, stroke_color.g, stroke_color.b, stroke_color.a)
+        cairo_set_line_width(cr, stroke_width)
+        cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND)
+        if icon ~= "" then
+            cairo_select_font_face(cr, icon_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+            cairo_set_font_size(cr, font_size)
+            cairo_move_to(cr, draw_x, y)
+            cairo_text_path(cr, icon)
+            cairo_stroke(cr)
+        end
+        cairo_select_font_face(cr, song_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+        cairo_set_font_size(cr, font_size)
+        cairo_move_to(cr, song_x, y)
+        cairo_text_path(cr, song_str)
+        cairo_stroke(cr)
+    end
+
+    -- 3. 45-Degree Diagonal Gradient Fill
+    local pat = cairo_pattern_create_linear(draw_x, y, draw_x + total_w * gradient_cos_45, y + song_ext.height * gradient_sin_45)
+    for i = 1, #color_stops do
+        local stop = color_stops[i]
+        cairo_pattern_add_color_stop_rgba(pat, stop.offset, stop.r, stop.g, stop.b, stop.a)
+    end
+
+    cairo_set_source(cr, pat)
+    if icon ~= "" then
+        cairo_select_font_face(cr, icon_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+        cairo_set_font_size(cr, font_size)
+        cairo_move_to(cr, draw_x, y)
+        cairo_text_path(cr, icon)
+        cairo_fill(cr)
+    end
+    cairo_select_font_face(cr, song_font, CAIRO_FONT_SLANT_NORMAL, font_weight)
+    cairo_set_font_size(cr, font_size)
+    cairo_move_to(cr, song_x, y)
+    cairo_text_path(cr, song_str)
+    cairo_fill(cr)
+
+    cairo_pattern_destroy(pat)
+end
+
 function conky_gradient_overlay()
     if conky_window == nil then return end
 
@@ -148,7 +243,6 @@ function conky_gradient_overlay()
 
     local time_str, time_font = shape_if_needed(time_text)
     local date_str, date_font = shape_if_needed(date_text)
-    local music_str, music_font = shape_if_needed(music_text)
 
     local ok, err = pcall(function()
         -- Conky 1.25 exposes its active X11/double-buffer drawing surface
@@ -175,10 +269,10 @@ function conky_gradient_overlay()
         )
 
         -- 3. Now Playing (22pt Bold)
-        if music_str ~= "" then
-            draw_gradient_text(
-                cr, music_str, music_font, 22, CAIRO_FONT_WEIGHT_BOLD,
-                center_x, 260, "center", date_stops,
+        if music_text ~= "" then
+            draw_gradient_music(
+                cr, music_text, 22, CAIRO_FONT_WEIGHT_BOLD,
+                center_x, 260, date_stops,
                 2.4, 2.5, 2.5
             )
         end

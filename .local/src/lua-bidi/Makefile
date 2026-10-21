@@ -1,6 +1,6 @@
 CC ?= gcc
 CFLAGS ?= -O3 -Wall -Wextra -Werror -fPIC
-LUA_INC ?= -I/usr/include
+LUA_INC ?= -I/usr/include/lua5.4
 LIBS ?= -lfribidi
 TARGET = bidi.so
 
@@ -23,6 +23,6 @@ install: $(TARGET)
 	fi
 
 test: $(TARGET)
-	lua -e 'package.cpath = "./?.so;" .. package.cpath; local b = require("bidi"); assert(b.shape("[Paused] Amr Diab — تملي معاك") ~= ""); print("bidi test passed successfully!")'
+	lua5.4 -e 'package.cpath = "./?.so;" .. package.cpath; local b = require("bidi"); assert(b.shape("[Paused] Amr Diab — تملي معاك") ~= ""); print("bidi test passed successfully!")'
 
 .PHONY: all clean install test
