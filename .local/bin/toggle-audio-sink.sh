@@ -68,7 +68,8 @@ if [[ "$sink_count" -gt 1 ]]; then
     sink_desc="$(pactl list sinks | awk -v s="$next_sink" '$0 ~ "Name: " s {found=1} found && $1 == "Description:" {sub(/^Description: /, ""); print; exit}')"
     sink_desc="${sink_desc:-$next_sink}"
 
-    if [[ "$sink_desc" =~ (?i)headphone|headset ]]; then
+    sink_desc_lower="${sink_desc,,}"
+    if [[ "$sink_desc_lower" == *headphone* || "$sink_desc_lower" == *headset* ]]; then
         icon="audio-headphones"
     else
         icon="audio-speakers"
@@ -99,10 +100,11 @@ else
 
         pactl set-sink-port "$default_sink" "$next_port"
 
-        if [[ "$next_port" =~ (?i)headphone ]]; then
+        port_lower="${next_port,,}"
+        if [[ "$port_lower" == *headphone* ]]; then
             port_name="Headphones"
             icon="audio-headphones"
-        elif [[ "$next_port" =~ (?i)speaker|lineout ]]; then
+        elif [[ "$port_lower" == *speaker* || "$port_lower" == *lineout* || "$port_lower" == *line-out* ]]; then
             port_name="Speakers (Line Out)"
             icon="audio-speakers"
         else
