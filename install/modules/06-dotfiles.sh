@@ -46,9 +46,9 @@ run_module() {
       alacritty atuin bat BetterDiscord broot btop cava conky copyq
       delta direnv dunst eza fastfetch fish flameshot fselect fzf
       environment.d gh-dash gitui glow gtk-3.0 gtk-4.0 hypr i3 khal kitty lazydocker
-      lazygit lf mise mpd mpv ncmpcpp nvim picom polybar qbittorrent
+      lazygit lf mise mpd mpv ncmpcpp nvim picom pipewire polybar qbittorrent
       qBittorrent qt5ct qt6ct rofi songrec spicetify starship superfile systemd
-      tealdeer thefuck Thunar tmux tumbler xfce4 xsettingsd yazi zellij zsh zsh-plugins
+      tealdeer thefuck Thunar tmux tumbler wireplumber xfce4 xsettingsd yazi zellij zsh zsh-plugins
       xdg-desktop-portal
     )
     for d in "${config_dirs[@]}"; do

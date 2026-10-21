@@ -1,10 +1,18 @@
-# Stalonetray tray popup, styled to match the existing Polybar tray.
-# Icons are displayed in a clean single row positioned above Polybar.
+# Stalonetray popup configuration for Polybar tray toggle.
+# Styled to match Polybar Catppuccin Mocha theme.
+# Layout & Dynamic Scaling:
+# - geometry 10x1-24-44: Base grid of 10 slots (220px) placed 24px from right and 44px above bottom.
+# - max_geometry 0x1: Maximum height is strictly 1 row (prevents downward overflow into Polybar),
+#   while width (0) is uncapped to dynamically accommodate 10, 15, 20+ tray icons as needed.
+# - grow_gravity SE: Window is anchored at the bottom-right corner and expands horizontally to
+#   the left (West), never clipping off-screen or pushing into the Polybar bar.
+# - icon_gravity NE: Icons dock starting from the rightmost slot adjacent to the tray toggle.
+# - no_shrink false: Tray window contracts back to initial bounds when background apps exit.
 background "#313244"
 decorations border
 dockapp_mode none
 geometry 10x1-24-44
-grow_gravity NW
+grow_gravity SE
 icon_gravity NE
 icon_size 16
 slot_size 22

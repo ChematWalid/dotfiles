@@ -2,11 +2,11 @@
 
 > Volume control helper with Dunst progress bar OSD and Pamixer.
 
-- Increase volume by 1%:
-  `volume-osd.sh up`
+- Increase volume by 1% (or specified step):
+  `volume-osd.sh up [step]`
 
-- Decrease volume by 1%:
-  `volume-osd.sh down`
+- Decrease volume by 1% (or specified step):
+  `volume-osd.sh down [step]`
 
 - Toggle mute / unmute:
   `volume-osd.sh mute`
