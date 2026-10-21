@@ -4,7 +4,11 @@
 
 set -euo pipefail
 
-readonly BG_IMAGE="${HOME}/Downloads/catppuccin-wall-dark.jpg"
+if [[ -f "${HOME}/Pictures/catppuccin-wall-dark.jpg" ]]; then
+    readonly BG_IMAGE="${HOME}/Pictures/catppuccin-wall-dark.jpg"
+else
+    readonly BG_IMAGE="${HOME}/dotfiles/wallpaper.jpg"
+fi
 readonly LOCK_BG="${HOME}/.cache/lockscreen_blur.png"
 
 # Generate high-quality blurred wallpaper if missing
