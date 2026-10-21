@@ -49,9 +49,9 @@ if [[ "$just_started" == false && "$TRAY_INFO" == *"Map State: IsViewable"* ]]; 
     printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
     mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
 else
-    setsid "${HOME}/.config/polybar/tray-autohide" stalonetray "$MAIN_WINDOW" \
-        "$TRAY_STATE" "$TRAY_WINDOW" >/dev/null 2>&1 &
+    xdotool windowmap "$TRAY_WINDOW" windowraise "$TRAY_WINDOW"
     printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
     mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
-    xdotool windowmap "$TRAY_WINDOW" windowraise "$TRAY_WINDOW"
+    setsid "${HOME}/.config/polybar/tray-autohide" stalonetray "$MAIN_WINDOW" \
+        "$TRAY_STATE" "$TRAY_WINDOW" >/dev/null 2>&1 &
 fi
