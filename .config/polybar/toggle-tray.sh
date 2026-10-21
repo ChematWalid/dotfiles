@@ -17,6 +17,7 @@ TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
     END { print tray; print main }
 ')
 
+just_started=false
 if [[ -z "$TRAY_WINDOW" ]] || ! pgrep -u "${UID:-$(id -u)}" -x stalonetray >/dev/null; then
     stalonetray_bin="$(command -v stalonetray || true)"
     if [[ -z "$stalonetray_bin" && -x "${HOME}/.local/bin/stalonetray" ]]; then
@@ -26,6 +27,7 @@ if [[ -z "$TRAY_WINDOW" ]] || ! pgrep -u "${UID:-$(id -u)}" -x stalonetray >/dev
         DISPLAY="${DISPLAY:-:0}" setsid "$stalonetray_bin" \
             -c "${HOME}/.config/polybar/stalonetrayrc" > /tmp/stalonetray.log 2>&1 &
         TRAY_WINDOW=$(timeout 3s xdotool search --sync --class --limit 1 '^stalonetray$' 2>/dev/null || true)
+        just_started=true
     fi
 fi
 
@@ -42,7 +44,7 @@ fi
 
 pkill -x tray-autohide 2>/dev/null || true
 
-if [[ "$TRAY_INFO" == *"Map State: IsViewable"* ]]; then
+if [[ "$just_started" == false && "$TRAY_INFO" == *"Map State: IsViewable"* ]]; then
     xdotool windowunmap "$TRAY_WINDOW"
     printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
     mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"

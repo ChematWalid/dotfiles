@@ -57,11 +57,12 @@ run_module() {
       fi
     done
 
-    # Ensure systemd user service drop-in overrides (such as dunst.service.d) are supported
-    if [[ -d "$HOME/.config/systemd/user" && ! -L "$HOME/.config/systemd" ]]; then
-      for dropin in "$DOTFILES_DIR/.config/systemd/user"/*.d; do
-        [[ -d "$dropin" ]] || continue
-        safe_link "$dropin" "$HOME/.config/systemd/user/$(basename "$dropin")"
+    # Ensure systemd user units and drop-in overrides (such as dunst.service.d) are supported
+    if [[ ! -L "$HOME/.config/systemd" ]]; then
+      mkdir -p "$HOME/.config/systemd/user"
+      for unit in "$DOTFILES_DIR/.config/systemd/user"/*; do
+        [[ -e "$unit" ]] || continue
+        safe_link "$unit" "$HOME/.config/systemd/user/$(basename "$unit")"
       done
     fi
 

@@ -11,8 +11,9 @@ else
 fi
 readonly LOCK_BG="${HOME}/.cache/lockscreen_blur.png"
 
-# Generate high-quality blurred wallpaper if missing
-if [[ ! -f "$LOCK_BG" && -f "$BG_IMAGE" ]]; then
+# Generate high-quality blurred wallpaper if missing or wallpaper changed
+if [[ (! -f "$LOCK_BG" || "$BG_IMAGE" -nt "$LOCK_BG") && -f "$BG_IMAGE" ]]; then
+    mkdir -p "$(dirname "$LOCK_BG")"
     magick "$BG_IMAGE" -filter Gaussian -resize 25% -define filter:sigma=2.5 -resize 400% -fill "#11111b" -colorize 30% "$LOCK_BG" 2>/dev/null || true
 fi
 
