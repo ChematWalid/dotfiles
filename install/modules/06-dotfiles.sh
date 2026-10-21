@@ -74,6 +74,13 @@ run_module() {
       fi
     done
 
+    # ── ~/.config/autostart desktop overrides ──────────────────────────────────
+    mkdir -p "$HOME/.config/autostart"
+    for desktop in "$DOTFILES_DIR/.config/autostart"/*.desktop; do
+      [[ -f "$desktop" ]] || continue
+      safe_link "$desktop" "$HOME/.config/autostart/$(basename "$desktop")"
+    done
+
     # ── ~/.local/bin scripts ────────────────────────────────────────────────────
     mkdir -p "$HOME/.local/bin"
     local native_bin

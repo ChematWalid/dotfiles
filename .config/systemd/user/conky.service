@@ -1,6 +1,6 @@
 [Unit]
 Description=Conky Desktop Clock and Song Display
-Requires=picom.service
+Wants=picom.service
 After=picom.service i3-session.target
 PartOf=i3-session.target
 ConditionEnvironment=DISPLAY
