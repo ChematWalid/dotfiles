@@ -112,17 +112,25 @@ def save_cover_thumbnail(img: Image.Image, output_path: str, target_width: int =
 
 def normalize_store_path(abs_path: str) -> str:
     """
-    Normalizes path to match user's Foliate library convention:
-    /mnt/drive3/... -> ~/E/... (via symlink ~/E -> /mnt/drive3)
-    /home/walid/... -> ~/...
+    Normalizes path to match Foliate library convention:
+    Secondary data mount/... -> ~/E/... (via symlink ~/E)
+    Home path/... -> ~/...
     """
     home = os.path.expanduser("~")
-    drive3_prefix = "/mnt/drive3"
-    
-    if os.path.exists(os.path.join(home, "E")) and (
-        abs_path == drive3_prefix or abs_path.startswith(drive3_prefix + os.sep)
+    e_dir = os.path.join(home, "E")
+    drive_target = ""
+    if os.path.islink(e_dir):
+        try:
+            drive_target = os.path.realpath(e_dir)
+        except OSError:
+            pass
+    if not drive_target:
+        drive_target = os.environ.get("DATA_MOUNT", "")
+
+    if drive_target and (
+        abs_path == drive_target or abs_path.startswith(drive_target + os.sep)
     ):
-        rel = abs_path[len(drive3_prefix):].lstrip("/")
+        rel = abs_path[len(drive_target):].lstrip("/")
         return f"~/E/{rel}"
     elif abs_path == home or abs_path.startswith(home + os.sep):
         return "~" + abs_path[len(home):]

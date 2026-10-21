@@ -44,9 +44,12 @@ run_module() {
       if [[ "$install_songrec" == "n" && "$pkg" == "songrec" ]]; then
         continue
       fi
-      # Adapt CPU microcode to detected host architecture
+      # Adapt CPU microcode and video acceleration to detected host architecture
       if [[ "$pkg" == "intel-ucode" ]] && grep -q "AuthenticAMD" /proc/cpuinfo 2>/dev/null; then
         pkg="amd-ucode"
+      fi
+      if [[ "$pkg" =~ ^(intel-media-driver|libva-intel-driver)$ ]] && grep -q "AuthenticAMD" /proc/cpuinfo 2>/dev/null; then
+        continue
       fi
       pkgs+=("$pkg")
     done < "$DOTFILES_DIR/pkglist-pacman-names.txt"

@@ -114,7 +114,7 @@ run_module() {
       default_sink="$(pactl get-default-sink 2>/dev/null || true)"
       if [[ -n "$default_sink" ]]; then
         local monitor_dev="${default_sink}.monitor"
-        sed -i "s|^current_device_name = .*|current_device_name = \"$monitor_dev\"|" "$HOME/.config/songrec/preferences.toml" 2>/dev/null || true
+        sed -i --follow-symlinks "s|^current_device_name = .*|current_device_name = \"$monitor_dev\"|" "$HOME/.config/songrec/preferences.toml" 2>/dev/null || true
         log "SongRec default audio monitor configured → $monitor_dev"
       fi
     fi

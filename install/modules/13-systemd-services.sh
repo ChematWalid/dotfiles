@@ -29,6 +29,11 @@ run_module() {
     # Optional background app services (only enable if installed/available)
     for svc in rustdesk mpd syncthing muslimtify; do
       if systemctl --user list-unit-files "${svc}.service" &>/dev/null || [[ -f "$HOME/.config/systemd/user/${svc}.service" || -f "/usr/lib/systemd/user/${svc}.service" ]]; then
+        if [[ "${INSTALL_MODE:-}" == "custom" ]]; then
+          if ! prompt_yn "  Enable optional service ${svc}?" "n"; then
+            continue
+          fi
+        fi
         if systemctl --user enable "$svc" 2>/dev/null; then
           log "Enabled app service: $svc"
         fi
