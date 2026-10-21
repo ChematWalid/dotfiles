@@ -75,7 +75,7 @@ run_module() {
 
     # ── 2. Rust Desktop Daemons ─────────────────────────────────────────────────
     if command -v cargo &>/dev/null; then
-      for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard sync-antigravity mpris-live; do
+      for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live; do
         if [[ -d "$DOTFILES_DIR/.local/src/$pkg" ]]; then
           info "Compiling $pkg (Rust)..."
           local manifest="$DOTFILES_DIR/.local/src/$pkg/Cargo.toml"
@@ -98,7 +98,17 @@ run_module() {
       warn "cargo not found — skipping Rust daemons compilation"
     fi
 
-    # ── 3. SongRec Audio Monitor Loopback Configuration ──────────────────────────
+    # ── 3. Polybar Native Helpers ───────────────────────────────────────────────
+    if command -v make &>/dev/null && command -v g++ &>/dev/null && [[ -f "$DOTFILES_DIR/.config/polybar/Makefile" ]]; then
+      info "Compiling Polybar native helpers (network-eth-live, network-status-live, tray-autohide)..."
+      if make -C "$DOTFILES_DIR/.config/polybar" all; then
+        log "Polybar native helpers compiled"
+      else
+        warn "Failed to compile some Polybar native helpers"
+      fi
+    fi
+
+    # ── 4. SongRec Audio Monitor Loopback Configuration ──────────────────────────
     if command -v pactl &>/dev/null && [[ -f "$HOME/.config/songrec/preferences.toml" ]]; then
       local default_sink
       default_sink="$(pactl get-default-sink 2>/dev/null || true)"

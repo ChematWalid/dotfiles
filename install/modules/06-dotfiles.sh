@@ -23,23 +23,22 @@ run_module() {
     mkdir -p "$HOME/.task/hooks"
     [[ -f "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" ]] && safe_link "$DOTFILES_DIR/.task/hooks/on-modify.timewarrior" "$HOME/.task/hooks/on-modify.timewarrior"
 
-    # ── Storage Drives & Personal Symlinks ─────────────────────────────────────
+    # ── Storage Drives & Personal Symlinks (Opt-in) ──────────────────────────
+    # Secondary and data drive mounts are hardware-specific and disabled by default.
+    # They are only linked if explicitly configured and accepted.
     if [[ -n "${HDD_MOUNT:-}" && -d "$HDD_MOUNT" ]]; then
-      safe_link "$HDD_MOUNT" "$HOME/D"
-    elif [[ -d "/mnt/drive2" ]]; then
-      safe_link "/mnt/drive2" "$HOME/D"
+      if prompt_yn "Symlink secondary drive ($HDD_MOUNT) to ~/D?" "n"; then
+        safe_link "$HDD_MOUNT" "$HOME/D"
+      fi
     fi
 
     if [[ -n "${DATA_MOUNT:-}" && -d "$DATA_MOUNT" ]]; then
-      safe_link "$DATA_MOUNT" "$HOME/E"
-      [[ -d "$DATA_MOUNT/Coding" ]] && safe_link "$DATA_MOUNT/Coding" "$HOME/Coding"
-      [[ -d "$DATA_MOUNT/Pictures" ]] && safe_link "$DATA_MOUNT/Pictures" "$HOME/Pictures"
-      [[ -d "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" ]] && safe_link "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
-    elif [[ -d "/mnt/drive3" ]]; then
-      safe_link "/mnt/drive3" "$HOME/E"
-      [[ -d "/mnt/drive3/Coding" ]] && safe_link "/mnt/drive3/Coding" "$HOME/Coding"
-      [[ -d "/mnt/drive3/Pictures" ]] && safe_link "/mnt/drive3/Pictures" "$HOME/Pictures"
-      [[ -d "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" ]] && safe_link "/mnt/drive3/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+      if prompt_yn "Symlink data drive ($DATA_MOUNT) to ~/E and personal folders?" "n"; then
+        safe_link "$DATA_MOUNT" "$HOME/E"
+        [[ -d "$DATA_MOUNT/Coding" ]] && safe_link "$DATA_MOUNT/Coding" "$HOME/Coding"
+        [[ -d "$DATA_MOUNT/Pictures" ]] && safe_link "$DATA_MOUNT/Pictures" "$HOME/Pictures"
+        [[ -d "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" ]] && safe_link "$DATA_MOUNT/Backups/ArchLinuxData/TelegramDesktop" "$HOME/Downloads/Telegram Desktop"
+      fi
     fi
 
     # ── ~/.config directories — symlinked wholesale ─────────────────────────────
@@ -78,7 +77,7 @@ run_module() {
     # ── ~/.local/bin scripts ────────────────────────────────────────────────────
     mkdir -p "$HOME/.local/bin"
     local native_bin
-    local -a native_bins=(desktop-music-daemon autoname-workspaces rofi-clipboard sync-antigravity mpris-live x11-grab-probe)
+    local -a native_bins=(desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live x11-grab-probe)
     for script in "$DOTFILES_DIR/.local/bin"/*; do
       [[ -f "$script" || -L "$script" ]] || continue
       native_bin="$(basename "$script")"

@@ -11,14 +11,10 @@ if [[ -f "$HOME/.config/dotfiles-storage.env" ]]; then
     source "$HOME/.config/dotfiles-storage.env"
 fi
 
-HDD="${HDD_MOUNT:-/mnt/drive2}"
-if [[ -v DATA_MOUNT ]]; then
-    DATA="${DATA_MOUNT:-$HDD}"
-else
-    DATA="/mnt/drive3"
-fi
-HOME_SHARE="$HDD/.local/share"
-CACHE="$HDD/.cache/home"
+HDD="${HDD_MOUNT:-}"
+DATA="${DATA_MOUNT:-$HDD}"
+HOME_SHARE="${HDD:+$HDD/.local/share}"
+CACHE="${HDD:+$HDD/.cache/home}"
 
 DRY_RUN=0
 TARGET="help"
@@ -86,6 +82,13 @@ move_and_link() {
 require_mountpoint() {
     local mount_path="$1"
     local label="$2"
+
+    if [[ -z "$mount_path" ]]; then
+        echo "❌ Error: $label is not configured in ~/.config/dotfiles-storage.env." >&2
+        echo "   Multi-drive secondary routing is optional and disabled by default." >&2
+        echo "   To enable, run: bash install.sh -i (or set HDD_MOUNT in ~/.config/dotfiles-storage.env)" >&2
+        exit 1
+    fi
 
     if ! mountpoint -q -- "$mount_path"; then
         echo "❌ Error: $label '$mount_path' is not a mounted filesystem." >&2
@@ -276,7 +279,13 @@ case "$TARGET" in
     ls -la ~/ | grep "^l" | grep "mnt" 2>/dev/null || echo "(none)"
     echo ""
     echo "--- Storage Capacity & Free Space ---"
-    df -h / "$HDD" "$DATA" 2>/dev/null || df -h / "$HDD" 2>/dev/null || df -h /
+    if [[ -n "$HDD" && -n "$DATA" ]]; then
+        df -h / "$HDD" "$DATA" 2>/dev/null || df -h /
+    elif [[ -n "$HDD" ]]; then
+        df -h / "$HDD" 2>/dev/null || df -h /
+    else
+        df -h /
+    fi
     ;;
 
   help|*)

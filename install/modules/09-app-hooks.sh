@@ -56,18 +56,24 @@ run_module() {
     fi
   fi
 
-  # Secondary drive cache routing (if configured and mounted)
+  # Secondary drive cache routing (strictly opt-in, disabled by default)
   if [[ -f "$HOME/.config/dotfiles-storage.env" ]]; then
     source "$HOME/.config/dotfiles-storage.env"
   fi
 
-  local active_hdd="${HDD_MOUNT:-/mnt/drive2}"
+  local active_hdd="${HDD_MOUNT:-}"
+  local hdd_routed=false
   if [[ -n "$active_hdd" && -d "$active_hdd" ]] && command -v hdd-route &>/dev/null; then
-    info "Applying secondary drive routing for developer caches and toolchains..."
-    if hdd-route all; then
-      log "Secondary drive routing configured"
+    if prompt_yn "Apply secondary drive cache routing (hdd-route) to $active_hdd?" "n"; then
+      info "Applying secondary drive routing for developer caches and toolchains..."
+      if hdd-route all; then
+        log "Secondary drive routing configured"
+        hdd_routed=true
+      else
+        warn "Secondary drive routing failed; review the hdd-route output"
+      fi
     else
-      warn "Secondary drive routing failed; review the hdd-route output"
+      warn "Skipped secondary drive cache routing (using single-drive primary storage)"
     fi
   fi
 
@@ -75,8 +81,10 @@ run_module() {
   if command -v mise &>/dev/null; then
     if prompt_yn "Restore polyglot toolchains via mise?" "y"; then
       info "Restoring polyglot runtimes via mise..."
-      export MISE_DATA_DIR="${active_hdd:-$HOME}/.mise"
-      export MISE_CACHE_DIR="${active_hdd:-$HOME}/.cache/mise"
+      if [[ "$hdd_routed" == true && -n "$active_hdd" && -d "$active_hdd" ]]; then
+        export MISE_DATA_DIR="$active_hdd/.mise"
+        export MISE_CACHE_DIR="$active_hdd/.cache/mise"
+      fi
       if mise install -y; then
         log "Mise polyglot toolchains restored"
       else

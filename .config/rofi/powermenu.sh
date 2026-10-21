@@ -8,5 +8,5 @@ case "$chosen" in
     "  Restart") systemctl reboot ;;
     "  Suspend") systemctl suspend ;;
     "  Log Out") ~/.config/i3/session-stop.sh ;;
-    "  Lock") /home/walid/.local/bin/lock.sh ;;
+    "  Lock") "$HOME/.local/bin/lock.sh" ;;
 esac

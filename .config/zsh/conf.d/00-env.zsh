@@ -14,8 +14,6 @@ ZSH_DISABLE_COMPFIX="true"
 
 if [[ -n "${HDD_MOUNT:-}" && -d "$HDD_MOUNT" ]]; then
     HDD="$HDD_MOUNT"
-elif [[ -d "/mnt/drive2" ]]; then
-    HDD="/mnt/drive2"
 else
     HDD="$HOME"
 fi
@@ -31,7 +29,11 @@ export PIPX_HOME="$HDD/.local/pipx"
 # ── Node / npm / pnpm ──
 export PNPM_HOME="$HDD/.pnpm-store"
 export npm_config_cache="$HDD/.cache/npm"
-export NODE_EXTRA_CA_CERTS="/mnt/drive2/docker-data/vaultwarden/ssl/cert.pem"
+if [[ -f "/mnt/drive2/docker-data/vaultwarden/ssl/cert.pem" ]]; then
+    export NODE_EXTRA_CA_CERTS="/mnt/drive2/docker-data/vaultwarden/ssl/cert.pem"
+elif [[ -n "${HDD_MOUNT:-}" && -f "${HDD_MOUNT}/docker-data/vaultwarden/ssl/cert.pem" ]]; then
+    export NODE_EXTRA_CA_CERTS="${HDD_MOUNT}/docker-data/vaultwarden/ssl/cert.pem"
+fi
 export SSL_CERT_FILE="/etc/ssl/certs/ca-certificates.crt"
 
 # ── Go ──
