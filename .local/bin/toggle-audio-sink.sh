@@ -65,7 +65,7 @@ if [[ "$sink_count" -gt 1 ]]; then
     done < <(pactl list short sink-inputs 2>/dev/null || true)
 
     # Determine description and icon
-    sink_desc="$(pactl list sinks | awk -v s="$next_sink" '$0 ~ "Name: " s {found=1} found && $1 == "Description:" {sub(/^Description: /, ""); print; exit}')"
+    sink_desc="$(pactl list sinks | awk -v s="$next_sink" '$1 == "Name:" && $2 == s {found=1} found && $1 == "Description:" {sub(/^Description: /, ""); print; exit}')"
     sink_desc="${sink_desc:-$next_sink}"
 
     sink_desc_lower="${sink_desc,,}"
@@ -79,13 +79,28 @@ if [[ "$sink_count" -gt 1 ]]; then
 else
     # Single sink: toggle between active ports (e.g. Headphones vs Line Out / Speaker)
     sink_info="$(pactl list sinks | awk -v s="$default_sink" '
-        $0 ~ "Name: " s {found=1}
-        found && /^Sink #[0-9]+/ && $0 !~ s {exit}
+        $1 == "Name:" && $2 == s {found=1; next}
+        found && /^Sink #[0-9]+/ {exit}
         found {print}
     ')"
 
     active_port="$(printf '%s\n' "$sink_info" | awk -F': ' '/Active Port:/ {print $2}')"
-    mapfile -t ports < <(printf '%s\n' "$sink_info" | awk '/^[ \t]*analog-output-[a-zA-Z0-9_-]+:/ {gsub(/:/, "", $1); print $1}')
+    
+    declare -A port_descs=()
+    ports=()
+    while IFS=$'\t' read -r p_id p_desc; do
+        [[ -n "$p_id" ]] || continue
+        ports+=("$p_id")
+        port_descs["$p_id"]="${p_desc:-$p_id}"
+    done < <(printf '%s\n' "$sink_info" | awk '
+        /^	Ports:/ {in_ports=1; next}
+        in_ports && /^	[a-zA-Z]/ {in_ports=0}
+        in_ports && /^[ \t]+[a-zA-Z0-9_-]+:/ {
+            port = $1; sub(/:$/, "", port);
+            desc = $0; sub(/^[ \t]+[^:]+:[ \t]*/, "", desc); sub(/[ \t]*\(type:.*$/, "", desc);
+            print port "\t" desc;
+        }
+    ')
 
     if [[ "${#ports[@]}" -gt 1 ]]; then
         next_port=""
@@ -100,15 +115,13 @@ else
 
         pactl set-sink-port "$default_sink" "$next_port"
 
-        port_lower="${next_port,,}"
-        if [[ "$port_lower" == *headphone* ]]; then
-            port_name="Headphones"
+        port_name="${port_descs[$next_port]:-$next_port}"
+        port_lower="${port_name,,}"
+        if [[ "$port_lower" == *headphone* || "$port_lower" == *headset* ]]; then
             icon="audio-headphones"
-        elif [[ "$port_lower" == *speaker* || "$port_lower" == *lineout* || "$port_lower" == *line-out* ]]; then
-            port_name="Speakers (Line Out)"
+        elif [[ "$port_lower" == *speaker* || "$port_lower" == *line* ]]; then
             icon="audio-speakers"
         else
-            port_name="${next_port#analog-output-}"
             icon="audio-volume-high"
         fi
 
