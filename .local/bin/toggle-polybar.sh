@@ -42,4 +42,5 @@ else
     fi
     printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
     mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
+    date +%s%3N > "${TRAY_STATE}-closed-at"
 fi

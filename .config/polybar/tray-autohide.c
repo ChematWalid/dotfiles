@@ -43,6 +43,21 @@ static void hide_tray_and_exit(void) {
             (void)write(fd, "hidden\n", 7);
             close(fd);
         }
+
+        char closed_path[4096];
+        int n = snprintf(closed_path, sizeof(closed_path), "%s-closed-at", state_path);
+        if (n > 0 && (size_t)n < sizeof(closed_path)) {
+            struct timeval tv;
+            gettimeofday(&tv, NULL);
+            long long now_ms = (long long)tv.tv_sec * 1000LL + (long long)tv.tv_usec / 1000LL;
+            char buf[64];
+            int len = snprintf(buf, sizeof(buf), "%lld\n", now_ms);
+            fd = open(closed_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+            if (fd >= 0) {
+                (void)write(fd, buf, (size_t)len);
+                close(fd);
+            }
+        }
     }
     _exit(0);
 }
@@ -54,12 +69,12 @@ static void event_callback(XPointer priv, XRecordInterceptData *data) {
     if (data->category == XRecordFromServer) {
         xEvent *event = (xEvent *)data->data;
         if (event && (((unsigned char)event->u.u.type & 0x7fU) == ButtonPress)) {
-            // Check startup grace period (150ms) to avoid catching the click that launched this watcher
+            // Check startup grace period (50ms) to avoid catching events during launch
             struct timespec now;
             clock_gettime(CLOCK_MONOTONIC, &now);
             long long elapsed_ms = (long long)(now.tv_sec - start_time.tv_sec) * 1000LL +
                                    (long long)(now.tv_nsec - start_time.tv_nsec) / 1000000LL;
-            if (elapsed_ms < 150) {
+            if (elapsed_ms < 50) {
                 XRecordFreeData(data);
                 return;
             }
@@ -96,32 +111,6 @@ static void event_callback(XPointer priv, XRecordInterceptData *data) {
 
                     if (click_x >= min_x && click_x < max_x && click_y >= min_y && click_y < max_y) {
                         // User clicked a tray icon inside stalonetray; keep tray open
-                        XRecordFreeData(data);
-                        return;
-                    }
-                }
-            }
-
-            // Check if click occurred on the tray toggle arrow on Polybar.
-            // If so, let toggle-tray.sh handle closing so there is no toggle oscillation.
-            if (toggle_window != None && ctrl_disp != NULL) {
-                Window root_ret;
-                int bar_x = 0, bar_y = 0;
-                unsigned int bar_w = 0, bar_h = 0, border = 0, depth = 0;
-                if (XGetGeometry(ctrl_disp, toggle_window, &root_ret, &bar_x, &bar_y, &bar_w, &bar_h, &border, &depth)) {
-                    Window child;
-                    int bar_root_x = 0, bar_root_y = 0;
-                    XTranslateCoordinates(ctrl_disp, toggle_window, root_ret, 0, 0, &bar_root_x, &bar_root_y, &child);
-
-                    // Toggle arrow is positioned right before the powermenu at the far right of Polybar
-                    int arrow_min_x = bar_root_x + (int)bar_w - 105;
-                    int arrow_max_x = bar_root_x + (int)bar_w - 35;
-                    int arrow_min_y = bar_root_y;
-                    int arrow_max_y = bar_root_y + (int)bar_h;
-
-                    if (click_x >= arrow_min_x && click_x <= arrow_max_x &&
-                        click_y >= arrow_min_y && click_y <= arrow_max_y) {
-                        // Click is on the tray toggle module; let toggle-tray.sh handle it
                         XRecordFreeData(data);
                         return;
                     }

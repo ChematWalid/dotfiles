@@ -4,6 +4,7 @@ set -euo pipefail
 
 STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
 TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
+CLOSED_AT_FILE="${TRAY_STATE}-closed-at"
 [[ -d "$STATE_DIR" ]] || mkdir -p "$STATE_DIR"
 
 # Consolidate dual root window tree sweeps into a single pass
@@ -42,13 +43,28 @@ if [[ -z "$TRAY_INFO" ]]; then
     exit 1
 fi
 
+# If the tray was closed very recently (e.g. within 500ms by tray-autohide upon clicking
+# the toggle button or clicking outside), do not reopen it.
+if [[ -f "$CLOSED_AT_FILE" ]]; then
+    last_closed=$(< "$CLOSED_AT_FILE")
+    now=$(date +%s%3N)
+    diff=$(( now - last_closed ))
+    if (( diff >= 0 && diff < 500 )); then
+        rm -f "$CLOSED_AT_FILE"
+        exit 0
+    fi
+    rm -f "$CLOSED_AT_FILE"
+fi
+
 pkill -x tray-autohide 2>/dev/null || true
 
 if [[ "$just_started" == false && "$TRAY_INFO" == *"Map State: IsViewable"* ]]; then
     xdotool windowunmap "$TRAY_WINDOW"
     printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
     mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
+    date +%s%3N > "$CLOSED_AT_FILE"
 else
+    rm -f "$CLOSED_AT_FILE"
     xdotool windowmap "$TRAY_WINDOW" windowraise "$TRAY_WINDOW"
     printf 'visible\n' > "${TRAY_STATE}.tmp.$$"
     mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"

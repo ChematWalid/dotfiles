@@ -3,12 +3,12 @@
 background "#313244"
 decorations border
 dockapp_mode none
-geometry 12x1-24-44
+geometry 10x1-24-44
 grow_gravity NW
 icon_gravity NE
 icon_size 16
 slot_size 22
-max_geometry 12x1
+max_geometry 0x1
 no_shrink false
 skip_taskbar true
 sticky true
