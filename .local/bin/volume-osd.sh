@@ -113,9 +113,10 @@ elif [[ "$muted" == "true" ]] || [[ "$vol" -eq 0 ]]; then
     text="Muted"
     vol=0
 else
-    if [[ "$vol" -gt 100 ]]; then
-        icon="audio-volume-overamplified"
-    elif [[ "$vol" -ge 70 ]]; then
+    # Use audio-volume-high for >= 70% and overamplified (>100%) volume levels.
+    # Note: audio-volume-overamplified does not exist in Papirus/Papirus-Dark
+    # and causes Dunst to drop the sound icon completely.
+    if [[ "$vol" -ge 70 ]]; then
         icon="audio-volume-high"
     elif [[ "$vol" -ge 30 ]]; then
         icon="audio-volume-medium"
