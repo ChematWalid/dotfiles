@@ -92,6 +92,11 @@ systemctl --user start \
     input-watch.service \
     i3-autoname.service || true
 
+# Ensure ALSA hardware DACs are unmuted (resilience against soft-mixer bypass)
+amixer -c 0 sset Master 100% unmute >/dev/null 2>&1 || true
+amixer -c 0 sset Headphone 100% unmute >/dev/null 2>&1 || true
+
 # The shared X11 readiness gate above also makes this safe for CopyQ. Keep the
 # lock so parallel i3 config reloads cannot issue duplicate starts.
 start_copyq_once
+
