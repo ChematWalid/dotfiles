@@ -96,8 +96,9 @@ else
         /^	Ports:/ {in_ports=1; next}
         in_ports && /^	[a-zA-Z]/ {in_ports=0}
         in_ports && /^[ \t]+[a-zA-Z0-9_-]+:/ {
+            if ($0 ~ /not available/ || $0 ~ /unavailable/ || $0 ~ /available: no/ || $0 ~ /availability: no/) next;
             port = $1; sub(/:$/, "", port);
-            desc = $0; sub(/^[ \t]+[^:]+:[ \t]*/, "", desc); sub(/[ \t]*\(type:.*$/, "", desc);
+            desc = $0; sub(/^[ \t]+[^:]+:[ \t]*/, "", desc); sub(/[ \t]*\(.*$/, "", desc);
             print port "\t" desc;
         }
     ')
@@ -114,6 +115,11 @@ else
         [[ -n "$next_port" ]] || next_port="${ports[0]}"
 
         pactl set-sink-port "$default_sink" "$next_port"
+        if [[ "$next_port" == *"headphone"* ]]; then
+            amixer -c 0 sset Headphone 100% unmute >/dev/null 2>&1 || true
+        elif [[ "$next_port" == *"lineout"* || "$next_port" == *"speaker"* ]]; then
+            amixer -c 0 sset Front 100% unmute >/dev/null 2>&1 || true
+        fi
 
         port_name="${port_descs[$next_port]:-$next_port}"
         port_lower="${port_name,,}"
@@ -126,7 +132,21 @@ else
         fi
 
         notify "Audio Output Changed" "$port_name" "$icon"
+    elif [[ "${#ports[@]}" -eq 1 ]]; then
+        if [[ -n "$active_port" && "$active_port" != "${ports[0]}" ]]; then
+            next_port="${ports[0]}"
+            pactl set-sink-port "$default_sink" "$next_port"
+            if [[ "$next_port" == *"headphone"* ]]; then
+                amixer -c 0 sset Headphone 100% unmute >/dev/null 2>&1 || true
+            elif [[ "$next_port" == *"lineout"* || "$next_port" == *"speaker"* ]]; then
+                amixer -c 0 sset Front 100% unmute >/dev/null 2>&1 || true
+            fi
+            port_name="${port_descs[$next_port]:-$next_port}"
+            notify "Audio Output Changed" "$port_name" "audio-headphones"
+        else
+            notify "Audio Output" "Only one audio output available" "audio-volume-high"
+        fi
     else
-        notify "Audio Output" "Only one audio output available" "audio-volume-high"
+        notify "Audio Output" "No audio output available" "dialog-warning"
     fi
 fi
