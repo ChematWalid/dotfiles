@@ -16,6 +16,7 @@ notify() {
             -r "$NOTIFICATION_ID" \
             -u low \
             -i "$icon" \
+            -h string:x-dunst-stack-tag:audio-sink \
             "$title" \
             "$desc" \
             -t 1500 2>/dev/null || true
@@ -26,6 +27,29 @@ notify() {
             -i "$icon" \
             "$title" \
             "$desc" 2>/dev/null || true
+    fi
+}
+
+get_port_icon() {
+    local name="${1,,}"
+    if [[ "$name" == *headphone* || "$name" == *headset* ]]; then
+        echo "audio-headphones"
+    elif [[ "$name" == *speaker* || "$name" == *line* ]]; then
+        echo "audio-speakers"
+    else
+        echo "audio-volume-high"
+    fi
+}
+
+unmute_alsa_port() {
+    local target="$1"
+    local card="${2:-0}"
+    # Unmute master hardware register
+    amixer -c "$card" sset Master 100% unmute >/dev/null 2>&1 || amixer -c 0 sset Master 100% unmute >/dev/null 2>&1 || true
+    if [[ "$target" == *"headphone"* ]]; then
+        amixer -c "$card" sset Headphone 100% unmute >/dev/null 2>&1 || amixer -c 0 sset Headphone 100% unmute >/dev/null 2>&1 || true
+    elif [[ "$target" == *"lineout"* || "$target" == *"speaker"* ]]; then
+        amixer -c "$card" sset Front 100% unmute >/dev/null 2>&1 || amixer -c 0 sset Front 100% unmute >/dev/null 2>&1 || true
     fi
 }
 
@@ -68,12 +92,13 @@ if [[ "$sink_count" -gt 1 ]]; then
     sink_desc="$(pactl list sinks | awk -v s="$next_sink" '$1 == "Name:" && $2 == s {found=1} found && $1 == "Description:" {sub(/^Description: /, ""); print; exit}')"
     sink_desc="${sink_desc:-$next_sink}"
 
-    sink_desc_lower="${sink_desc,,}"
-    if [[ "$sink_desc_lower" == *headphone* || "$sink_desc_lower" == *headset* ]]; then
-        icon="audio-headphones"
-    else
-        icon="audio-speakers"
-    fi
+    icon="$(get_port_icon "$sink_desc")"
+
+    # Unmute hardware DAC if the target sink is an ALSA card
+    target_sink_info="$(pactl list sinks | awk -v s="$next_sink" '$1 == "Name:" && $2 == s {found=1; next} found && /^Sink #[0-9]+/ {exit} found {print}')"
+    target_card="$(printf '%s\n' "$target_sink_info" | awk -F' = ' '/alsa\.(card|id) =/ {gsub(/[" ]/, "", $2); print $2; exit}')"
+    target_port="$(printf '%s\n' "$target_sink_info" | awk -F': ' '/Active Port:/ {sub(/[ \t\r\n]+$/, "", $2); print $2; exit}')"
+    unmute_alsa_port "$target_port" "${target_card:-0}"
 
     notify "Audio Output Changed" "$sink_desc" "$icon"
 else
@@ -84,7 +109,9 @@ else
         found {print}
     ')"
 
-    active_port="$(printf '%s\n' "$sink_info" | awk -F': ' '/Active Port:/ {print $2}')"
+    active_port="$(printf '%s\n' "$sink_info" | awk -F': ' '/Active Port:/ {sub(/[ \t\r\n]+$/, "", $2); print $2; exit}')"
+    alsa_card="$(printf '%s\n' "$sink_info" | awk -F' = ' '/alsa\.(card|id) =/ {gsub(/[" ]/, "", $2); print $2; exit}')"
+    alsa_card="${alsa_card:-0}"
     
     declare -A port_descs=()
     ports=()
@@ -93,13 +120,15 @@ else
         ports+=("$p_id")
         port_descs["$p_id"]="${p_desc:-$p_id}"
     done < <(printf '%s\n' "$sink_info" | awk '
-        /^	Ports:/ {in_ports=1; next}
-        in_ports && /^	[a-zA-Z]/ {in_ports=0}
-        in_ports && /^[ \t]+[a-zA-Z0-9_-]+:/ {
-            if ($0 ~ /not available/ || $0 ~ /unavailable/ || $0 ~ /available: no/ || $0 ~ /availability: no/) next;
-            port = $1; sub(/:$/, "", port);
-            desc = $0; sub(/^[ \t]+[^:]+:[ \t]*/, "", desc); sub(/[ \t]*\(.*$/, "", desc);
-            print port "\t" desc;
+        /^[ \t]*Ports:[ \t]*$/ {in_ports=1; next}
+        in_ports && /^[ \t]*(Active Port:|Formats:|[A-Z][a-zA-Z0-9 ]*:)/ {in_ports=0}
+        in_ports && /^[ \t]+[^:]+:[ \t]*/ {
+            if ($0 ~ /not available/ || $0 ~ /unavailable/ || $0 ~ /available:[ \t]*no/ || $0 ~ /availability:[ \t]*no/) next;
+            match($0, /^[ \t]+([^:]+):[ \t]*(.*)$/, m);
+            port = m[1];
+            desc = m[2];
+            sub(/[ \t]*\([^)]*\)[ \t]*$/, "", desc);
+            print port "\t" (desc ? desc : port);
         }
     ')
 
@@ -115,34 +144,22 @@ else
         [[ -n "$next_port" ]] || next_port="${ports[0]}"
 
         pactl set-sink-port "$default_sink" "$next_port"
-        if [[ "$next_port" == *"headphone"* ]]; then
-            amixer -c 0 sset Headphone 100% unmute >/dev/null 2>&1 || true
-        elif [[ "$next_port" == *"lineout"* || "$next_port" == *"speaker"* ]]; then
-            amixer -c 0 sset Front 100% unmute >/dev/null 2>&1 || true
-        fi
+        unmute_alsa_port "$next_port" "$alsa_card"
 
         port_name="${port_descs[$next_port]:-$next_port}"
-        port_lower="${port_name,,}"
-        if [[ "$port_lower" == *headphone* || "$port_lower" == *headset* ]]; then
-            icon="audio-headphones"
-        elif [[ "$port_lower" == *speaker* || "$port_lower" == *line* ]]; then
-            icon="audio-speakers"
-        else
-            icon="audio-volume-high"
-        fi
+        icon="$(get_port_icon "$port_name")"
 
         notify "Audio Output Changed" "$port_name" "$icon"
     elif [[ "${#ports[@]}" -eq 1 ]]; then
         if [[ -n "$active_port" && "$active_port" != "${ports[0]}" ]]; then
             next_port="${ports[0]}"
             pactl set-sink-port "$default_sink" "$next_port"
-            if [[ "$next_port" == *"headphone"* ]]; then
-                amixer -c 0 sset Headphone 100% unmute >/dev/null 2>&1 || true
-            elif [[ "$next_port" == *"lineout"* || "$next_port" == *"speaker"* ]]; then
-                amixer -c 0 sset Front 100% unmute >/dev/null 2>&1 || true
-            fi
+            unmute_alsa_port "$next_port" "$alsa_card"
+
             port_name="${port_descs[$next_port]:-$next_port}"
-            notify "Audio Output Changed" "$port_name" "audio-headphones"
+            icon="$(get_port_icon "$port_name")"
+
+            notify "Audio Output Changed" "$port_name" "$icon"
         else
             notify "Audio Output" "Only one audio output available" "audio-volume-high"
         fi
