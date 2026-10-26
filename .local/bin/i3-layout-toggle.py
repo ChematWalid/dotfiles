@@ -2,48 +2,81 @@
 """
 i3-layout-toggle.py
 
-Reliable layout switcher for i3 window manager.
+Robust and reliable layout switcher for i3 window manager.
 Actions:
-  - tab: switches the active container/window to tabbed layout (idempotent, leaf-focus preserving)
-  - toggle / untab: switches a tabbed container back to split, or toggles split orientation (splith <-> splitv)
+  - tab: switches the active container/group to tabbed layout (hierarchical, idempotent, leaf-focus preserving)
+  - toggle / untab / split: untabs tabbed containers from inside out, or toggles split orientation (splith <-> splitv)
 
 Diagnoses and resolves i3 container hierarchy & focus issues:
   1. Prevents focus loss to workspace/output/root containers
   2. Guarantees leaf window retains keyboard focus across all transitions
-  3. Properly targets multi-window grouping containers across autotiling splits
-  4. Avoids nesting redundant single-child containers
-  5. Recovers gracefully if focus is ever caught at container/workspace/root level
+  3. Correctly identifies multi-window grouping containers under autotiling splits
+  4. Eliminates redundant single-child container nesting (zero Russian doll container growth)
+  5. Recovers active leaf focus via MRU focus history (con.focus[0]) rather than naive leaves[0]
+  6. Preserves fullscreen mode across layout transitions
+  7. Protects against concurrent execution races using file locking
 """
 
+import os
 import sys
+import fcntl
 import i3ipc
+
+
+def acquire_lock():
+    """
+    Prevents concurrent executions from racing and corrupting i3 tree state.
+    """
+    runtime_dir = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
+    lock_file = os.path.join(runtime_dir, "i3-layout-toggle.lock")
+    try:
+        lock_fd = open(lock_file, "w")
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        return lock_fd
+    except Exception:
+        return None
+
+
+def find_mru_leaf(con):
+    """
+    Recursively descends a container following most-recently-used focus
+    order (con.focus[0]) to find the true active leaf window.
+    """
+    curr = con
+    while curr and len(curr.nodes) > 0:
+        if hasattr(curr, "focus") and curr.focus:
+            child_id = curr.focus[0]
+            found = [n for n in curr.nodes if n.id == child_id]
+            if found:
+                curr = found[0]
+                continue
+        curr = curr.nodes[0]
+    return curr
 
 
 def get_active_leaf(tree, focused):
     """
-    Ensures we have a focused leaf window. If focus is at root, output,
-    content, or workspace level, recover the active leaf on the visible workspace.
+    Ensures we have an active leaf window. If focus is at root, output,
+    content, workspace, or intermediate container level, recovers the active
+    leaf on the visible workspace using MRU focus order.
     """
     if focused is None:
         return None
 
-    # Escaped above workspace (content, output, root)
-    if focused.type in ('root', 'output') or focused.name == 'content':
+    # Focus escaped above workspace (root, output, content)
+    if focused.type in ("root", "output") or focused.name == "content":
         ws = next((w for w in tree.workspaces() if w.focused or w.visible), None)
         if not ws:
             return None
-        leaves = ws.leaves()
-        return leaves[0] if leaves else None
+        return find_mru_leaf(ws)
 
-    # Workspace level focus
-    if focused.type == 'workspace':
-        leaves = focused.leaves()
-        return leaves[0] if leaves else None
+    # Focus at workspace level
+    if focused.type == "workspace":
+        return find_mru_leaf(focused)
 
-    # Intermediate container level focus
+    # Focus at intermediate container level
     if len(focused.nodes) > 0:
-        leaves = focused.leaves()
-        return leaves[0] if leaves else focused
+        return find_mru_leaf(focused)
 
     return focused
 
@@ -56,12 +89,67 @@ def build_container_path(leaf):
     """
     path = [leaf]
     curr = leaf.parent
-    while curr and curr.type in ('con', 'workspace'):
+    while curr:
         path.append(curr)
-        if curr.type == 'workspace':
+        if curr.type == "workspace":
             break
         curr = curr.parent
     return path
+
+
+def get_eligible_grouping_containers(path):
+    """
+    Returns eligible grouping containers in path[1:] (from innermost to outermost).
+    Excludes autotiling single-child wrappers where sibling windows exist in parent,
+    while preserving single-window workspace containers to prevent redundant nesting.
+    """
+    if len(path) <= 1:
+        return []
+
+    if len(path) == 2:
+        # [leaf, workspace]
+        return [path[1]]
+
+    ws = path[-1]
+    eligible = []
+
+    for idx in range(1, len(path)):
+        con = path[idx]
+        if con.type == "workspace":
+            if len(con.nodes) > 1 or not eligible:
+                eligible.append(con)
+        else:
+            # con.type == 'con'
+            if len(con.nodes) > 1:
+                eligible.append(con)
+            elif con.layout in ("tabbed", "stacked"):
+                eligible.append(con)
+            elif con.parent == ws and len(ws.nodes) == 1:
+                # Sole container on single-window workspace
+                eligible.append(con)
+
+    if not eligible:
+        eligible = [path[1]]
+
+    return eligible
+
+
+def execute_layout(i3, target, child, leaf, layout_cmd, was_fullscreen, was_container_focused):
+    """
+    Executes the layout change on the target container and guarantees keyboard
+    focus returns to the active leaf window without losing fullscreen state.
+    """
+    if child.id == leaf.id and not was_container_focused:
+        # Leaf is already focused in i3: apply directly without switching focus
+        cmd = layout_cmd
+    else:
+        # Child is an intermediate container, or focus was at container level
+        cmd = f"[con_id={child.id}] focus; {layout_cmd}; [con_id={leaf.id}] focus"
+
+    if was_fullscreen:
+        cmd += f"; [con_id={leaf.id}] fullscreen enable"
+
+    i3.command(cmd)
 
 
 def main():
@@ -70,6 +158,8 @@ def main():
     if action in ("-h", "--help"):
         print("Usage: i3-layout-toggle.py [tab|toggle|untab|split]")
         sys.exit(0)
+
+    lock_fd = acquire_lock()
 
     try:
         i3 = i3ipc.Connection()
@@ -82,12 +172,12 @@ def main():
     if not focused:
         sys.exit(0)
 
-    # Detect if user explicitly focused a parent container (e.g. via $mod+a)
-    was_container_focused = (focused.type == 'con' and len(focused.nodes) > 0)
+    # Detect if user explicitly focused a parent container / workspace (e.g. via $mod+a)
+    was_container_focused = (len(focused.nodes) > 0)
 
     leaf = get_active_leaf(tree, focused)
     if leaf is None:
-        # Empty workspace: just toggle workspace layout directly
+        # Empty workspace: toggle workspace layout directly
         if action == "tab":
             i3.command("layout tabbed")
         else:
@@ -99,65 +189,46 @@ def main():
         sys.exit(0)
 
     path = build_container_path(leaf)
+    eligible = get_eligible_grouping_containers(path)
+    was_fullscreen = (getattr(leaf, "fullscreen_mode", 0) != 0)
 
-    # Case 1: The user explicitly focused an ancestor container (via $mod+a)
-    if was_container_focused and focused in path:
-        focused_idx = path.index(focused)
-        if action == "tab":
-            if focused.layout in ("tabbed", "stacked") and focused_idx < len(path) - 1:
-                # User wants to tab the container above it
-                target_idx = focused_idx + 1
-                child = path[target_idx - 1]
-                i3.command(f"[con_id={child.id}] focus; layout tabbed; [con_id={leaf.id}] focus")
-                sys.exit(0)
-            else:
-                child = path[focused_idx - 1]
-                i3.command(f"[con_id={child.id}] focus; layout tabbed; [con_id={leaf.id}] focus")
-                sys.exit(0)
-        else:
-            # untab / toggle split
-            child = path[focused_idx - 1]
-            i3.command(f"[con_id={child.id}] focus; layout toggle split; [con_id={leaf.id}] focus")
-            sys.exit(0)
-
-    # Case 2: Normal window focus
     if action == "tab":
-        # Check if already inside a tabbed / stacked container
-        for idx in range(1, len(path)):
-            if path[idx].layout in ("tabbed", "stacked"):
-                # Already tabbed: idempotent, guarantee leaf focus
+        if was_container_focused and focused in path:
+            f_idx = path.index(focused)
+            if focused.layout in ("tabbed", "stacked"):
+                # Container already tabbed: climb to next eligible container above
+                higher = [c for c in eligible if path.index(c) > f_idx]
+                target = higher[0] if higher else focused
+            else:
+                target = focused
+        else:
+            # Normal leaf focus: find innermost eligible container not already tabbed/stacked
+            untabbed = [c for c in eligible if c.layout not in ("tabbed", "stacked")]
+            if untabbed:
+                target = untabbed[0]
+            else:
+                # All eligible containers already tabbed: idempotent, guarantee focus
                 i3.command(f"[con_id={leaf.id}] focus")
                 sys.exit(0)
 
-        # Find the container grouping this window with other windows
-        target_idx = None
-        for idx in range(1, len(path)):
-            if len(path[idx].nodes) > 1 or path[idx].type == "workspace":
-                target_idx = idx
-                break
-        target_idx = target_idx or (len(path) - 1)
-        child = path[target_idx - 1]
-        i3.command(f"[con_id={child.id}] focus; layout tabbed; [con_id={leaf.id}] focus")
+        child = path[path.index(target) - 1]
+        execute_layout(i3, target, child, leaf, "layout tabbed", was_fullscreen, was_container_focused)
 
     else:
         # untab / toggle split
-        # If any container in path is tabbed/stacked, untab it
-        target_idx = None
-        for idx in range(1, len(path)):
-            if path[idx].layout in ("tabbed", "stacked"):
-                target_idx = idx
-                break
+        if was_container_focused and focused in path:
+            target = focused
+        else:
+            # Untab the innermost tabbed/stacked container
+            tabbed_con = next((c for c in eligible if c.layout in ("tabbed", "stacked")), None)
+            if tabbed_con:
+                target = tabbed_con
+            else:
+                # None are tabbed: toggle split orientation (splith <-> splitv)
+                target = eligible[0]
 
-        if target_idx is None:
-            # Already split: toggle orientation (splith <-> splitv) on the grouping container
-            for idx in range(1, len(path)):
-                if len(path[idx].nodes) > 1 or path[idx].type == "workspace":
-                    target_idx = idx
-                    break
-            target_idx = target_idx or (len(path) - 1)
-
-        child = path[target_idx - 1]
-        i3.command(f"[con_id={child.id}] focus; layout toggle split; [con_id={leaf.id}] focus")
+        child = path[path.index(target) - 1]
+        execute_layout(i3, target, child, leaf, "layout toggle split", was_fullscreen, was_container_focused)
 
 
 if __name__ == "__main__":
