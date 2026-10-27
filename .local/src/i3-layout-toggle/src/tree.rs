@@ -34,6 +34,8 @@ pub struct I3Node {
     #[serde(default)]
     pub fullscreen_mode: i32,
     #[serde(default)]
+    pub num: Option<i32>,
+    #[serde(default)]
     pub window: Option<i64>,
     #[serde(default)]
     pub window_properties: Option<WindowProperties>,
@@ -381,6 +383,7 @@ mod tests {
             floating_nodes: Vec::new(),
             floating: None,
             fullscreen_mode: 0,
+            num: None,
             window: None,
             window_properties: None,
         }

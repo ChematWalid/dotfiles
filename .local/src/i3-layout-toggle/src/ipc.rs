@@ -46,15 +46,31 @@ struct CommandReply {
 
 impl I3Connection {
     pub fn connect() -> io::Result<Self> {
-        let path = get_i3_socket_path()?;
-        let stream = UnixStream::connect(path)?;
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(3)))?;
-        stream.set_write_timeout(Some(std::time::Duration::from_secs(3)))?;
-        Ok(Self {
-            stream,
-            read_buf: Vec::with_capacity(16384),
-            send_buf: Vec::with_capacity(256),
-        })
+        Self::connect_with_retry(3, std::time::Duration::from_millis(40))
+    }
+
+    pub fn connect_with_retry(attempts: usize, delay: std::time::Duration) -> io::Result<Self> {
+        let mut last_err = io::Error::new(io::ErrorKind::NotFound, "could not connect to i3 socket");
+        for i in 0..attempts {
+            match get_i3_socket_path().and_then(UnixStream::connect) {
+                Ok(stream) => {
+                    stream.set_read_timeout(Some(std::time::Duration::from_secs(3)))?;
+                    stream.set_write_timeout(Some(std::time::Duration::from_secs(3)))?;
+                    return Ok(Self {
+                        stream,
+                        read_buf: Vec::with_capacity(16384),
+                        send_buf: Vec::with_capacity(256),
+                    });
+                }
+                Err(e) => {
+                    last_err = e;
+                    if i + 1 < attempts {
+                        std::thread::sleep(delay);
+                    }
+                }
+            }
+        }
+        Err(last_err)
     }
 
     pub fn send_message(&mut self, msg_type: u32, payload: &str) -> io::Result<&[u8]> {

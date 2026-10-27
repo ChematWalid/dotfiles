@@ -189,6 +189,7 @@ mod tests {
             floating_nodes: Vec::new(),
             floating: None,
             fullscreen_mode: 0,
+            num: None,
             window: None,
             window_properties: None,
         }

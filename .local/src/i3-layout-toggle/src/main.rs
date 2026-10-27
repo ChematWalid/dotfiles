@@ -5,6 +5,7 @@ mod autotiling_toggle;
 mod ipc;
 mod layout;
 mod scratchpad;
+mod status;
 mod tree;
 mod window_info;
 
@@ -57,11 +58,12 @@ enum AppCommand {
     Scratchpad,
     WindowInfo,
     AutotilingToggle,
+    Status { json: bool },
     Help,
     Version,
 }
 
-fn parse_command_arg(first: Option<&str>) -> Result<AppCommand, String> {
+fn parse_command_args(first: Option<&str>, second: Option<&str>) -> Result<AppCommand, String> {
     match first {
         Some("-h" | "--help") => Ok(AppCommand::Help),
         Some("-v" | "--version") => Ok(AppCommand::Version),
@@ -74,6 +76,14 @@ fn parse_command_arg(first: Option<&str>) -> Result<AppCommand, String> {
                 || s.eq_ignore_ascii_case("autotiling") =>
         {
             Ok(AppCommand::AutotilingToggle)
+        }
+        Some(s) if s.eq_ignore_ascii_case("status") => {
+            let json = match second {
+                Some("--json" | "-j") => true,
+                Some(other) => return Err(format!("unknown option '{other}' for status")),
+                None => false,
+            };
+            Ok(AppCommand::Status { json })
         }
         Some(s) if s.eq_ignore_ascii_case("tab") => Ok(AppCommand::Layout(Action::Tab)),
         Some(s)
@@ -90,19 +100,29 @@ fn parse_command_arg(first: Option<&str>) -> Result<AppCommand, String> {
 
 fn parse_command() -> AppCommand {
     let first = env::args().nth(1);
-    match parse_command_arg(first.as_deref()) {
+    let second = env::args().nth(2);
+    match parse_command_args(first.as_deref(), second.as_deref()) {
         Ok(AppCommand::Help) => {
-            println!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle]");
+            use std::io::Write;
+            let stdout = std::io::stdout();
+            let mut handle = stdout.lock();
+            let _ = writeln!(
+                handle,
+                "Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle|status [--json]]"
+            );
             std::process::exit(0);
         }
         Ok(AppCommand::Version) => {
-            println!("i3-layout-toggle {}", env!("CARGO_PKG_VERSION"));
+            use std::io::Write;
+            let stdout = std::io::stdout();
+            let mut handle = stdout.lock();
+            let _ = writeln!(handle, "i3-layout-toggle {}", env!("CARGO_PKG_VERSION"));
             std::process::exit(0);
         }
         Ok(cmd) => cmd,
         Err(e) => {
             eprintln!("i3-layout-toggle: {e}");
-            eprintln!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle]");
+            eprintln!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle|status [--json]]");
             std::process::exit(1);
         }
     }
@@ -197,6 +217,12 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        AppCommand::Status { json } => {
+            if let Err(e) = status::run_status(json) {
+                eprintln!("i3-layout-toggle status error: {e}");
+                std::process::exit(1);
+            }
+        }
         AppCommand::Layout(action) => {
             run_layout_action(action);
         }
@@ -209,20 +235,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_command_arg() {
-        assert_eq!(parse_command_arg(Some("tab")), Ok(AppCommand::Layout(Action::Tab)));
-        assert_eq!(parse_command_arg(Some("toggle")), Ok(AppCommand::Layout(Action::Toggle)));
-        assert_eq!(parse_command_arg(Some("untab")), Ok(AppCommand::Layout(Action::Toggle)));
-        assert_eq!(parse_command_arg(Some("split")), Ok(AppCommand::Layout(Action::Toggle)));
-        assert_eq!(parse_command_arg(Some("scratchpad")), Ok(AppCommand::Scratchpad));
-        assert_eq!(parse_command_arg(Some("window-info")), Ok(AppCommand::WindowInfo));
-        assert_eq!(parse_command_arg(Some("info")), Ok(AppCommand::WindowInfo));
-        assert_eq!(parse_command_arg(Some("autotiling-toggle")), Ok(AppCommand::AutotilingToggle));
-        assert_eq!(parse_command_arg(Some("autotiling")), Ok(AppCommand::AutotilingToggle));
-        assert_eq!(parse_command_arg(None), Ok(AppCommand::Layout(Action::Toggle)));
-        assert_eq!(parse_command_arg(Some("-h")), Ok(AppCommand::Help));
-        assert_eq!(parse_command_arg(Some("--version")), Ok(AppCommand::Version));
-        assert!(parse_command_arg(Some("unknown-cmd")).is_err());
+    fn test_parse_command_args() {
+        assert_eq!(parse_command_args(Some("tab"), None), Ok(AppCommand::Layout(Action::Tab)));
+        assert_eq!(parse_command_args(Some("toggle"), None), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_args(Some("untab"), None), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_args(Some("split"), None), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_args(Some("scratchpad"), None), Ok(AppCommand::Scratchpad));
+        assert_eq!(parse_command_args(Some("window-info"), None), Ok(AppCommand::WindowInfo));
+        assert_eq!(parse_command_args(Some("info"), None), Ok(AppCommand::WindowInfo));
+        assert_eq!(parse_command_args(Some("autotiling-toggle"), None), Ok(AppCommand::AutotilingToggle));
+        assert_eq!(parse_command_args(Some("autotiling"), None), Ok(AppCommand::AutotilingToggle));
+        assert_eq!(parse_command_args(Some("status"), None), Ok(AppCommand::Status { json: false }));
+        assert_eq!(parse_command_args(Some("status"), Some("--json")), Ok(AppCommand::Status { json: true }));
+        assert_eq!(parse_command_args(Some("status"), Some("-j")), Ok(AppCommand::Status { json: true }));
+        assert!(parse_command_args(Some("status"), Some("--invalid")).is_err());
+        assert_eq!(parse_command_args(None, None), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_args(Some("-h"), None), Ok(AppCommand::Help));
+        assert_eq!(parse_command_args(Some("--version"), None), Ok(AppCommand::Version));
+        assert!(parse_command_args(Some("unknown-cmd"), None).is_err());
     }
 }
 
