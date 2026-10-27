@@ -1,4 +1,5 @@
 #include "include/event_utils.hpp"
+#include "include/process.hpp"
 #include "include/state_paths.hpp"
 #include "include/unique_fd.hpp"
 
@@ -29,78 +30,12 @@ extern char** environ;
 
 namespace {
 
+using dotfiles::command_output;
 using dotfiles::has_event;
 using dotfiles::UniqueFd;
 
 constexpr std::string_view state_name{"polybar-network-state"};
 constexpr std::string_view disconnected{"󰤭 Disconnected"};
-
-[[nodiscard]] std::string command_output(char* const arguments[]) {
-    std::array<int, 2> pipe_fds{};
-    if (::pipe2(pipe_fds.data(), O_CLOEXEC) != 0) {
-        return {};
-    }
-
-    posix_spawn_file_actions_t actions;
-    if (::posix_spawn_file_actions_init(&actions) != 0) {
-        ::close(pipe_fds[0]);
-        ::close(pipe_fds[1]);
-        return {};
-    }
-    int action_error = ::posix_spawn_file_actions_adddup2(&actions, pipe_fds[1], STDOUT_FILENO);
-    if (action_error == 0) {
-        action_error = ::posix_spawn_file_actions_addclose(&actions, pipe_fds[0]);
-    }
-    if (action_error == 0) {
-        action_error = ::posix_spawn_file_actions_addclose(&actions, pipe_fds[1]);
-    }
-    if (action_error == 0) {
-        action_error = ::posix_spawn_file_actions_addopen(
-            &actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
-    }
-    if (action_error != 0) {
-        ::posix_spawn_file_actions_destroy(&actions);
-        ::close(pipe_fds[0]);
-        ::close(pipe_fds[1]);
-        return {};
-    }
-
-    pid_t child{};
-    const int spawn_error = ::posix_spawnp(
-        &child, arguments[0], &actions, nullptr, arguments, environ);
-    ::posix_spawn_file_actions_destroy(&actions);
-    ::close(pipe_fds[1]);
-    if (spawn_error != 0) {
-        ::close(pipe_fds[0]);
-        return {};
-    }
-
-    std::string output;
-    std::array<char, 256> buffer{};
-    for (;;) {
-        const ssize_t bytes = ::read(pipe_fds[0], buffer.data(), buffer.size());
-        if (bytes > 0) {
-            output.append(buffer.data(), static_cast<std::size_t>(bytes));
-            continue;
-        }
-        if (bytes < 0 && errno == EINTR) {
-            continue;
-        }
-        break;
-    }
-    ::close(pipe_fds[0]);
-
-    int status{};
-    while (::waitpid(child, &status, 0) < 0 && errno == EINTR) {
-    }
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
-        return {};
-    }
-    while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
-        output.pop_back();
-    }
-    return output;
-}
 
 [[nodiscard]] std::string current_status(const std::filesystem::path& state_file) {
     std::error_code ec;

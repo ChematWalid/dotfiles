@@ -1,5 +1,6 @@
 #include "include/catppuccin.hpp"
 #include "include/event_utils.hpp"
+#include "include/process.hpp"
 #include "include/unique_fd.hpp"
 
 #include <array>
@@ -70,47 +71,13 @@ std::string format_remaining(int rem_min) {
 }
 
 bool fetch_schedule(PrayerSchedule& sched) {
-    int pipe_fds[2];
-    if (::pipe2(pipe_fds, O_CLOEXEC) != 0) {
-        return false;
-    }
-
-    posix_spawn_file_actions_t actions;
-    if (::posix_spawn_file_actions_init(&actions) != 0) {
-        ::close(pipe_fds[0]);
-        ::close(pipe_fds[1]);
-        return false;
-    }
-
-    ::posix_spawn_file_actions_adddup2(&actions, pipe_fds[1], STDOUT_FILENO);
-    ::posix_spawn_file_actions_addclose(&actions, pipe_fds[0]);
-
     char arg0[] = "muslimtify";
     char arg1[] = "show";
     char arg2[] = "--headless";
     char* const args[] = {arg0, arg1, arg2, nullptr};
 
-    pid_t pid = 0;
-    int spawn_res = ::posix_spawnp(&pid, "muslimtify", &actions, nullptr, args, environ);
-    ::posix_spawn_file_actions_destroy(&actions);
-    ::close(pipe_fds[1]);
-
-    if (spawn_res != 0) {
-        ::close(pipe_fds[0]);
-        return false;
-    }
-
-    std::string output;
-    std::array<char, 512> buf{};
-    ssize_t bytes_read = 0;
-    while ((bytes_read = ::read(pipe_fds[0], buf.data(), buf.size())) > 0) {
-        output.append(buf.data(), static_cast<std::size_t>(bytes_read));
-    }
-    ::close(pipe_fds[0]);
-
-    int status = 0;
-    ::waitpid(pid, &status, 0);
-    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+    std::string output = dotfiles::command_output(args, 3000);
+    if (output.empty()) {
         return false;
     }
 
@@ -208,11 +175,7 @@ void show_popup(const PrayerSchedule& sched, int now_min) {
     char arg9[] = "🕌 Today's Prayer Times";
     char* arg10 = body.data();
     char* const args[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, nullptr};
-
-    pid_t pid = 0;
-    if (::posix_spawnp(&pid, "notify-send", nullptr, nullptr, args, environ) == 0) {
-        ::waitpid(pid, nullptr, 0);
-    }
+    (void)dotfiles::run_command(args, 2000);
 }
 
 void show_error_popup() {
@@ -224,11 +187,7 @@ void show_error_popup() {
     char arg5[] = "🕌 Prayer Times";
     char arg6[] = "Could not fetch prayer times";
     char* const args[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6, nullptr};
-
-    pid_t pid = 0;
-    if (::posix_spawnp(&pid, "notify-send", nullptr, nullptr, args, environ) == 0) {
-        ::waitpid(pid, nullptr, 0);
-    }
+    (void)dotfiles::run_command(args, 2000);
 }
 
 dotfiles::UniqueFd setup_minute_timer() {
@@ -302,13 +261,26 @@ int main(int argc, char* argv[]) {
     // Initial attempt to fetch schedule
     (void)fetch_schedule(sched);
 
+    int retry_backoff_sec = 10;
+    std::time_t last_fetch_attempt = sched.is_valid() ? 0 : now;
+
     for (;;) {
         now = std::time(nullptr);
         localtime_r(&now, &tm_now);
         now_min = tm_now.tm_hour * 60 + tm_now.tm_min;
 
-        // Refresh on day change or if schedule is not yet valid
-        if (!sched.is_valid() || tm_now.tm_mday != current_day) {
+        // Refresh on day change or if schedule is not yet valid (with backoff)
+        if (!sched.is_valid()) {
+            if (now - last_fetch_attempt >= retry_backoff_sec) {
+                last_fetch_attempt = now;
+                if (fetch_schedule(sched)) {
+                    current_day = tm_now.tm_mday;
+                    retry_backoff_sec = 10;
+                } else {
+                    retry_backoff_sec = std::min(retry_backoff_sec * 2, 300);
+                }
+            }
+        } else if (tm_now.tm_mday != current_day) {
             if (fetch_schedule(sched)) {
                 current_day = tm_now.tm_mday;
             }

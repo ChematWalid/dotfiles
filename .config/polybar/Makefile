@@ -6,8 +6,8 @@ LIBS = -lX11 -lXtst
 
 all: tray-autohide network-eth-live network-status-live prayer-live
 
-tray-autohide: tray-autohide.c
-	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+tray-autohide: tray-autohide.cpp
+	$(CXX) $(CXXFLAGS) -I./include $< -o $@ $(LIBS)
 
 network-eth-live: network-eth-live.cpp
 	$(CXX) $(CXXFLAGS) -I./include $< -o $@

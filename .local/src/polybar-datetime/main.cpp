@@ -92,7 +92,7 @@ bool state_file_changed(int inotify_fd) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 return changed;
             }
-            throw std::system_error(errno, std::generic_category(), "read inotify events");
+            return changed;
         }
         if (bytes_read == 0) {
             return changed;
@@ -167,9 +167,14 @@ int main(int argc, char* argv[]) {
                 const dotfiles::StatePaths state_paths = dotfiles::make_state_paths(state_filename);
                 int mode = read_mode(state_paths.file);
                 int next_mode = (mode + 1) % 3;
-                std::ofstream out{state_paths.file};
-                out << next_mode << '\n';
-                return 0;
+                std::string tmp_file = state_paths.file + ".tmp." + std::to_string(::getpid());
+                {
+                    std::ofstream out{tmp_file};
+                    out << next_mode << '\n';
+                }
+                std::error_code ec;
+                std::filesystem::rename(tmp_file, state_paths.file, ec);
+                return ec ? 1 : 0;
             } catch (const std::exception& e) {
                 std::cerr << "polybar-datetime --toggle: " << e.what() << '\n';
                 return 1;
@@ -226,7 +231,7 @@ int main(int argc, char* argv[]) {
                         // Must rearm the timerfd, otherwise read() will continue to fail with ECANCELED!
                         arm_second_timer(timer_fd.get());
                     } else if (errno != EINTR && errno != EAGAIN) {
-                        throw std::system_error(errno, std::generic_category(), "read clock timer");
+                        arm_second_timer(timer_fd.get());
                     }
                 }
                 emit_if_changed(mode, previous);
