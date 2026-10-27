@@ -34,12 +34,5 @@ else
     mv -f "${VISIBILITY_STATE}.tmp.$$" "$VISIBILITY_STATE"
 
     # Keep the tray popup closed whenever the main bar is toggled.
-    pkill -x "tray-autohide" 2>/dev/null || true
-    TRAY_WINDOW=$(timeout 2s xdotool search --class --limit 1 '^stalonetray$' 2>/dev/null || true)
-    if [[ -n "$TRAY_WINDOW" ]]; then
-        xdotool windowunmap "$TRAY_WINDOW" 2>/dev/null || true
-    fi
-    printf 'hidden\n' > "${TRAY_STATE}.tmp.$$"
-    mv -f "${TRAY_STATE}.tmp.$$" "$TRAY_STATE"
-    date +%s%3N > "${TRAY_STATE}-closed-at"
+    "${HOME}/.config/polybar/tray-autohide" --hide 2>/dev/null || true
 fi
