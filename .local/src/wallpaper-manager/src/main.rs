@@ -46,6 +46,8 @@ fn handle_dir(args: &[String]) {
         eprintln!("❌ Error: Directory '{}' does not exist.", target.display());
         process::exit(1);
     }
+    let target = target.canonicalize().unwrap_or(target);
+
 
     let walls = scanner::scan_wallpapers(&target, 3);
     if walls.is_empty() {

@@ -22,6 +22,7 @@ pub fn scan_wallpapers(root: &Path, max_depth: usize) -> Vec<PathBuf> {
 
     scan_dir_recursive(root, 1, max_depth, &mut visited, &mut results);
     results.sort();
+    results.dedup();
     results
 }
 
@@ -116,4 +117,30 @@ mod tests {
 
         let _ = fs::remove_dir_all(&temp_dir);
     }
+
+    #[test]
+    fn test_scanner_symlink_cycle_and_dedup() {
+        let temp_dir = std::env::temp_dir().join(format!("wp_symlink_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        let sub = temp_dir.join("sub");
+        fs::create_dir_all(&sub).unwrap();
+
+        let real_img = sub.join("real.png");
+        File::create(&real_img).unwrap();
+
+        // Create cyclical symlink: sub/loop -> temp_dir
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::symlink;
+            let _ = symlink(&temp_dir, sub.join("loop"));
+            let _ = symlink(&real_img, temp_dir.join("alias.png"));
+        }
+
+        let scanned = scan_wallpapers(&temp_dir, 3);
+        // Should not loop infinitely and should find images
+        assert!(!scanned.is_empty());
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
 }
+

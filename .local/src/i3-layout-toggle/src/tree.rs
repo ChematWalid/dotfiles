@@ -99,7 +99,9 @@ impl I3Node {
     /// Recursively searches for a node whose window instance matches the given string.
     pub fn find_node_by_instance(&self, target_instance: &str) -> Option<&I3Node> {
         if let Some(ref props) = self.window_properties {
-            if props.instance.as_deref() == Some(target_instance) {
+            if props.instance.as_deref() == Some(target_instance)
+                || props.window_class.as_deref() == Some(target_instance)
+            {
                 return Some(self);
             }
         }

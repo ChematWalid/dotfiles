@@ -123,7 +123,7 @@ run_module() {
 
     # ── 2. Rust Desktop Daemons ─────────────────────────────────────────────────
     if command -v cargo &>/dev/null; then
-      for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live; do
+      for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live i3-layout-toggle wallpaper-manager; do
         if [[ -d "$DOTFILES_DIR/.local/src/$pkg" ]]; then
           info "Compiling $pkg (Rust)..."
           local manifest="$DOTFILES_DIR/.local/src/$pkg/Cargo.toml"
@@ -148,7 +148,7 @@ run_module() {
 
     # ── 3. Polybar Native Helpers ───────────────────────────────────────────────
     if command -v make &>/dev/null && command -v g++ &>/dev/null && [[ -f "$DOTFILES_DIR/.config/polybar/Makefile" ]]; then
-      info "Compiling Polybar native helpers (network-eth-live, network-status-live, tray-autohide)..."
+      info "Compiling Polybar native helpers (network-eth-live, network-status-live, tray-autohide, prayer-live)..."
       if make -C "$DOTFILES_DIR/.config/polybar" all; then
         log "Polybar native helpers compiled"
       else
@@ -156,7 +156,14 @@ run_module() {
       fi
     fi
 
-    # ── 4. SongRec Audio Monitor Loopback Configuration ──────────────────────────
+    # ── 4. Shared C++ Headers ───────────────────────────────────────────────────
+    if [[ -d "$DOTFILES_DIR/.local/include" ]]; then
+      mkdir -p "$HOME/.local/include"
+      cp -ru "$DOTFILES_DIR/.local/include/." "$HOME/.local/include/" 2>/dev/null || true
+      log "Centralized C++ headers installed → ~/.local/include/dotfiles"
+    fi
+
+    # ── 5. SongRec Audio Monitor Loopback Configuration ──────────────────────────
     if command -v pactl &>/dev/null && [[ -f "$HOME/.config/songrec/preferences.toml" ]]; then
       local default_sink
       default_sink="$(pactl get-default-sink 2>/dev/null || true)"

@@ -7,6 +7,18 @@ use std::process::Command;
 
 pub fn get_random_u64() -> u64 {
     let mut buf = [0u8; 8];
+    #[cfg(target_os = "linux")]
+    unsafe {
+        let ret = libc::getrandom(
+            buf.as_mut_ptr() as *mut libc::c_void,
+            buf.len(),
+            libc::GRND_NONBLOCK,
+        );
+        if ret == buf.len() as isize {
+            return u64::from_ne_bytes(buf);
+        }
+    }
+
     if let Ok(mut f) = File::open("/dev/urandom") {
         if f.read_exact(&mut buf).is_ok() {
             return u64::from_ne_bytes(buf);

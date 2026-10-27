@@ -1,7 +1,7 @@
 CC ?= gcc
 CXX ?= g++
 CFLAGS ?= -O3 -Wall -Wextra -s
-CXXFLAGS ?= -O3 -std=c++17 -Wall -Wextra -Wpedantic -s
+CXXFLAGS ?= -O3 -std=c++17 -Wall -Wextra -Wpedantic -s -I./include -I../../.local/include
 LIBS = -lX11 -lXtst
 
 all: tray-autohide network-eth-live network-status-live prayer-live

@@ -215,6 +215,22 @@ void show_popup(const PrayerSchedule& sched, int now_min) {
     }
 }
 
+void show_error_popup() {
+    char arg0[] = "notify-send";
+    char arg1[] = "-a";
+    char arg2[] = "Muslimtify";
+    char arg3[] = "-u";
+    char arg4[] = "normal";
+    char arg5[] = "🕌 Prayer Times";
+    char arg6[] = "Could not fetch prayer times";
+    char* const args[] = {arg0, arg1, arg2, arg3, arg4, arg5, arg6, nullptr};
+
+    pid_t pid = 0;
+    if (::posix_spawnp(&pid, "notify-send", nullptr, nullptr, args, environ) == 0) {
+        ::waitpid(pid, nullptr, 0);
+    }
+}
+
 dotfiles::UniqueFd setup_minute_timer() {
     int tfd = ::timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC | TFD_NONBLOCK);
     if (tfd < 0) {
@@ -244,10 +260,6 @@ dotfiles::UniqueFd setup_minute_timer() {
 
 int main(int argc, char* argv[]) {
     PrayerSchedule sched;
-    if (!fetch_schedule(sched)) {
-        std::cout << "%{F" << dotfiles::colors::overlay0 << "}🕌 --:--%{F-}\n" << std::flush;
-        return 0;
-    }
 
     std::time_t now = std::time(nullptr);
     std::tm tm_now {};
@@ -257,11 +269,28 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         std::string_view arg{argv[1]};
         if (arg == "--popup" || arg == "-p") {
-            show_popup(sched, now_min);
+            if (fetch_schedule(sched)) {
+                show_popup(sched, now_min);
+            } else {
+                show_error_popup();
+            }
+            return 0;
+        }
+        if (arg == "--oneshot" || arg == "-1") {
+            if (fetch_schedule(sched)) {
+                NextPrayerInfo next = calculate_next(sched, now_min);
+                std::string rem_str = format_remaining(next.remaining_min);
+                std::cout << "%{F" << dotfiles::colors::teal << "}🕌%{F-} "
+                          << next.name << " " << next.time_str << " %{F"
+                          << dotfiles::colors::overlay0 << "}(" << rem_str << ")%{F-}\n"
+                          << std::flush;
+            } else {
+                std::cout << "%{F" << dotfiles::colors::overlay0 << "}🕌 --:--%{F-}\n" << std::flush;
+            }
             return 0;
         }
         if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: prayer-live [--tail|--popup|-p|-h]\n";
+            std::cout << "Usage: prayer-live [--tail|--oneshot|-1|--popup|-p|-h]\n";
             return 0;
         }
     }
@@ -270,25 +299,34 @@ int main(int argc, char* argv[]) {
     dotfiles::UniqueFd timer_fd = setup_minute_timer();
     int current_day = tm_now.tm_mday;
 
+    // Initial attempt to fetch schedule
+    (void)fetch_schedule(sched);
+
     for (;;) {
         now = std::time(nullptr);
         localtime_r(&now, &tm_now);
         now_min = tm_now.tm_hour * 60 + tm_now.tm_min;
 
-        // Day changed: refresh prayer times from muslimtify
-        if (tm_now.tm_mday != current_day) {
-            current_day = tm_now.tm_mday;
-            (void)fetch_schedule(sched);
+        // Refresh on day change or if schedule is not yet valid
+        if (!sched.is_valid() || tm_now.tm_mday != current_day) {
+            if (fetch_schedule(sched)) {
+                current_day = tm_now.tm_mday;
+            }
         }
 
-        NextPrayerInfo next = calculate_next(sched, now_min);
-        std::string rem_str = format_remaining(next.remaining_min);
+        if (sched.is_valid()) {
+            NextPrayerInfo next = calculate_next(sched, now_min);
+            std::string rem_str = format_remaining(next.remaining_min);
 
-        // Output matching Polybar format
-        std::cout << "%{F" << dotfiles::colors::teal << "}🕌%{F-} "
-                  << next.name << " " << next.time_str << " %{F"
-                  << dotfiles::colors::overlay0 << "}(" << rem_str << ")%{F-}\n"
-                  << std::flush;
+            // Output matching Polybar format
+            std::cout << "%{F" << dotfiles::colors::teal << "}🕌%{F-} "
+                      << next.name << " " << next.time_str << " %{F"
+                      << dotfiles::colors::overlay0 << "}(" << rem_str << ")%{F-}\n"
+                      << std::flush;
+        } else {
+            std::cout << "%{F" << dotfiles::colors::overlay0 << "}🕌 --:--%{F-}\n"
+                      << std::flush;
+        }
 
         if (timer_fd.valid()) {
             struct pollfd pfd {};
@@ -303,3 +341,4 @@ int main(int argc, char* argv[]) {
         }
     }
 }
+

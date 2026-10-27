@@ -8,6 +8,12 @@ use std::process::Command;
 use crate::ipc::I3Connection;
 use crate::tree::find_mru_leaf;
 
+fn escape_pango(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
 pub fn run_window_info() -> io::Result<()> {
     let mut i3 = I3Connection::connect()?;
     let tree = i3.get_tree()?;
@@ -51,17 +57,19 @@ pub fn run_window_info() -> io::Result<()> {
     let xid = focused.window.unwrap_or(0);
 
     // Copy class to clipboard via xclip if available
-    let _ = Command::new("xclip")
-        .args(["-selection", "clipboard"])
-        .stdin(std::process::Stdio::piped())
-        .spawn()
-        .and_then(|mut child| {
-            if let Some(mut stdin) = child.stdin.take() {
-                use std::io::Write;
-                let _ = stdin.write_all(win_class.as_bytes());
-            }
-            child.wait()
-        });
+    if win_class != "Unknown" && !win_class.is_empty() {
+        let _ = Command::new("xclip")
+            .args(["-selection", "clipboard"])
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .and_then(|mut child| {
+                if let Some(mut stdin) = child.stdin.take() {
+                    use std::io::Write;
+                    let _ = stdin.write_all(win_class.as_bytes());
+                }
+                child.wait()
+            });
+    }
 
     // Extract PID from /proc if xid matches
     let mut pid_str = "N/A".to_string();
@@ -85,9 +93,14 @@ pub fn run_window_info() -> io::Result<()> {
         }
     }
 
-    let summary = format!("Focused Window: {win_class}");
+    let summary = format!("Focused Window: {}", escape_pango(win_class));
     let body = format!(
-        "<b>Class:</b> <code>{win_class}</code> (<i>copied to clipboard</i>)\n<b>Instance:</b> <code>{win_instance}</code>\n<b>Process:</b> <code>{proc_name}</code> (PID: {pid_str})\n<b>Title:</b> {win_title}"
+        "<b>Class:</b> <code>{}</code> (<i>copied to clipboard</i>)\n<b>Instance:</b> <code>{}</code>\n<b>Process:</b> <code>{}</code> (PID: {})\n<b>Title:</b> {}",
+        escape_pango(win_class),
+        escape_pango(win_instance),
+        escape_pango(&proc_name),
+        escape_pango(&pid_str),
+        escape_pango(win_title)
     );
 
     let _ = Command::new("notify-send")

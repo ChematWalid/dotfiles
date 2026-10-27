@@ -51,36 +51,60 @@ unsafe fn libc_getuid() -> u32 {
     getuid()
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum AppCommand {
     Layout(Action),
     Scratchpad,
     WindowInfo,
     AutotilingToggle,
+    Help,
+    Version,
 }
 
-fn parse_command() -> AppCommand {
-    let first = env::args().nth(1);
-    match first.as_deref() {
-        Some("-h" | "--help") => {
-            println!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle]");
-            std::process::exit(0);
-        }
-        Some("-v" | "--version") => {
-            println!("i3-layout-toggle {}", env!("CARGO_PKG_VERSION"));
-            std::process::exit(0);
-        }
-        Some(s) if s.eq_ignore_ascii_case("scratchpad") => AppCommand::Scratchpad,
+fn parse_command_arg(first: Option<&str>) -> Result<AppCommand, String> {
+    match first {
+        Some("-h" | "--help") => Ok(AppCommand::Help),
+        Some("-v" | "--version") => Ok(AppCommand::Version),
+        Some(s) if s.eq_ignore_ascii_case("scratchpad") => Ok(AppCommand::Scratchpad),
         Some(s) if s.eq_ignore_ascii_case("window-info") || s.eq_ignore_ascii_case("info") => {
-            AppCommand::WindowInfo
+            Ok(AppCommand::WindowInfo)
         }
         Some(s)
             if s.eq_ignore_ascii_case("autotiling-toggle")
                 || s.eq_ignore_ascii_case("autotiling") =>
         {
-            AppCommand::AutotilingToggle
+            Ok(AppCommand::AutotilingToggle)
         }
-        Some(s) if s.eq_ignore_ascii_case("tab") => AppCommand::Layout(Action::Tab),
-        _ => AppCommand::Layout(Action::Toggle),
+        Some(s) if s.eq_ignore_ascii_case("tab") => Ok(AppCommand::Layout(Action::Tab)),
+        Some(s)
+            if s.eq_ignore_ascii_case("toggle")
+                || s.eq_ignore_ascii_case("untab")
+                || s.eq_ignore_ascii_case("split") =>
+        {
+            Ok(AppCommand::Layout(Action::Toggle))
+        }
+        None => Ok(AppCommand::Layout(Action::Toggle)),
+        Some(other) => Err(format!("unknown subcommand '{other}'")),
+    }
+}
+
+fn parse_command() -> AppCommand {
+    let first = env::args().nth(1);
+    match parse_command_arg(first.as_deref()) {
+        Ok(AppCommand::Help) => {
+            println!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle]");
+            std::process::exit(0);
+        }
+        Ok(AppCommand::Version) => {
+            println!("i3-layout-toggle {}", env!("CARGO_PKG_VERSION"));
+            std::process::exit(0);
+        }
+        Ok(cmd) => cmd,
+        Err(e) => {
+            eprintln!("i3-layout-toggle: {e}");
+            eprintln!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle]");
+            std::process::exit(1);
+        }
     }
 }
 
@@ -176,5 +200,29 @@ fn main() {
         AppCommand::Layout(action) => {
             run_layout_action(action);
         }
+        AppCommand::Help | AppCommand::Version => unreachable!(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_command_arg() {
+        assert_eq!(parse_command_arg(Some("tab")), Ok(AppCommand::Layout(Action::Tab)));
+        assert_eq!(parse_command_arg(Some("toggle")), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_arg(Some("untab")), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_arg(Some("split")), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_arg(Some("scratchpad")), Ok(AppCommand::Scratchpad));
+        assert_eq!(parse_command_arg(Some("window-info")), Ok(AppCommand::WindowInfo));
+        assert_eq!(parse_command_arg(Some("info")), Ok(AppCommand::WindowInfo));
+        assert_eq!(parse_command_arg(Some("autotiling-toggle")), Ok(AppCommand::AutotilingToggle));
+        assert_eq!(parse_command_arg(Some("autotiling")), Ok(AppCommand::AutotilingToggle));
+        assert_eq!(parse_command_arg(None), Ok(AppCommand::Layout(Action::Toggle)));
+        assert_eq!(parse_command_arg(Some("-h")), Ok(AppCommand::Help));
+        assert_eq!(parse_command_arg(Some("--version")), Ok(AppCommand::Version));
+        assert!(parse_command_arg(Some("unknown-cmd")).is_err());
+    }
+}
+

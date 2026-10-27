@@ -4,15 +4,14 @@
 
 set -euo pipefail
 
-# Repeated hotkey presses must not pile up IPC clients when Polybar is slow.
-exec 9>"${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/toggle-polybar.lock"
-flock -n 9 || exit 0
+source "${HOME}/.local/bin/scripts-common.sh"
+
+STATE_DIR="$(get_dotfiles_runtime_dir)"
+acquire_flock 9 "${STATE_DIR}/toggle-polybar.lock" || exit 0
 
 MAIN_PID=$(pgrep -n -f "polybar main" || true)
-STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/dotfiles"
 VISIBILITY_STATE="${STATE_DIR}/polybar-main-visibility"
 TRAY_STATE="${STATE_DIR}/polybar-tray-visibility"
-[[ -d "$STATE_DIR" ]] || mkdir -p "$STATE_DIR"
 
 if [[ -z "$MAIN_PID" ]]; then
     systemctl --user restart polybar.service

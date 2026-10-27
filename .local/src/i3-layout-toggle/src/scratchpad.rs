@@ -122,7 +122,7 @@ pub fn run_scratchpad_toggle() -> io::Result<()> {
 
             if let Some(id) = found_id {
                 let _ = i3.run_command(&format!(
-                    "[id=\"{id}\"] floating enable, resize set 900 550, move position center, focus"
+                    "[con_id={id}] floating enable, resize set 900 550, move position center, focus"
                 ));
             }
         }
@@ -143,7 +143,7 @@ pub fn run_scratchpad_toggle() -> io::Result<()> {
                         let _ = fs::remove_file(&fs_state_file);
                         if let Ok(fs_id) = content.trim().parse::<i64>() {
                             if fs_id != 0 && tree.find_node_by_id(fs_id).is_some() {
-                                let _ = i3.run_command(&format!("[id=\"{fs_id}\"] fullscreen enable"));
+                                let _ = i3.run_command(&format!("[con_id={fs_id}] fullscreen enable"));
                             }
                         }
                     }

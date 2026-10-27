@@ -14,65 +14,21 @@
 #include <system_error>
 #include <utility>
 
+#include <dotfiles/catppuccin.hpp>
+#include <dotfiles/event_utils.hpp>
+#include <dotfiles/state_paths.hpp>
+#include <dotfiles/unique_fd.hpp>
+
 #include <sys/inotify.h>
 #include <sys/timerfd.h>
 #include <unistd.h>
 
 namespace {
 
+using dotfiles::has_event;
+using dotfiles::UniqueFd;
+
 constexpr std::string_view state_filename = "polybar-datetime-state";
-
-[[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
-    return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
-}
-
-struct StatePaths {
-    std::string directory;
-    std::string file;
-};
-
-StatePaths make_state_paths() {
-    const char* runtime_directory = std::getenv("XDG_RUNTIME_DIR");
-    const char* home_directory = std::getenv("HOME");
-
-    std::string base_directory;
-    if (runtime_directory != nullptr && runtime_directory[0] != '\0') {
-        base_directory = runtime_directory;
-    } else if (home_directory != nullptr && home_directory[0] != '\0') {
-        base_directory = std::string{home_directory} + "/.cache";
-    } else {
-        base_directory = "/tmp";
-    }
-
-    StatePaths paths{base_directory + "/dotfiles", {}};
-    paths.file = paths.directory + "/" + std::string{state_filename};
-    std::error_code error;
-    std::filesystem::create_directories(paths.directory, error);
-    if (error) {
-        throw std::system_error(error, "create Polybar datetime state directory");
-    }
-    return paths;
-}
-
-class FileDescriptor {
-public:
-    explicit FileDescriptor(int value) noexcept : value_(value) {}
-    ~FileDescriptor() {
-        if (value_ >= 0) {
-            close(value_);
-        }
-    }
-
-    FileDescriptor(const FileDescriptor&) = delete;
-    FileDescriptor& operator=(const FileDescriptor&) = delete;
-    FileDescriptor(FileDescriptor&& other) noexcept : value_(std::exchange(other.value_, -1)) {}
-    FileDescriptor& operator=(FileDescriptor&&) = delete;
-
-    [[nodiscard]] int get() const noexcept { return value_; }
-
-private:
-    int value_;
-};
 
 int read_mode(const std::string& state_path) {
     std::ifstream state_file{state_path};
@@ -93,15 +49,15 @@ std::string format_output(int mode) {
     std::array<char, 128> buffer{};
     const char* format = "%d %b %H:%M:%S";
     std::string_view icon = "󰃰";
-    std::string_view color = "#b4befe";
+    std::string_view color = dotfiles::colors::lavender;
     if (mode == 1) {
         format = "%H:%M:%S";
         icon = "󰥔";
-        color = "#cba6f7";
+        color = dotfiles::colors::mauve;
     } else if (mode == 2) {
         format = "%a, %d %b %Y";
         icon = "󰃭";
-        color = "#89b4fa";
+        color = dotfiles::colors::blue;
     }
 
     if (std::strftime(buffer.data(), buffer.size(), format, &local_time) == 0) {
@@ -178,8 +134,8 @@ void arm_second_timer(int timer_fd) {
     }
 }
 
-FileDescriptor make_second_timer() {
-    FileDescriptor timer_fd{timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC | TFD_NONBLOCK)};
+UniqueFd make_second_timer() {
+    UniqueFd timer_fd{timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC | TFD_NONBLOCK)};
     if (timer_fd.get() < 0) {
         throw std::system_error(errno, std::generic_category(), "create clock timer");
     }
@@ -187,8 +143,8 @@ FileDescriptor make_second_timer() {
     return timer_fd;
 }
 
-FileDescriptor make_state_watcher(const std::string& state_directory) {
-    FileDescriptor inotify_fd{inotify_init1(IN_CLOEXEC | IN_NONBLOCK)};
+UniqueFd make_state_watcher(const std::string& state_directory) {
+    UniqueFd inotify_fd{inotify_init1(IN_CLOEXEC | IN_NONBLOCK)};
     if (inotify_fd.get() < 0) {
         throw std::system_error(errno, std::generic_category(), "create state watcher");
     }
@@ -208,7 +164,7 @@ int main(int argc, char* argv[]) {
         std::string_view arg{argv[1]};
         if (arg == "--toggle" || arg == "-t") {
             try {
-                const StatePaths state_paths = make_state_paths();
+                const dotfiles::StatePaths state_paths = dotfiles::make_state_paths(state_filename);
                 int mode = read_mode(state_paths.file);
                 int next_mode = (mode + 1) % 3;
                 std::ofstream out{state_paths.file};
@@ -228,9 +184,9 @@ int main(int argc, char* argv[]) {
     std::setlocale(LC_TIME, "");
 
     try {
-        const StatePaths state_paths = make_state_paths();
-        const FileDescriptor timer_fd = make_second_timer();
-        const FileDescriptor inotify_fd = make_state_watcher(state_paths.directory);
+        const dotfiles::StatePaths state_paths = dotfiles::make_state_paths(state_filename);
+        const UniqueFd timer_fd = make_second_timer();
+        const UniqueFd inotify_fd = make_state_watcher(state_paths.directory);
         int mode = read_mode(state_paths.file);
         std::string previous;
         emit_if_changed(mode, previous);
