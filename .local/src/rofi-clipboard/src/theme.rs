@@ -183,6 +183,7 @@ mod tests {
         let lock_path = dir.join(".cache.lock");
         let lock_file = fs::OpenOptions::new()
             .create(true)
+            .truncate(true)
             .write(true)
             .open(&lock_path)
             .unwrap();

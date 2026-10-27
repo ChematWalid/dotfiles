@@ -123,7 +123,7 @@ run_module() {
 
     # ── 2. Rust Desktop Daemons ─────────────────────────────────────────────────
     if command -v cargo &>/dev/null; then
-      for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live i3-layout-toggle wallpaper-manager; do
+      for pkg in desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live i3-layout-toggle wallpaper-manager desktop-osd; do
         if [[ -d "$DOTFILES_DIR/.local/src/$pkg" ]]; then
           info "Compiling $pkg (Rust)..."
           local manifest="$DOTFILES_DIR/.local/src/$pkg/Cargo.toml"

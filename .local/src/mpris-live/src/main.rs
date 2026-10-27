@@ -78,8 +78,18 @@ async fn main() -> Result<()> {
         let rendered = render::render_polybar(&current_state, scroll_pos, hovering);
 
         if rendered != last_rendered {
-            println!("{}", rendered);
-            let _ = stdout().flush();
+            let stdout = stdout();
+            let mut handle = stdout.lock();
+            if let Err(e) = writeln!(handle, "{}", rendered) {
+                if e.kind() == std::io::ErrorKind::BrokenPipe {
+                    break;
+                }
+            }
+            if let Err(e) = handle.flush() {
+                if e.kind() == std::io::ErrorKind::BrokenPipe {
+                    break;
+                }
+            }
             last_rendered = rendered;
         }
     }
