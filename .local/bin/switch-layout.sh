@@ -18,15 +18,10 @@ layout_name=""
 flag=""
 
 if [[ -x "$TOGGLE_BIN" ]]; then
-    # Instantaneous XKB group lock toggle (Group 0: Belgian, Group 1: Arabic)
+    # Instantaneous XKB group lock toggle and Dunst notification in native C++
     # Preserves Latin keysym mapping in i3, repeat rate (250 50), and avoids process reloads
-    new_group=$("$TOGGLE_BIN" toggle 2>/dev/null || true)
-    if [[ "$new_group" == "1" ]]; then
-        layout_name="Arabic (العربية)"
-        flag="🇸🇦"
-    elif [[ "$new_group" == "0" ]]; then
-        layout_name="Belgian (AZERTY)"
-        flag="🇧🇪"
+    if "$TOGGLE_BIN" toggle --notify >/dev/null 2>&1; then
+        exit 0
     fi
 fi
 

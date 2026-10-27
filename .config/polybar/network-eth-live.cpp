@@ -1,3 +1,6 @@
+#include "include/event_utils.hpp"
+#include "include/unique_fd.hpp"
+
 #include <array>
 #include <cerrno>
 #include <cstring>
@@ -19,6 +22,9 @@
 #include <unistd.h>
 
 namespace {
+
+using dotfiles::has_event;
+using dotfiles::UniqueFd;
 
 constexpr std::size_t receive_buffer_size = std::size_t{64} * 1024U;
 
@@ -48,28 +54,6 @@ constexpr std::size_t receive_buffer_size = std::size_t{64} * 1024U;
     ::freeifaddrs(ifaddr);
     return candidate.empty() ? "eth0" : candidate;
 }
-
-[[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
-    return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
-}
-
-class UniqueFd {
-public:
-    explicit UniqueFd(int fd) noexcept : fd_(fd) {}
-    ~UniqueFd() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-        }
-    }
-
-    UniqueFd(const UniqueFd&) = delete;
-    UniqueFd& operator=(const UniqueFd&) = delete;
-
-    [[nodiscard]] int get() const noexcept { return fd_; }
-
-private:
-    int fd_;
-};
 
 [[nodiscard]] bool is_target_link_event(const nlmsghdr* header,
                                         std::string_view interface_name,

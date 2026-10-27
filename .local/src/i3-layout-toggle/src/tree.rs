@@ -2,6 +2,16 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
+pub struct WindowProperties {
+    #[serde(default, rename = "class")]
+    pub window_class: Option<String>,
+    #[serde(default)]
+    pub instance: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct I3Node {
     pub id: i64,
@@ -23,6 +33,10 @@ pub struct I3Node {
     pub floating: Option<String>,
     #[serde(default)]
     pub fullscreen_mode: i32,
+    #[serde(default)]
+    pub window: Option<i64>,
+    #[serde(default)]
+    pub window_properties: Option<WindowProperties>,
 }
 
 impl I3Node {
@@ -77,6 +91,47 @@ impl I3Node {
         for child in &self.floating_nodes {
             if let Some(n) = child.find_node_by_id(target_id) {
                 return Some(n);
+            }
+        }
+        None
+    }
+
+    /// Recursively searches for a node whose window instance matches the given string.
+    pub fn find_node_by_instance(&self, target_instance: &str) -> Option<&I3Node> {
+        if let Some(ref props) = self.window_properties {
+            if props.instance.as_deref() == Some(target_instance) {
+                return Some(self);
+            }
+        }
+        for child in &self.nodes {
+            if let Some(n) = child.find_node_by_instance(target_instance) {
+                return Some(n);
+            }
+        }
+        for child in &self.floating_nodes {
+            if let Some(n) = child.find_node_by_instance(target_instance) {
+                return Some(n);
+            }
+        }
+        None
+    }
+
+    /// Recursively searches for the workspace container that encloses target_id.
+    pub fn find_workspace_for_node(&self, target_id: i64) -> Option<&I3Node> {
+        if self.node_type == "workspace" {
+            if self.find_node_by_id(target_id).is_some() {
+                return Some(self);
+            }
+            return None;
+        }
+        for child in &self.nodes {
+            if let Some(ws) = child.find_workspace_for_node(target_id) {
+                return Some(ws);
+            }
+        }
+        for child in &self.floating_nodes {
+            if let Some(ws) = child.find_workspace_for_node(target_id) {
+                return Some(ws);
             }
         }
         None
@@ -324,6 +379,8 @@ mod tests {
             floating_nodes: Vec::new(),
             floating: None,
             fullscreen_mode: 0,
+            window: None,
+            window_properties: None,
         }
     }
 
@@ -534,5 +591,27 @@ mod tests {
         let active = get_active_leaf(&root, Some(&root));
         assert!(active.is_some());
         assert_eq!(active.unwrap().id, 101);
+    }
+
+    #[test]
+    fn test_find_node_by_instance_and_workspace() {
+        let mut leaf = node(101, "con", "none", false, vec![], vec![]);
+        leaf.window_properties = Some(WindowProperties {
+            window_class: Some("kitty".into()),
+            instance: Some("scratchpad_term".into()),
+            title: Some("__scratchpad_term__".into()),
+        });
+        let ws = node(10, "workspace", "splith", false, vec![101], vec![leaf]);
+        let root = node(1, "root", "splith", false, vec![10], vec![ws]);
+
+        let found = root.find_node_by_instance("scratchpad_term");
+        assert!(found.is_some());
+        assert_eq!(found.unwrap().id, 101);
+
+        assert!(root.find_node_by_instance("nonexistent").is_none());
+
+        let parent_ws = root.find_workspace_for_node(101);
+        assert!(parent_ws.is_some());
+        assert_eq!(parent_ws.unwrap().id, 10);
     }
 }

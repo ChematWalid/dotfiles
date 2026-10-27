@@ -1,0 +1,119 @@
+use std::collections::HashSet;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+const SUPPORTED_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp"];
+
+pub fn is_supported_image(path: &Path) -> bool {
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        let ext_lower = ext.to_ascii_lowercase();
+        return SUPPORTED_EXTENSIONS.iter().any(|&e| e == ext_lower);
+    }
+    false
+}
+
+pub fn scan_wallpapers(root: &Path, max_depth: usize) -> Vec<PathBuf> {
+    let mut results = Vec::new();
+    let mut visited = HashSet::new();
+
+    if let Ok(canon) = fs::canonicalize(root) {
+        visited.insert(canon);
+    }
+
+    scan_dir_recursive(root, 1, max_depth, &mut visited, &mut results);
+    results.sort();
+    results
+}
+
+fn scan_dir_recursive(
+    dir: &Path,
+    current_depth: usize,
+    max_depth: usize,
+    visited: &mut HashSet<PathBuf>,
+    results: &mut Vec<PathBuf>,
+) {
+    if current_depth > max_depth {
+        return;
+    }
+
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        // Follow symlinks by querying metadata (not symlink_metadata)
+        let metadata = match fs::metadata(&path) {
+            Ok(m) => m,
+            Err(_) => continue,
+        };
+
+        if metadata.is_file() {
+            if is_supported_image(&path) {
+                results.push(path);
+            }
+        } else if metadata.is_dir() {
+            // Prevent symlink cycles
+            if let Ok(canon) = fs::canonicalize(&path) {
+                if !visited.insert(canon) {
+                    continue; // Already visited
+                }
+            }
+            scan_dir_recursive(&path, current_depth + 1, max_depth, visited, results);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+
+    #[test]
+    fn test_extension_matching() {
+        assert!(is_supported_image(Path::new("test.jpg")));
+        assert!(is_supported_image(Path::new("test.JPG")));
+        assert!(is_supported_image(Path::new("test.png")));
+        assert!(is_supported_image(Path::new("test.PNG")));
+        assert!(is_supported_image(Path::new("test.jpeg")));
+        assert!(is_supported_image(Path::new("test.webp")));
+        assert!(!is_supported_image(Path::new("test.txt")));
+        assert!(!is_supported_image(Path::new("test.sh")));
+        assert!(!is_supported_image(Path::new("test")));
+    }
+
+    #[test]
+    fn test_scanner_depth_and_filter() {
+        let temp_dir = std::env::temp_dir().join(format!("wp_scan_test_{}", std::process::id()));
+        let _ = fs::remove_dir_all(&temp_dir);
+        let l1 = temp_dir.join("d1");
+        let l2 = l1.join("d2");
+        let l3 = l2.join("d3");
+        let l4 = l3.join("d4");
+        fs::create_dir_all(&l4).unwrap();
+
+        File::create(temp_dir.join("root.png")).unwrap();
+        File::create(temp_dir.join("ignored.txt")).unwrap();
+        File::create(l1.join("level1.jpg")).unwrap();
+        File::create(l2.join("level2.webp")).unwrap();
+        File::create(l3.join("level3.jpeg")).unwrap();
+        File::create(l4.join("level4_too_deep.png")).unwrap();
+
+        let scanned = scan_wallpapers(&temp_dir, 3);
+        let names: Vec<String> = scanned
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        assert!(names.contains(&"root.png".to_string()));
+        assert!(names.contains(&"level1.jpg".to_string()));
+        assert!(names.contains(&"level2.webp".to_string()));
+        // level 3 is at depth 4 from root, exceeds maxdepth 3 (3 folder levels: root, d1, d2)
+        assert!(!names.contains(&"level3.jpeg".to_string()));
+        assert!(!names.contains(&"level4_too_deep.png".to_string()));
+        assert!(!names.contains(&"ignored.txt".to_string()));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+}

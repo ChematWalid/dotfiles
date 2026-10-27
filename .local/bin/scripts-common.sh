@@ -2,7 +2,7 @@
 # ── scripts-common.sh ─────────────────────────────────────────────────────────
 # Shared utilities, Catppuccin Mocha colors, and safety primitives for shell scripts.
 
-# ── Catppuccin Mocha Colors (ANSI & Hex) ──────────────────────────────────────
+# ── Catppuccin Mocha Colors (Hex) ─────────────────────────────────────────────
 readonly HEX_ROSEWATER="#f5e0dc"
 readonly HEX_FLAMINGO="#f2cdcd"
 readonly HEX_PINK="#f5c2e7"
@@ -30,6 +30,13 @@ readonly HEX_BASE="#1e1e2e"
 readonly HEX_MANTLE="#181825"
 readonly HEX_CRUST="#11111b"
 
+# ── Standard Runtime Directory ────────────────────────────────────────────────
+get_dotfiles_runtime_dir() {
+    local rtd="${XDG_RUNTIME_DIR:-${HOME}/.cache}/dotfiles"
+    mkdir -p "$rtd"
+    printf '%s\n' "$rtd"
+}
+
 # ── Notification Helper ───────────────────────────────────────────────────────
 notify() {
     local urgency="${1:-normal}"
@@ -46,30 +53,26 @@ notify() {
         "$body" 2>/dev/null || true
 }
 
-# ── Safe Single-Instance Lock Helper ──────────────────────────────────────────
+# ── Atomic Single-Instance Lock Helper (util-linux flock) ─────────────────────
 # Usage:
-#   acquire_lock "/tmp/.my-script.lock"
-#   trap 'release_lock "/tmp/.my-script.lock"' EXIT INT TERM
-acquire_lock() {
-    local lockfile="$1"
-    if [[ -f "$lockfile" ]]; then
-        local old_pid
-        IFS= read -r old_pid < "$lockfile" || true
-        if [[ "$old_pid" =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
-            return 1
-        fi
+#   acquire_flock 9 "/path/to/script.lock" [timeout_secs] || exit 0
+# The lock is automatically released by the kernel when the process terminates.
+acquire_flock() {
+    local fd="${1:-9}"
+    local lockfile="$2"
+    local timeout="${3:-0}"
+
+    mkdir -p "$(dirname "$lockfile")"
+    eval "exec ${fd}>\"\$lockfile\""
+
+    if (( timeout > 0 )); then
+        flock -w "$timeout" "$fd"
+    else
+        flock -n "$fd"
     fi
-    echo "$$" > "$lockfile"
-    return 0
 }
 
-release_lock() {
-    local lockfile="$1"
-    if [[ -f "$lockfile" ]]; then
-        local holder
-        IFS= read -r holder < "$lockfile" || true
-        if [[ "$holder" == "$$" ]]; then
-            rm -f "$lockfile"
-        fi
-    fi
+release_flock() {
+    local fd="${1:-9}"
+    flock -u "$fd" 2>/dev/null || true
 }

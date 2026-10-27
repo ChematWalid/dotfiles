@@ -203,7 +203,28 @@ FileDescriptor make_state_watcher(const std::string& state_directory) {
 
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc > 1) {
+        std::string_view arg{argv[1]};
+        if (arg == "--toggle" || arg == "-t") {
+            try {
+                const StatePaths state_paths = make_state_paths();
+                int mode = read_mode(state_paths.file);
+                int next_mode = (mode + 1) % 3;
+                std::ofstream out{state_paths.file};
+                out << next_mode << '\n';
+                return 0;
+            } catch (const std::exception& e) {
+                std::cerr << "polybar-datetime --toggle: " << e.what() << '\n';
+                return 1;
+            }
+        }
+        if (arg == "-h" || arg == "--help") {
+            std::cout << "Usage: polybar-datetime [--toggle|-t|-h|--help]\n";
+            return 0;
+        }
+    }
+
     std::setlocale(LC_TIME, "");
 
     try {

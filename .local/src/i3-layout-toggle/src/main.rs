@@ -1,9 +1,12 @@
-//! i3-layout-toggle — Robust and reliable layout switcher for i3 window manager.
+//! i3-layout-toggle — Robust and reliable layout switcher and window manager helper for i3.
 //! High-performance native Rust implementation.
 
+mod autotiling_toggle;
 mod ipc;
 mod layout;
+mod scratchpad;
 mod tree;
+mod window_info;
 
 use std::env;
 use std::fs::File;
@@ -48,24 +51,40 @@ unsafe fn libc_getuid() -> u32 {
     getuid()
 }
 
-fn parse_action() -> Action {
+enum AppCommand {
+    Layout(Action),
+    Scratchpad,
+    WindowInfo,
+    AutotilingToggle,
+}
+
+fn parse_command() -> AppCommand {
     let first = env::args().nth(1);
     match first.as_deref() {
         Some("-h" | "--help") => {
-            println!("Usage: i3-layout-toggle [tab|toggle|untab|split]");
+            println!("Usage: i3-layout-toggle [tab|toggle|untab|split|scratchpad|window-info|autotiling-toggle]");
             std::process::exit(0);
         }
         Some("-v" | "--version") => {
             println!("i3-layout-toggle {}", env!("CARGO_PKG_VERSION"));
             std::process::exit(0);
         }
-        Some(s) if s.eq_ignore_ascii_case("tab") => Action::Tab,
-        _ => Action::Toggle,
+        Some(s) if s.eq_ignore_ascii_case("scratchpad") => AppCommand::Scratchpad,
+        Some(s) if s.eq_ignore_ascii_case("window-info") || s.eq_ignore_ascii_case("info") => {
+            AppCommand::WindowInfo
+        }
+        Some(s)
+            if s.eq_ignore_ascii_case("autotiling-toggle")
+                || s.eq_ignore_ascii_case("autotiling") =>
+        {
+            AppCommand::AutotilingToggle
+        }
+        Some(s) if s.eq_ignore_ascii_case("tab") => AppCommand::Layout(Action::Tab),
+        _ => AppCommand::Layout(Action::Toggle),
     }
 }
 
-fn main() {
-    let action = parse_action();
+fn run_layout_action(action: Action) {
     let _lock = acquire_lock();
 
     let mut i3 = match I3Connection::connect() {
@@ -101,7 +120,7 @@ fn main() {
                 Action::Toggle => "layout toggle split",
             };
             let _ = i3.run_command(cmd);
-            std::process::exit(0);
+            return;
         }
     };
 
@@ -120,17 +139,42 @@ fn main() {
     match plan {
         LayoutPlan::ExecuteCommand(cmd) => {
             if let Err(e) = i3.run_command(&cmd) {
-                eprintln!("i3-layout-toggle: command failed: {e}");
-                std::process::exit(1);
+                eprintln!("i3-layout-toggle: command failed ({cmd}): {e}");
             }
         }
-        LayoutPlan::FocusLeaf(leaf_id) => {
-            let cmd = format!("[con_id={leaf_id}] focus");
+        LayoutPlan::FocusLeaf(id) => {
+            let cmd = format!("[con_id={id}] focus");
             let _ = i3.run_command(&cmd);
         }
         LayoutPlan::DirectLayout(cmd) => {
             let _ = i3.run_command(cmd);
         }
         LayoutPlan::NoOp => {}
+    }
+}
+
+fn main() {
+    match parse_command() {
+        AppCommand::Scratchpad => {
+            if let Err(e) = scratchpad::run_scratchpad_toggle() {
+                eprintln!("i3-layout-toggle scratchpad error: {e}");
+                std::process::exit(1);
+            }
+        }
+        AppCommand::WindowInfo => {
+            if let Err(e) = window_info::run_window_info() {
+                eprintln!("i3-layout-toggle window-info error: {e}");
+                std::process::exit(1);
+            }
+        }
+        AppCommand::AutotilingToggle => {
+            if let Err(e) = autotiling_toggle::run_autotiling_toggle() {
+                eprintln!("i3-layout-toggle autotiling error: {e}");
+                std::process::exit(1);
+            }
+        }
+        AppCommand::Layout(action) => {
+            run_layout_action(action);
+        }
     }
 }

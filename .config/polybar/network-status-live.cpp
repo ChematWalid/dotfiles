@@ -1,3 +1,7 @@
+#include "include/event_utils.hpp"
+#include "include/state_paths.hpp"
+#include "include/unique_fd.hpp"
+
 #include <array>
 #include <cerrno>
 #include <cstddef>
@@ -6,6 +10,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <poll.h>
 #include <spawn.h>
@@ -24,28 +29,11 @@ extern char** environ;
 
 namespace {
 
+using dotfiles::has_event;
+using dotfiles::UniqueFd;
+
 constexpr std::string_view state_name{"polybar-network-state"};
 constexpr std::string_view disconnected{"󰤭 Disconnected"};
-
-[[nodiscard]] constexpr bool has_event(short events, short event) noexcept {
-    return (static_cast<unsigned short>(events) & static_cast<unsigned short>(event)) != 0;
-}
-
-class UniqueFd {
-public:
-    explicit UniqueFd(int fd) noexcept : fd_(fd) {}
-    ~UniqueFd() {
-        if (fd_ >= 0) {
-            ::close(fd_);
-        }
-    }
-    UniqueFd(const UniqueFd&) = delete;
-    UniqueFd& operator=(const UniqueFd&) = delete;
-    [[nodiscard]] int get() const noexcept { return fd_; }
-
-private:
-    int fd_;
-};
 
 [[nodiscard]] std::string command_output(char* const arguments[]) {
     std::array<int, 2> pipe_fds{};
@@ -157,19 +145,28 @@ private:
 
 }  // namespace
 
-int main() {
-    const char* runtime_dir = std::getenv("XDG_RUNTIME_DIR");
-    const char* home_dir = std::getenv("HOME");
-    const std::filesystem::path state_dir = runtime_dir != nullptr
-        ? std::filesystem::path{runtime_dir} / "dotfiles"
-        : std::filesystem::path{home_dir != nullptr ? home_dir : "."} / ".cache/dotfiles";
-    const auto state_file = state_dir / state_name;
-    try {
-        std::filesystem::create_directories(state_dir);
-    } catch (const std::filesystem::filesystem_error& error) {
-        std::cerr << "network-status-live: " << error.what() << '\n';
-        return 1;
+int main(int argc, char* argv[]) {
+    const dotfiles::StatePaths paths = dotfiles::make_state_paths(state_name);
+    if (argc > 1) {
+        std::string_view arg{argv[1]};
+        if (arg == "--toggle" || arg == "-t") {
+            std::error_code ec;
+            if (std::filesystem::exists(paths.file, ec)) {
+                std::filesystem::remove(paths.file, ec);
+            } else {
+                std::ofstream out{paths.file};
+                out << "1\n";
+            }
+            return 0;
+        }
+        if (arg == "-h" || arg == "--help") {
+            std::cout << "Usage: network-status-live [--toggle|-h|--help]\n";
+            return 0;
+        }
     }
+
+    const std::filesystem::path state_dir = paths.directory;
+    const std::filesystem::path state_file = paths.file;
 
     const UniqueFd inotify_fd{::inotify_init1(IN_CLOEXEC | IN_NONBLOCK)};
     if (inotify_fd.get() < 0 ||
