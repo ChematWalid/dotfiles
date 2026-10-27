@@ -1,0 +1,12 @@
+[Unit]
+Description=Automatically update Storytold Craft Apps
+Documentation=https://github.com/storytold
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/craft-update update all --notify
+Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+StandardOutput=journal
+StandardError=journal

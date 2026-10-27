@@ -93,7 +93,7 @@ run_module() {
     # ── ~/.local/bin scripts ────────────────────────────────────────────────────
     mkdir -p "$HOME/.local/bin"
     local native_bin
-    local -a native_bins=(desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live x11-grab-probe polybar-datetime xkb-group-toggle)
+    local -a native_bins=(desktop-music-daemon autoname-workspaces rofi-clipboard mpris-live x11-grab-probe polybar-datetime xkb-group-toggle i3-layout-toggle wallpaper-manager)
     for script in "$DOTFILES_DIR/.local/bin"/*; do
       [[ -f "$script" || -L "$script" ]] || continue
       native_bin="$(basename "$script")"
@@ -103,6 +103,12 @@ run_module() {
       chmod +x "$script" 2>/dev/null || true
       safe_link "$script" "$HOME/.local/bin/$native_bin"
     done
+
+    # ── ~/.local/include C++ headers ────────────────────────────────────────────
+    if [[ -d "$DOTFILES_DIR/.local/include" ]]; then
+      mkdir -p "$HOME/.local/include"
+      safe_link "$DOTFILES_DIR/.local/include/dotfiles" "$HOME/.local/include/dotfiles"
+    fi
 
     # ── ~/.local/src source directories ─────────────────────────────────────────
     if [[ -d "$DOTFILES_DIR/.local/src" ]]; then

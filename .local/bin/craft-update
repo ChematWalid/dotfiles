@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+"""
+craft-update: CLI tool to check updates, view changelogs, install, and update
+ArtCraft / Crafting Apps on /mnt/drive2/Applications and companion tools.
+"""
+
+import sys
+import os
+import glob
+import json
+import time
+import shutil
+import urllib.request
+import urllib.error
+import subprocess
+
+APPS_DIR = "/mnt/drive2/Applications"
+BIN_DIR = "/home/walid/.local/bin"
+DESKTOP_DIR = "/home/walid/.local/share/applications"
+CACHE_DIR = "/mnt/drive2/.cache/craft-update"
+INDD_DIR = "/home/walid/Coding/Rust/indd-utils"
+BIMCRAFT_DIR = "/home/walid/Coding/Rust/BIMCraft"
+os.makedirs(CACHE_DIR, exist_ok=True)
+CACHE_FILE = os.path.join(CACHE_DIR, "releases_cache.json")
+CACHE_TTL = 900  # 15 minutes cache
+
+REPOS = [
+    ("photocraft", "PhotoCraft (Photoshop alternative)", "storytold/photocraft"),
+    ("filmcraft", "FilmCraft (Premiere Pro alternative)", "storytold/filmcraft"),
+    ("vectorcraft", "VectorCraft (Illustrator alternative)", "storytold/vectorcraft"),
+    ("lightcraft", "LightCraft (Lightroom alternative)", "storytold/lightcraft"),
+    ("effectcraft", "EffectCraft (After Effects alternative)", "storytold/effectcraft"),
+    ("pdfcraft", "PdfCraft (Acrobat alternative)", "storytold/pdfcraft"),
+    ("designcraft", "DesignCraft (InDesign alternative)", "storytold/designcraft"),
+    ("soundcraft", "SoundCraft (Pro Tools / Audition alternative)", "storytold/soundcraft"),
+    ("deckcraft", "DeckCraft (PowerPoint alternative)", "storytold/deckcraft"),
+    ("gridcraft", "GridCraft (Excel alternative)", "storytold/gridcraft"),
+    ("cadcraft", "CADCraft (AutoCAD alternative)", "storytold/cadcraft"),
+    ("wordcraft", "WordCraft (Word alternative)", "storytold/wordcraft"),
+    ("figcraft", "FigCraft (Figma alternative)", "storytold/figcraft"),
+    ("bimcraft", "BIMCraft (Revit alternative)", "IPedrax/BIMCraft"),
+    ("AniCraft", "AniCraft (2D animation editor)", "storytold/AniCraft"),
+    ("craft-launcher", "ArtCraft Launcher", "storytold/craft-launcher"),
+]
+
+def get_gh_token():
+    try:
+        res = subprocess.run(["gh", "auth", "token"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        if res.returncode == 0:
+            token = res.stdout.strip()
+            if token:
+                return token
+    except Exception:
+        pass
+    return None
+
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_cache(cache):
+    try:
+        with open(CACHE_FILE, "w") as f:
+            json.dump(cache, f, indent=2)
+    except Exception:
+        pass
+
+def parse_semver(v):
+    if not v:
+        return (0, 0, 0)
+    v = v.lstrip("v").split("-")[0]
+    parts = []
+    for x in v.split("."):
+        try:
+            parts.append(int(x))
+        except ValueError:
+            parts.append(0)
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts)
+
+def get_installed_version(repo_name):
+    prefix = "artcraft-launcher" if repo_name == "craft-launcher" else repo_name.lower()
+    pattern = f"{prefix}-*-linux-x86_64.AppImage"
+    matches = glob.glob(os.path.join(APPS_DIR, pattern))
+    if not matches:
+        return None, None
+    matches.sort(key=os.path.getmtime, reverse=True)
+    latest_file = matches[0]
+    filename = os.path.basename(latest_file)
+    stem = filename.replace("-linux-x86_64.AppImage", "")
+    parts = stem.split("-")
+    ver = parts[-1]
+    return ver, latest_file
+
+def fetch_latest_release(repo_name, cache, force_refresh=False, gh_repo=None):
+    now = time.time()
+    cache_key = gh_repo if gh_repo else repo_name
+    if not force_refresh and cache_key in cache:
+        entry = cache[cache_key]
+        if now - entry.get("timestamp", 0) < CACHE_TTL:
+            return entry.get("data", {})
+
+    target_repo = gh_repo if gh_repo else f"storytold/{repo_name}"
+    url = f"https://api.github.com/repos/{target_repo}/releases/latest"
+    headers = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64)"}
+    token = get_gh_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode())
+            tag = data.get("tag_name", "").lstrip("v")
+            body = data.get("body", "")
+            html_url = data.get("html_url", "")
+            assets = data.get("assets", [])
+            appimage_asset = None
+            zsync_asset = None
+            for a in assets:
+                name = a.get("name", "")
+                if "linux-x86_64.AppImage" in name:
+                    if name.endswith(".zsync"):
+                        zsync_asset = a
+                    else:
+                        appimage_asset = a
+            res = {
+                "tag": tag,
+                "body": body,
+                "html_url": html_url,
+                "appimage": appimage_asset,
+                "zsync": zsync_asset,
+            }
+            cache[cache_key] = {"timestamp": now, "data": res}
+            return res
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {"error": "No releases published yet"}
+        if e.code == 403:
+            if cache_key in cache:
+                return cache[cache_key].get("data", {})
+            return {"error": "GitHub API rate limit reached."}
+        return {"error": f"HTTP {e.code}"}
+    except Exception as e:
+        if cache_key in cache:
+            return cache[cache_key].get("data", {})
+        return {"error": str(e)}
+
+def fast_download(url, dest_dir, filename):
+    temp_filename = f"{filename}.part"
+    dest_path = os.path.join(dest_dir, filename)
+    temp_path = os.path.join(dest_dir, temp_filename)
+
+    # 1. Try aria2c for accelerated multi-stream download
+    if shutil.which("aria2c"):
+        cmd = [
+            "aria2c",
+            "--allow-overwrite=true",
+            "--auto-file-renaming=false",
+            "-x", "8",
+            "-s", "8",
+            "-j", "8",
+            "-d", dest_dir,
+            "-o", temp_filename,
+            url,
+        ]
+        res = subprocess.run(cmd)
+        if res.returncode == 0 and os.path.exists(temp_path):
+            os.replace(temp_path, dest_path)
+            os.chmod(dest_path, 0o755)
+            return True
+
+    # 2. Try curl
+    if shutil.which("curl"):
+        cmd = ["curl", "-fL", "--progress-bar", "-o", temp_path, url]
+        res = subprocess.run(cmd)
+        if res.returncode == 0 and os.path.exists(temp_path):
+            os.replace(temp_path, dest_path)
+            os.chmod(dest_path, 0o755)
+            return True
+
+    # 3. Fallback to urllib
+    try:
+        urllib.request.urlretrieve(url, temp_path)
+        if os.path.exists(temp_path):
+            os.replace(temp_path, dest_path)
+            os.chmod(dest_path, 0o755)
+            return True
+    except Exception as e:
+        print(f"    Download error: {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return False
+
+    return False
+
+def ensure_wrapper(repo):
+    binary_name = "artcraft-launcher" if repo == "craft-launcher" else repo.lower()
+    wrapper_path = os.path.join(BIN_DIR, binary_name)
+    prefix = binary_name
+    script_content = f"""#!/usr/bin/env bash
+# Wrapper for {binary_name}
+APP=$(ls -v /home/walid/Applications/{prefix}-*-linux-x86_64.AppImage 2>/dev/null | tail -n1)
+if [[ -n "$APP" && -x "$APP" ]]; then
+    exec "$APP" "$@"
+else
+    echo "Error: {binary_name} AppImage not found in /home/walid/Applications" >&2
+    exit 1
+fi
+"""
+    if not os.path.exists(wrapper_path):
+        try:
+            with open(wrapper_path, "w") as f:
+                f.write(script_content)
+            os.chmod(wrapper_path, 0o755)
+            print(f"  Created wrapper: {wrapper_path}")
+        except Exception as e:
+            print(f"  Could not create wrapper {wrapper_path}: {e}")
+
+    # Also symlink craft-launcher if binary is artcraft-launcher
+    if repo == "craft-launcher":
+        cl_path = os.path.join(BIN_DIR, "craft-launcher")
+        if not os.path.exists(cl_path):
+            try:
+                os.symlink("artcraft-launcher", cl_path)
+            except Exception:
+                pass
+
+def clean_old_versions(repo, keep_version):
+    prefix = "artcraft-launcher" if repo == "craft-launcher" else repo.lower()
+    pattern = os.path.join(APPS_DIR, f"{prefix}-*-linux-x86_64.AppImage*")
+    for f in glob.glob(pattern):
+        bn = os.path.basename(f)
+        if f"-{keep_version}-" not in bn:
+            try:
+                os.remove(f)
+                print(f"  Cleaned up older file: {bn}")
+            except Exception as e:
+                print(f"  Failed to delete {bn}: {e}")
+
+def notify_user(title, message):
+    if shutil.which("notify-send"):
+        try:
+            subprocess.run(["notify-send", "-a", "craft-update", "-i", "applications-other", title, message], check=False)
+        except Exception:
+            pass
+
+def update_git_tools():
+    updated = []
+    # 1. indd-utils
+    if os.path.exists(INDD_DIR):
+        print("\n\033[1mChecking indd-utils (git)...\033[0m")
+        try:
+            old_rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=INDD_DIR, text=True).strip()
+            subprocess.run(["git", "pull", "--ff-only"], cwd=INDD_DIR, check=False)
+            new_rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=INDD_DIR, text=True).strip()
+            if old_rev != new_rev or not os.path.exists(os.path.join(BIN_DIR, "indd")):
+                print("  Building updated indd binary with cargo...")
+                res = subprocess.run(["cargo", "build", "--release"], cwd=INDD_DIR)
+                if res.returncode == 0:
+                    shutil.copy2(os.path.join(INDD_DIR, "target/release/indd"), os.path.join(BIN_DIR, "indd"))
+                    os.chmod(os.path.join(BIN_DIR, "indd"), 0o755)
+                    print("  \033[32mSuccessfully updated indd binary!\033[0m")
+                    updated.append("indd-utils")
+            else:
+                print("  indd-utils is already up to date.")
+        except Exception as e:
+            print(f"  Error updating indd-utils: {e}")
+
+    # 2. BIMCraft
+    if os.path.exists(BIMCRAFT_DIR):
+        print("\n\033[1mChecking BIMCraft (git)...\033[0m")
+        try:
+            old_rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=BIMCRAFT_DIR, text=True).strip()
+            subprocess.run(["git", "pull", "--ff-only"], cwd=BIMCRAFT_DIR, check=False)
+            new_rev = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=BIMCRAFT_DIR, text=True).strip()
+            inst_ver, _ = get_installed_version("bimcraft")
+            if old_rev != new_rev or not inst_ver:
+                print("  Building updated BIMCraft AppImage...")
+                env = os.environ.copy()
+                env["DIST"] = APPS_DIR
+                cmd = [os.path.join(BIMCRAFT_DIR, "packaging/linux/package.sh"), "--formats", "appimage"]
+                res = subprocess.run(cmd, cwd=BIMCRAFT_DIR, env=env)
+                if res.returncode == 0:
+                    cli_src = os.path.join(BIMCRAFT_DIR, "target/release/bimcraft-cli")
+                    if os.path.exists(cli_src):
+                        shutil.copy2(cli_src, os.path.join(BIN_DIR, "bimcraft-cli"))
+                        os.chmod(os.path.join(BIN_DIR, "bimcraft-cli"), 0o755)
+                    ensure_wrapper("bimcraft")
+                    new_ver, _ = get_installed_version("bimcraft")
+                    if new_ver:
+                        clean_old_versions("bimcraft", new_ver)
+                    print(f"  \033[32mSuccessfully updated BIMCraft!\033[0m")
+                    updated.append("BIMCraft")
+            else:
+                print("  BIMCraft is already up to date.")
+        except Exception as e:
+            print(f"  Error updating BIMCraft: {e}")
+
+    return updated
+
+def cmd_status(force_refresh=False):
+    cache = load_cache()
+    print("\033[1;36m=== ArtCraft Suite: Release Status ===\033[0m\n")
+    print(f"{'Application':<20} {'Installed':<12} {'Latest':<12} {'Status':<15}")
+    print("-" * 65)
+    for item in REPOS:
+        repo = item[0]
+        desc = item[1]
+        gh_repo = item[2] if len(item) > 2 else f"storytold/{repo}"
+        inst_ver, _ = get_installed_version(repo)
+        rel = fetch_latest_release(repo, cache, force_refresh, gh_repo=gh_repo)
+
+        # For BIMCraft, if installed via git and ahead of GitHub release
+        if repo.lower() == "bimcraft" and os.path.exists(BIMCRAFT_DIR):
+            try:
+                short_rev = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=BIMCRAFT_DIR, text=True).strip()
+                latest_str = f"git:{short_rev}"
+            except Exception:
+                latest_str = inst_ver if inst_ver else "N/A"
+            status = "\033[32mUp to date ✓\033[0m"
+        elif "error" in rel:
+            status = f"\033[33m{rel['error'][:20]}\033[0m"
+            latest_str = "None"
+        else:
+            latest_str = rel.get("tag", "N/A")
+            if not inst_ver:
+                status = "\033[33mNot installed\033[0m"
+            elif parse_semver(inst_ver) >= parse_semver(latest_str):
+                status = "\033[32mUp to date ✓\033[0m"
+            else:
+                status = f"\033[1;33mUpdate available\033[0m"
+        inst_str = inst_ver if inst_ver else "None"
+        print(f"{repo:<20} {inst_str:<12} {latest_str:<12} {status}")
+
+    # Indd-utils status
+    if os.path.exists(INDD_DIR):
+        try:
+            short_rev = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=INDD_DIR, text=True).strip()
+            print(f"{'indd-utils':<20} {short_rev:<12} {'git:main':<12} \033[32mUp to date ✓\033[0m")
+        except Exception:
+            pass
+
+    save_cache(cache)
+    print("\nCommands:")
+    print("  \033[1mcraft-update changelog <app>\033[0m  View release notes")
+    print("  \033[1mcraft-update update [app]\033[0m     Update one or all installed apps")
+    print("  \033[1mcraft-update install <app>\033[0m    Install a new Craft app")
+    print("  \033[1mcraft-update clean\033[0m            Remove old AppImage versions")
+    print("  \033[1mcraft-update gui\033[0m              Launch ArtCraft Launcher")
+
+def cmd_changelog(app_name):
+    cache = load_cache()
+    found_repo = None
+    gh_repo = None
+    for item in REPOS:
+        if item[0].lower() == app_name.lower():
+            found_repo = item[0]
+            gh_repo = item[2] if len(item) > 2 else f"storytold/{found_repo}"
+            break
+    if not found_repo:
+        print(f"Unknown application: {app_name}")
+        return
+    print(f"Fetching release notes for {found_repo} ({gh_repo})...")
+    rel = fetch_latest_release(found_repo, cache, force_refresh=True, gh_repo=gh_repo)
+    save_cache(cache)
+    if "error" in rel:
+        print(f"Error fetching release: {rel['error']}")
+        return
+    print(f"\n\033[1;32m{found_repo} v{rel['tag']}\033[0m")
+    print(f"URL: {rel['html_url']}\n")
+    print("-" * 60)
+    print(rel.get("body", "No release notes provided."))
+    print("-" * 60)
+
+def cmd_update(target_app=None, force=False, notify=False, allow_install=False):
+    cache = load_cache()
+    to_update = []
+    check_git = False
+
+    if target_app and target_app.lower() in ("indd", "indd-utils"):
+        git_updates = update_git_tools()
+        if git_updates and notify:
+            notify_user("Craft Suite Updated", "Updated indd-utils")
+        return
+
+    if target_app and target_app.lower() == "bimcraft" and os.path.exists(BIMCRAFT_DIR):
+        git_updates = update_git_tools()
+        if git_updates and notify:
+            notify_user("Craft Suite Updated", "Updated BIMCraft")
+        return
+
+    if target_app and target_app != "all":
+        found = False
+        for item in REPOS:
+            repo = item[0]
+            if repo.lower() == target_app.lower():
+                to_update.append(item)
+                found = True
+                break
+        if not found:
+            print(f"Unknown application: {target_app}")
+            return
+    else:
+        check_git = True
+        for item in REPOS:
+            repo = item[0]
+            inst_ver, _ = get_installed_version(repo)
+            if inst_ver or allow_install:
+                to_update.append(item)
+
+    updated_count = 0
+    updated_names = []
+
+    for item in to_update:
+        repo = item[0]
+        gh_repo = item[2] if len(item) > 2 else f"storytold/{repo}"
+        inst_ver, inst_file = get_installed_version(repo)
+        print(f"\n\033[1mChecking {repo}...\033[0m")
+        rel = fetch_latest_release(repo, cache, force_refresh=force, gh_repo=gh_repo)
+        if "error" in rel:
+            print(f"  {rel['error']}")
+            continue
+        latest_ver = rel["tag"]
+
+        # If repo is managed via git (like BIMCraft), defer to git check
+        if repo.lower() == "bimcraft" and os.path.exists(BIMCRAFT_DIR):
+            continue
+
+        if inst_ver and parse_semver(inst_ver) >= parse_semver(latest_ver):
+            print(f"  {repo} is already at latest version (v{latest_ver}).")
+            continue
+
+        if not inst_ver and not allow_install and target_app != repo:
+            print(f"  {repo} is not installed (run `craft-update install {repo}` to install).")
+            continue
+
+        app_info = rel.get("appimage")
+        if not app_info:
+            print(f"  No Linux x86_64 AppImage found for release v{latest_ver}.")
+            continue
+
+        new_filename = app_info["name"]
+        download_url = app_info["browser_download_url"]
+
+        verb = "Installing" if not inst_ver else f"Updating (v{inst_ver} -> v{latest_ver})"
+        print(f"  {verb}...")
+        success = fast_download(download_url, APPS_DIR, new_filename)
+        if success:
+            ensure_wrapper(repo)
+            clean_old_versions(repo, latest_ver)
+            print(f"  \033[32mSuccessfully updated {repo} to v{latest_ver}!\033[0m")
+            updated_count += 1
+            updated_names.append(f"{repo} (v{latest_ver})")
+        else:
+            print(f"  \033[31mFailed to download {repo} v{latest_ver}.\033[0m")
+
+    if check_git:
+        git_updated = update_git_tools()
+        updated_count += len(git_updated)
+        updated_names.extend(git_updated)
+
+    save_cache(cache)
+
+    if updated_count > 0 and notify:
+        summary = ", ".join(updated_names)
+        notify_user("Craft Suite Updated", f"Updated {updated_count} app(s):\n{summary}")
+
+def cmd_clean():
+    print("Scanning for older versions to clean up...")
+    for item in REPOS:
+        repo = item[0]
+        inst_ver, _ = get_installed_version(repo)
+        if inst_ver:
+            clean_old_versions(repo, inst_ver)
+    print("Done cleaning.")
+
+def print_help():
+    print("""craft-update: Manage ArtCraft / Crafting Apps updates
+
+Usage:
+  craft-update status            Check version status of all apps
+  craft-update changelog <app>   Display the latest release notes for an app
+  craft-update update [app|all]  Update one or all installed apps
+  craft-update install <app>     Install a new Craft app (e.g. figcraft)
+  craft-update clean             Remove older AppImage versions and zsync artifacts
+  craft-update gui               Launch the ArtCraft Launcher GUI
+""")
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
+        print_help()
+        return
+    action = sys.argv[1].lower()
+    notify = "--notify" in sys.argv
+    force = "--force" in sys.argv
+
+    if action in ("status", "check", "list"):
+        cmd_status(force)
+    elif action in ("changelog", "notes", "log"):
+        if len(sys.argv) < 3:
+            print("Usage: craft-update changelog <app-name>")
+            sys.exit(1)
+        cmd_changelog(sys.argv[2])
+    elif action in ("update", "upgrade"):
+        target = "all"
+        for arg in sys.argv[2:]:
+            if not arg.startswith("-"):
+                target = arg
+                break
+        cmd_update(target_app=target, force=force, notify=notify, allow_install=False)
+    elif action in ("install", "add"):
+        if len(sys.argv) < 3:
+            print("Usage: craft-update install <app-name>")
+            sys.exit(1)
+        target = sys.argv[2]
+        cmd_update(target_app=target, force=True, notify=notify, allow_install=True)
+    elif action == "clean":
+        cmd_clean()
+    elif action == "gui":
+        subprocess.run(["artcraft-launcher"])
+    else:
+        print(f"Unknown command: {action}")
+        print_help()
+
+if __name__ == "__main__":
+    main()
