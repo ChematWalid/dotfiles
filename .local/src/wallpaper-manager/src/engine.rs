@@ -137,6 +137,53 @@ pub fn switch_next(notify: bool) -> Result<PathBuf, String> {
     Ok(picked)
 }
 
+pub fn set_specific_wallpaper(path: &Path, notify: bool) -> Result<(), String> {
+    if !path.is_file() {
+        return Err(format!("Wallpaper file does not exist: {}", path.display()));
+    }
+
+    let is_image = scanner::is_supported_image(path);
+    if !is_image {
+        return Err(format!(
+            "File is not a supported image format (.jpg, .png, .jpeg, .webp): {}",
+            path.display()
+        ));
+    }
+
+    if !scanner::is_valid_image_magic(path) {
+        return Err(format!(
+            "File does not contain valid image header/magic bytes: {}",
+            path.display()
+        ));
+    }
+
+    apply_wallpaper(path)?;
+
+    if notify {
+        notify_rotation_daemon();
+    }
+
+    Ok(())
+}
+
+pub fn switch_prev(notify: bool) -> Result<PathBuf, String> {
+    let prev = config::pop_previous_wallpaper()
+        .ok_or_else(|| "No previous wallpaper available in history".to_string())?;
+
+    apply_wallpaper(&prev)?;
+
+    if notify {
+        notify_rotation_daemon();
+    }
+
+    Ok(prev)
+}
+
+pub fn list_wallpapers() -> Vec<PathBuf> {
+    let wall_dir = config::get_configured_wallpaper_dir();
+    scanner::scan_wallpapers(&wall_dir, 3)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

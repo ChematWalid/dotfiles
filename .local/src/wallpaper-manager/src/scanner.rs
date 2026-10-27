@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 const SUPPORTED_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp"];
@@ -9,6 +10,36 @@ pub fn is_supported_image(path: &Path) -> bool {
         let ext_lower = ext.to_ascii_lowercase();
         return SUPPORTED_EXTENSIONS.iter().any(|&e| e == ext_lower);
     }
+    false
+}
+
+pub fn is_valid_image_magic(path: &Path) -> bool {
+    let mut file = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut header = [0u8; 12];
+    let n = match file.read(&mut header) {
+        Ok(n) => n,
+        Err(_) => return false,
+    };
+    if n < 3 {
+        return false;
+    }
+
+    // JPEG: FF D8 FF
+    if header.starts_with(&[0xff, 0xd8, 0xff]) {
+        return true;
+    }
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if n >= 8 && header.starts_with(&[0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) {
+        return true;
+    }
+    // WEBP: RIFF....WEBP
+    if n >= 12 && &header[0..4] == b"RIFF" && &header[8..12] == b"WEBP" {
+        return true;
+    }
+
     false
 }
 
@@ -82,6 +113,30 @@ mod tests {
         assert!(!is_supported_image(Path::new("test.txt")));
         assert!(!is_supported_image(Path::new("test.sh")));
         assert!(!is_supported_image(Path::new("test")));
+    }
+
+    #[test]
+    fn test_magic_bytes_detection() {
+        let temp_dir = std::env::temp_dir().join(format!("wp_magic_test_{}", std::process::id()));
+        let _ = fs::create_dir_all(&temp_dir);
+
+        let png_file = temp_dir.join("valid.png");
+        let _ = fs::write(&png_file, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+        assert!(is_valid_image_magic(&png_file));
+
+        let jpg_file = temp_dir.join("valid.jpg");
+        let _ = fs::write(&jpg_file, [0xff, 0xd8, 0xff, 0xe0, 0x00]);
+        assert!(is_valid_image_magic(&jpg_file));
+
+        let fake_file = temp_dir.join("fake.png");
+        let _ = fs::write(&fake_file, "this is not an image");
+        assert!(!is_valid_image_magic(&fake_file));
+
+        let empty_file = temp_dir.join("empty.png");
+        let _ = fs::write(&empty_file, "");
+        assert!(!is_valid_image_magic(&empty_file));
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 
     #[test]

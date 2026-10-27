@@ -4,34 +4,63 @@ mod engine;
 mod scanner;
 
 use std::env;
+use std::io::{self, Write};
 use std::process;
 
 fn print_usage() {
-    println!("wallpaper-manager — Fast, native C++/Rust wallpaper manager and rotation daemon");
-    println!();
-    println!("Usage:");
-    println!("  wallpaper-manager daemon          Run the 30-minute rotation daemon");
-    println!("  wallpaper-manager next            Pick a new random wallpaper and reset rotation timer");
-    println!("  wallpaper-manager current         Show current wallpaper path");
-    println!("  wallpaper-manager dir [PATH]      View or change wallpaper directory");
-    println!("  wallpaper-manager dir reset       Reset to default Catppuccin Mocha collection");
-    println!("  wallpaper-manager -h, --help      Show this help message");
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+    let lines = [
+        "wallpaper-manager — Fast, native C++/Rust wallpaper manager and rotation daemon",
+        "",
+        "Usage:",
+        "  wallpaper-manager daemon          Run the 30-minute rotation daemon",
+        "  wallpaper-manager next            Pick a new random wallpaper and reset rotation timer",
+        "  wallpaper-manager prev            Return to the previously displayed wallpaper",
+        "  wallpaper-manager set <PATH>      Set a specific image as wallpaper",
+        "  wallpaper-manager list            List all wallpapers in current collection",
+        "  wallpaper-manager current         Show current wallpaper path",
+        "  wallpaper-manager dir [PATH]      View or change wallpaper directory",
+        "  wallpaper-manager dir reset       Reset to default Catppuccin Mocha collection",
+        "  wallpaper-manager -h, --help      Show this help message",
+    ];
+    for line in lines {
+        if let Err(e) = writeln!(handle, "{line}") {
+            if e.kind() == io::ErrorKind::BrokenPipe {
+                return;
+            }
+        }
+    }
 }
 
 fn handle_dir(args: &[String]) {
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
     if args.is_empty() {
         let current_dir = config::get_configured_wallpaper_dir();
         let walls = scanner::scan_wallpapers(&current_dir, 3);
-        println!("🌄 Current wallpaper directory:");
-        println!("   {}", current_dir.display());
-        println!(
+        let current_dir_line = format!("   {}", current_dir.display());
+        let count_line = format!(
             "   Found {} wallpapers (searching 3 folders deep)",
             walls.len()
         );
-        println!();
-        println!("Usage:");
-        println!("   wallpaper-manager dir <path/to/folder>   — Switch to a new wallpaper folder");
-        println!("   wallpaper-manager dir reset              — Reset to default Catppuccin collection");
+        let lines: [&str; 7] = [
+            "🌄 Current wallpaper directory:",
+            &current_dir_line,
+            &count_line,
+            "",
+            "Usage:",
+            "   wallpaper-manager dir <path/to/folder>   — Switch to a new wallpaper folder",
+            "   wallpaper-manager dir reset              — Reset to default Catppuccin collection",
+        ];
+        for line in lines {
+            if let Err(e) = writeln!(handle, "{line}") {
+                if e.kind() == io::ErrorKind::BrokenPipe {
+                    return;
+                }
+            }
+        }
         return;
     }
 
@@ -48,7 +77,6 @@ fn handle_dir(args: &[String]) {
     }
     let target = target.canonicalize().unwrap_or(target);
 
-
     let walls = scanner::scan_wallpapers(&target, 3);
     if walls.is_empty() {
         eprintln!(
@@ -64,9 +92,9 @@ fn handle_dir(args: &[String]) {
         process::exit(1);
     }
 
-    println!("✅ Wallpaper directory updated to: {}", target.display());
-    println!("   Found {} wallpapers.", walls.len());
-    println!("   Switching wallpaper now...");
+    let _ = writeln!(handle, "✅ Wallpaper directory updated to: {}", target.display());
+    let _ = writeln!(handle, "   Found {} wallpapers.", walls.len());
+    let _ = writeln!(handle, "   Switching wallpaper now...");
 
     if let Err(e) = engine::switch_next(true) {
         eprintln!("❌ Error switching wallpaper: {}", e);
@@ -91,15 +119,70 @@ fn main() {
         }
         "next" => match engine::switch_next(true) {
             Ok(path) => {
-                println!("Switched to: {}", path.display());
+                let stdout = io::stdout();
+                let mut handle = stdout.lock();
+                let _ = writeln!(handle, "Switched to: {}", path.display());
             }
             Err(e) => {
                 eprintln!("Error: {}", e);
                 process::exit(1);
             }
         },
+        "prev" | "previous" => match engine::switch_prev(true) {
+            Ok(path) => {
+                let stdout = io::stdout();
+                let mut handle = stdout.lock();
+                let _ = writeln!(handle, "Switched to previous: {}", path.display());
+            }
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                process::exit(1);
+            }
+        },
+        "set" => {
+            if args.len() < 2 {
+                eprintln!("Usage: wallpaper-manager set <PATH>");
+                process::exit(2);
+            }
+            let target = config::expand_path(&args[1]);
+            match engine::set_specific_wallpaper(&target, true) {
+                Ok(()) => {
+                    let stdout = io::stdout();
+                    let mut handle = stdout.lock();
+                    let _ = writeln!(handle, "✅ Wallpaper set to: {}", target.display());
+                }
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    process::exit(1);
+                }
+            }
+        }
+        "list" => {
+            let walls = engine::list_wallpapers();
+            let current = config::get_current_wallpaper();
+            let wall_dir = config::get_configured_wallpaper_dir();
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            if let Err(e) = writeln!(handle, "📁 Wallpapers in {} ({} total):", wall_dir.display(), walls.len()) {
+                if e.kind() == io::ErrorKind::BrokenPipe {
+                    return;
+                }
+            }
+            for (i, w) in walls.iter().enumerate() {
+                let mark = if current.as_ref() == Some(w) { " [*active*]" } else { "" };
+                if let Err(e) = writeln!(handle, "  {:2}. {}{}", i + 1, w.display(), mark) {
+                    if e.kind() == io::ErrorKind::BrokenPipe {
+                        break;
+                    }
+                }
+            }
+        }
         "current" => match config::get_current_wallpaper() {
-            Some(path) => println!("{}", path.display()),
+            Some(path) => {
+                let stdout = io::stdout();
+                let mut handle = stdout.lock();
+                let _ = writeln!(handle, "{}", path.display());
+            }
             None => {
                 eprintln!("No wallpaper currently set.");
                 process::exit(1);
@@ -112,8 +195,11 @@ fn main() {
             print_usage();
         }
         other => {
-            eprintln!("Unknown command: '{}'", other);
-            println!();
+            eprintln!("Unknown command: '{other}'");
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            let _ = writeln!(handle);
+            drop(handle);
             print_usage();
             process::exit(1);
         }
